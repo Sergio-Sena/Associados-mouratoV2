@@ -27,3 +27,6 @@ dist-ssr
 *.sw?
 *.pdf
 Contrato.pdf
+
+# Screenshots
+scripts/screenshots/
