@@ -24,7 +24,7 @@ export const GovernanceCompliance = () => {
   ];
 
   const [headerRef, headerInView] = useInView();
-  const [gridRef, gridInView] = useInView();
+  const [gridRef, gridInView] = useInView({ threshold: 0 });
 
   return (
     <section id="governanca" style={{ padding: '5rem 0', borderBottom: '1px solid var(--border-subtle)' }}>

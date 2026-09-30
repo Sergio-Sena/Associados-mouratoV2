@@ -5,7 +5,7 @@ import { useInView } from '../hooks/useInView';
 
 export const SpreadVsConsultoriaSpectrum = ({ onNavigateToSimulator, onOpenContact }) => {
   const [activeTab, setActiveTab] = useState('synergy');
-  const [headerRef, headerInView] = useInView();
+  const [headerRef, headerInView] = useInView({ threshold: 0 });
 
   return (
     <section id="espectro" style={{ padding: '5rem 0', borderBottom: '1px solid var(--border-subtle)' }}>

@@ -5,7 +5,7 @@ import { useInView } from '../hooks/useInView';
 
 export const ConsultingModule = ({ onOpenContact }) => {
   const [headerRef, headerInView] = useInView();
-  const [gridRef, gridInView] = useInView();
+  const [gridRef, gridInView] = useInView({ threshold: 0 });
 
   return (
     <section id="consultoria" style={{ padding: '5rem 0', borderBottom: '1px solid var(--border-subtle)' }}>
@@ -27,7 +27,7 @@ export const ConsultingModule = ({ onOpenContact }) => {
         {/* 4 Capabilities Grid */}
         <div ref={gridRef} className="grid-2" style={{ gap: '1.75rem', marginBottom: '3rem' }}>
           {ADVISORY_PRACTICES.consultoria.capabilities.map((cap, idx) => (
-            <div key={idx} className={`advisory-card fade-up fade-up-delay-${idx % 3}${gridInView ? ' in-view' : ''}`}>
+            <div key={idx} className={`advisory-card fade-up fade-up-delay-${idx}${gridInView ? ' in-view' : ''}`}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                 <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--gold-light)', fontWeight: 700 }}>
                   Prática Consultiva
