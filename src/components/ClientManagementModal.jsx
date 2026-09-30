@@ -35,7 +35,8 @@ import {
   CalendarPlus, 
   BadgePercent, 
   SlidersHorizontal,
-  Sparkles
+  Sparkles,
+  Menu
 } from 'lucide-react';
 
 const STORAGE_CLIENTS_KEY = 'mourato_clients_records_v2';
@@ -49,11 +50,8 @@ export const ClientManagementModal = ({ isOpen, onClose }) => {
   const [authForm, setAuthForm] = useState({ user: '', password: '' });
   const [authError, setAuthError] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Active view inside Executive Dashboard:
-  // 'clients_list' (Consulta Clientes), 'clients_new' (Cadastro Clientes),
-  // 'appointments' (Novos Agendamentos), 'expenses' (Despesas Empresa),
-  // 'receivables' (Recebíveis Mercado Pago), 'settings' (Configurações)
   const [activeView, setActiveView] = useState('leads');
   const [leads, setLeads] = useState([]);
   const [leadsLoading, setLeadsLoading] = useState(false);
@@ -699,6 +697,18 @@ export const ClientManagementModal = ({ isOpen, onClose }) => {
       color: '#F8FAFC'
     }}>
 
+      {/* Overlay mobile para fechar sidebar */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+            zIndex: 9, display: 'none'
+          }}
+          className="sidebar-overlay"
+        />
+      )}
+
       {/* ------------------------------------------ */}
       {/* 1. LATERAL SIDEBAR MENU                    */}
       {/* ------------------------------------------ */}
@@ -712,8 +722,10 @@ export const ClientManagementModal = ({ isOpen, onClose }) => {
         justifyContent: 'space-between',
         padding: '1.5rem 1rem',
         boxShadow: '4px 0 24px rgba(0, 0, 0, 0.5)',
-        zIndex: 10
-      }}>
+        zIndex: 10,
+        position: 'relative',
+        transition: 'transform 0.3s cubic-bezier(0.16,1,0.3,1)',
+      }} className={`admin-sidebar${sidebarOpen ? ' admin-sidebar-open' : ''}`}>
         
         {/* Brand & Monogram */}
         <div>
@@ -755,7 +767,7 @@ export const ClientManagementModal = ({ isOpen, onClose }) => {
             
             {/* 0. Leads / Solicitações */}
             <button
-              onClick={() => { setActiveView('leads'); setSelectedClient(null); }}
+              onClick={() => { setActiveView('leads'); setSelectedClient(null); setSidebarOpen(false); }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -788,7 +800,7 @@ export const ClientManagementModal = ({ isOpen, onClose }) => {
 
             {/* 1. Consulta Clientes Cadastrados */}
             <button
-              onClick={() => { setActiveView('clients_list'); setSelectedClient(null); }}
+              onClick={() => { setActiveView('clients_list'); setSelectedClient(null); setSidebarOpen(false); }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -823,7 +835,7 @@ export const ClientManagementModal = ({ isOpen, onClose }) => {
 
             {/* 2. Cadastro de Clientes */}
             <button
-              onClick={() => { setActiveView('clients_new'); setSelectedClient(null); }}
+              onClick={() => { setActiveView('clients_new'); setSelectedClient(null); setSidebarOpen(false); }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -846,7 +858,7 @@ export const ClientManagementModal = ({ isOpen, onClose }) => {
 
             {/* 3. Novos Agendamentos */}
             <button
-              onClick={() => { setActiveView('appointments'); setSelectedClient(null); }}
+              onClick={() => { setActiveView('appointments'); setSelectedClient(null); setSidebarOpen(false); }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -883,7 +895,7 @@ export const ClientManagementModal = ({ isOpen, onClose }) => {
 
             {/* 4. Despesas da Empresa */}
             <button
-              onClick={() => { setActiveView('expenses'); setSelectedClient(null); }}
+              onClick={() => { setActiveView('expenses'); setSelectedClient(null); setSidebarOpen(false); }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -920,7 +932,7 @@ export const ClientManagementModal = ({ isOpen, onClose }) => {
 
             {/* 5. Recebíveis (Mercado Pago) */}
             <button
-              onClick={() => { setActiveView('receivables'); setSelectedClient(null); }}
+              onClick={() => { setActiveView('receivables'); setSelectedClient(null); setSidebarOpen(false); }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -943,7 +955,7 @@ export const ClientManagementModal = ({ isOpen, onClose }) => {
 
             {/* 6. Configurações */}
             <button
-              onClick={() => { setActiveView('settings'); setSelectedClient(null); }}
+              onClick={() => { setActiveView('settings'); setSelectedClient(null); setSidebarOpen(false); }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -1025,14 +1037,30 @@ export const ClientManagementModal = ({ isOpen, onClose }) => {
           flexShrink: 0
         }}>
           <div>
-            <h1 style={{ fontSize: '1.15rem', color: '#FFFFFF', margin: 0, fontWeight: 700 }}>
-              {activeView === 'clients_list' && 'Consulta de Clientes Cadastrados'}
-              {activeView === 'clients_new' && 'Cadastro de Novo Cliente'}
-              {activeView === 'appointments' && 'Novos Agendamentos & Audiências'}
-              {activeView === 'expenses' && 'Gestão de Despesas da Empresa'}
-              {activeView === 'receivables' && 'Gestão de Recebíveis & Mercado Pago'}
-              {activeView === 'settings' && 'Configurações do Painel & API'}
-            </h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <button
+                onClick={() => setSidebarOpen(v => !v)}
+                className="admin-menu-btn"
+                aria-label="Menu"
+                style={{
+                  display: 'none', background: 'none',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 'var(--radius-xs)', color: '#CBD5E1',
+                  cursor: 'pointer', padding: '0.4rem', alignItems: 'center', justifyContent: 'center'
+                }}
+              >
+                <Menu size={18} />
+              </button>
+              <h1 style={{ fontSize: '1.15rem', color: '#FFFFFF', margin: 0, fontWeight: 700 }}>
+                {activeView === 'leads' && 'Leads & Solicitações'}
+                {activeView === 'clients_list' && 'Consulta de Clientes Cadastrados'}
+                {activeView === 'clients_new' && 'Cadastro de Novo Cliente'}
+                {activeView === 'appointments' && 'Novos Agendamentos & Audiências'}
+                {activeView === 'expenses' && 'Gestão de Despesas da Empresa'}
+                {activeView === 'receivables' && 'Gestão de Recebíveis & Mercado Pago'}
+                {activeView === 'settings' && 'Configurações do Painel & API'}
+              </h1>
+            </div>
             <p style={{ fontSize: '0.74rem', color: '#94A3B8', margin: '2px 0 0' }}>
               {activeView === 'leads' && 'Solicitações do formulário público — gerencie, aprove ou remova.'}
               {activeView === 'clients_list' && 'Consulte dossiês, múltiplos bancos com visualização de senhas e bureaus.'}

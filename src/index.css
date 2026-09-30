@@ -347,6 +347,21 @@ p {
   .fade-up { opacity: 1; transform: none; transition: none; }
 }
 
+/* Admin panel mobile */
+@media (max-width: 768px) {
+  .admin-sidebar {
+    position: fixed !important;
+    top: 0; left: 0; height: 100%;
+    transform: translateX(-100%);
+    z-index: 20 !important;
+  }
+  .admin-sidebar.admin-sidebar-open {
+    transform: translateX(0);
+  }
+  .admin-menu-btn { display: flex !important; }
+  .sidebar-overlay { display: block !important; }
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;

@@ -1,11 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { ArrowUpRight, TrendingDown } from 'lucide-react';
+import { useInView } from '../hooks/useInView';
 
 export const InteractiveSimulator = ({ onOpenContact }) => {
   const [volume, setVolume] = useState(4000000);
   const [bankSpread, setBankSpread] = useState(6.5);
   const [mouratoSpread, setMouratoSpread] = useState(2.5);
   const [tenor, setTenor] = useState(24);
+  const [headerRef, headerInView] = useInView();
+  const [gridRef, gridInView] = useInView();
 
   const results = useMemo(() => {
     const delta = Math.max(0, bankSpread - mouratoSpread);
@@ -31,7 +34,7 @@ export const InteractiveSimulator = ({ onOpenContact }) => {
       <div className="container-xl">
         
         {/* Header */}
-        <div style={{ textAlign: 'center', maxWidth: '780px', margin: '0 auto 3rem' }}>
+        <div ref={headerRef} className={`fade-up${headerInView ? ' in-view' : ''}`} style={{ textAlign: 'center', maxWidth: '780px', margin: '0 auto 3rem' }}>
           <span className="badge-institutional" style={{ marginBottom: '0.8rem' }}>
             MODELAGEM FINANCEIRA PRELIMINAR
           </span>
@@ -44,7 +47,7 @@ export const InteractiveSimulator = ({ onOpenContact }) => {
         </div>
 
         {/* 2 Column Box */}
-        <div className="grid-2" style={{ gap: '2rem', alignItems: 'stretch' }}>
+        <div ref={gridRef} className={`grid-2 fade-up${gridInView ? ' in-view' : ''}`} style={{ gap: '2rem', alignItems: 'stretch' }}>
           
           {/* Controls */}
           <div className="advisory-card">

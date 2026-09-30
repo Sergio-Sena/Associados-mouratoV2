@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import { ArrowRight, Check } from 'lucide-react';
 import { ADVISORY_PRACTICES } from '../data/modulesData';
+import { useInView } from '../hooks/useInView';
 
 export const SpreadVsConsultoriaSpectrum = ({ onNavigateToSimulator, onOpenContact }) => {
   const [activeTab, setActiveTab] = useState('synergy');
+  const [headerRef, headerInView] = useInView();
 
   return (
     <section id="espectro" style={{ padding: '5rem 0', borderBottom: '1px solid var(--border-subtle)' }}>
       <div className="container-xl">
         
         {/* Header */}
-        <div style={{ textAlign: 'center', maxWidth: '820px', margin: '0 auto 3rem' }}>
+        <div ref={headerRef} className={`fade-up${headerInView ? ' in-view' : ''}`} style={{ textAlign: 'center', maxWidth: '820px', margin: '0 auto 3rem' }}>
           <span className="badge-institutional" style={{ marginBottom: '0.8rem' }}>
             ESPECTRO DE ATUAÇÃO ESTRATÉGICA
           </span>
