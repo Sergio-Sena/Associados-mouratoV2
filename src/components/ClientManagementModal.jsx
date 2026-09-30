@@ -545,6 +545,8 @@ export const ClientManagementModal = ({ isOpen, onClose }) => {
             <img 
               src="/mourato-seal-circle.png" 
               alt="Mourato & Associados" 
+              width="76"
+              height="76"
               style={{ 
                 height: '76px', 
                 width: '76px', 
@@ -733,6 +735,8 @@ export const ClientManagementModal = ({ isOpen, onClose }) => {
             <img 
               src="/mourato-seal-circle.png" 
               alt="Mourato & Associados" 
+              width="44"
+              height="44"
               style={{ 
                 height: '44px', 
                 width: '44px', 

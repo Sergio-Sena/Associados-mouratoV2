@@ -18,7 +18,9 @@ export const Footer = ({ onNavigate, onOpenContact }) => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
               <img 
                 src="/mourato-seal-circle.png" 
-                alt="Mourato & Associados" 
+                alt="Mourato & Associados"
+                width="62"
+                height="62"
                 style={{ 
                   height: '62px', 
                   width: '62px', 

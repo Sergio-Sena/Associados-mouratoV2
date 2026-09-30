@@ -47,7 +47,7 @@ export const InteractiveSimulator = ({ onOpenContact }) => {
         </div>
 
         {/* 2 Column Box */}
-        <div ref={gridRef} className={`grid-2 fade-up${gridInView ? ' in-view' : ''}`} style={{ gap: '2rem', alignItems: 'stretch' }}>
+        <div ref={gridRef} className={`fade-up${gridInView ? ' in-view' : ''}`} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))', gap: '2rem', alignItems: 'stretch' }}>
           
           {/* Controls */}
           <div className="advisory-card">

@@ -71,6 +71,8 @@ export const Header = ({ onNavigate, onOpenContact, onOpenLogin }) => {
               src="/mourato-seal-circle.png"
               alt="Mourato & Associados"
               loading="lazy"
+              width="54"
+              height="54"
               style={{
                 height: '54px',
                 width: '54px',

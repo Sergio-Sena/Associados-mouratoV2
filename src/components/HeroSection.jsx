@@ -27,6 +27,8 @@ export const HeroSection = ({ onNavigate, onOpenContact }) => {
               src="/mourato-seal-circle.png"
               alt="Selo Oficial Mourato & Associados"
               loading="lazy"
+              width="220"
+              height="220"
               style={{
                 height: 'clamp(110px, 14vw, 220px)', width: 'auto', objectFit: 'contain',
                 position: 'relative', zIndex: 1, borderRadius: '50%',

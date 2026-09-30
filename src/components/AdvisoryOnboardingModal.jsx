@@ -38,8 +38,14 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
 
   if (!visible && !isOpen) return null;
 
+  const phoneValid = (v) => v.replace(/\D/g, '').length >= 10;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!phoneValid(formData.telefone)) {
+      alert('Informe um WhatsApp válido com DDD (mínimo 10 dígitos).');
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/leads`, {
