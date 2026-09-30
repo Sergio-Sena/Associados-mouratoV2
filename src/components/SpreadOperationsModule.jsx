@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowUpRight, TrendingUp, Landmark, Banknote, Repeat } from 'lucide-react';
+import { useInView } from '../hooks/useInView';
 
 export const SpreadOperationsModule = ({ onOpenContact }) => {
   const operations = [
@@ -29,12 +30,15 @@ export const SpreadOperationsModule = ({ onOpenContact }) => {
     }
   ];
 
+  const [headerRef, headerInView] = useInView();
+  const [gridRef, gridInView] = useInView();
+
   return (
     <section id="spread" style={{ padding: '5rem 0', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)' }}>
       <div className="container-xl">
         
         {/* Header */}
-        <div style={{ maxWidth: '800px', marginBottom: '3.5rem' }}>
+        <div ref={headerRef} className={`fade-up${headerInView ? ' in-view' : ''}`} style={{ maxWidth: '800px', marginBottom: '3.5rem' }}>
           <span className="badge-institutional" style={{ marginBottom: '0.8rem' }}>
             PRÁTICA I • MERCADO DE CAPITAIS
           </span>
@@ -47,9 +51,9 @@ export const SpreadOperationsModule = ({ onOpenContact }) => {
         </div>
 
         {/* 4 Cards Grid */}
-        <div className="grid-2" style={{ gap: '1.75rem', marginBottom: '3rem' }}>
+        <div ref={gridRef} className="grid-2" style={{ gap: '1.75rem', marginBottom: '3rem' }}>
           {operations.map((op, idx) => (
-            <div key={idx} className="advisory-card">
+            <div key={idx} className={`advisory-card fade-up fade-up-delay-${idx % 3}${gridInView ? ' in-view' : ''}`}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                 <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--gold-light)', fontWeight: 700 }}>
                   {op.tag}

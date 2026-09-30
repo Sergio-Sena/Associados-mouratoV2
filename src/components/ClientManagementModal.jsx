@@ -54,7 +54,41 @@ export const ClientManagementModal = ({ isOpen, onClose }) => {
   // 'clients_list' (Consulta Clientes), 'clients_new' (Cadastro Clientes),
   // 'appointments' (Novos Agendamentos), 'expenses' (Despesas Empresa),
   // 'receivables' (Recebíveis Mercado Pago), 'settings' (Configurações)
-  const [activeView, setActiveView] = useState('clients_list');
+  const [activeView, setActiveView] = useState('leads');
+  const [leads, setLeads] = useState([]);
+  const [leadsLoading, setLeadsLoading] = useState(false);
+
+  const fetchLeads = async () => {
+    setLeadsLoading(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/leads`, {
+        headers: { 'x-admin-password': import.meta.env.VITE_ADMIN_PASSWORD }
+      });
+      if (res.ok) setLeads(await res.json());
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLeadsLoading(false);
+    }
+  };
+
+  const handleDeleteLead = async (id) => {
+    if (!window.confirm('Remover este lead?')) return;
+    await fetch(`${import.meta.env.VITE_API_URL}/leads/${id}`, {
+      method: 'DELETE',
+      headers: { 'x-admin-password': import.meta.env.VITE_ADMIN_PASSWORD }
+    });
+    setLeads(leads.filter(l => l.id !== id));
+  };
+
+  const handleApproveLead = async (id) => {
+    await fetch(`${import.meta.env.VITE_API_URL}/leads/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': import.meta.env.VITE_ADMIN_PASSWORD },
+      body: JSON.stringify({ status: 'aprovado' })
+    });
+    setLeads(leads.map(l => l.id === id ? { ...l, status: 'aprovado' } : l));
+  };
   const [selectedClient, setSelectedClient] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -208,16 +242,21 @@ export const ClientManagementModal = ({ isOpen, onClose }) => {
     try { localStorage.setItem(STORAGE_MP_CONFIG_KEY, JSON.stringify(mpConfig)); } catch (e) { console.error(e); }
   }, [mpConfig]);
 
+  useEffect(() => {
+    if (activeView === 'leads') fetchLeads();
+  }, [activeView]);
+
   if (!isOpen) return null;
 
   // Login Handler
   const handleLogin = (e) => {
     e.preventDefault();
-    if (authForm.user.trim().length > 0 && authForm.password.trim().length > 0) {
+    const senhaCorreta = import.meta.env.VITE_ADMIN_PASSWORD;
+    if (authForm.user.trim() === 'admin' && authForm.password === senhaCorreta) {
       setIsAuthenticated(true);
       setAuthError('');
     } else {
-      setAuthError('Informe seu usuário e senha de acesso.');
+      setAuthError('Usuário ou senha incorretos.');
     }
   };
 
@@ -714,6 +753,39 @@ export const ClientManagementModal = ({ isOpen, onClose }) => {
           {/* Navigation Items */}
           <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '1.25rem' }}>
             
+            {/* 0. Leads / Solicitações */}
+            <button
+              onClick={() => { setActiveView('leads'); setSelectedClient(null); }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0.75rem 0.85rem',
+                borderRadius: 'var(--radius-sm)',
+                background: activeView === 'leads' ? 'rgba(197, 168, 105, 0.15)' : 'transparent',
+                border: activeView === 'leads' ? '1px solid var(--gold-border)' : '1px solid transparent',
+                color: activeView === 'leads' ? 'var(--gold-light)' : '#94A3B8',
+                fontWeight: activeView === 'leads' ? 700 : 500,
+                fontSize: '0.82rem',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'all 0.2s'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <Sparkles size={16} color={activeView === 'leads' ? 'var(--gold-primary)' : '#64748B'} />
+                <span>Leads & Solicitações</span>
+              </div>
+              {leads.filter(l => l.status === 'novo').length > 0 && (
+                <span style={{
+                  fontSize: '0.68rem', padding: '0.1rem 0.45rem', borderRadius: '9999px',
+                  background: 'rgba(197, 168, 105, 0.3)', color: 'var(--gold-light)', fontWeight: 700
+                }}>
+                  {leads.filter(l => l.status === 'novo').length}
+                </span>
+              )}
+            </button>
+
             {/* 1. Consulta Clientes Cadastrados */}
             <button
               onClick={() => { setActiveView('clients_list'); setSelectedClient(null); }}
@@ -962,6 +1034,7 @@ export const ClientManagementModal = ({ isOpen, onClose }) => {
               {activeView === 'settings' && 'Configurações do Painel & API'}
             </h1>
             <p style={{ fontSize: '0.74rem', color: '#94A3B8', margin: '2px 0 0' }}>
+              {activeView === 'leads' && 'Solicitações do formulário público — gerencie, aprove ou remova.'}
               {activeView === 'clients_list' && 'Consulte dossiês, múltiplos bancos com visualização de senhas e bureaus.'}
               {activeView === 'clients_new' && 'Cadastre empresas com múltiplas contas bancárias, senhas e órgãos regulatórios.'}
               {activeView === 'appointments' && 'Agende e acompanhe reuniões estratégicas com sócios e clientes.'}
@@ -998,6 +1071,87 @@ export const ClientManagementModal = ({ isOpen, onClose }) => {
         <div style={{ flex: 1, overflowY: 'auto', padding: '2rem' }}>
           
           {/* ======================================================== */}
+          {/* TAB 0: LEADS & SOLICITAÇÕES                                */}
+          {activeView === 'leads' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <span style={{ fontSize: '0.82rem', color: '#94A3B8' }}>
+                  {leads.length} solicitações recebidas
+                </span>
+                <button onClick={fetchLeads} className="btn-secondary-subtle" style={{ padding: '0.5rem 1rem', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <RefreshCw size={13} /> Atualizar
+                </button>
+              </div>
+
+              {leadsLoading ? (
+                <div style={{ padding: '3rem', textAlign: 'center', color: '#94A3B8' }}>Carregando...</div>
+              ) : leads.length === 0 ? (
+                <div style={{ padding: '4rem 2rem', textAlign: 'center', background: '#0B0F17', border: '1px dashed rgba(197,168,105,0.25)', borderRadius: 'var(--radius-md)' }}>
+                  <Sparkles size={40} color="var(--gold-primary)" style={{ margin: '0 auto 1rem', opacity: 0.7 }} />
+                  <h3 style={{ color: '#FFFFFF', marginBottom: '0.5rem' }}>Nenhuma solicitação ainda</h3>
+                  <p style={{ color: '#94A3B8', fontSize: '0.85rem' }}>As solicitações do formulário público aparecerão aqui.</p>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem' }}>
+                  {leads.map(lead => (
+                    <div key={lead.id} style={{
+                      background: '#0D121D',
+                      border: `1px solid ${lead.status === 'novo' ? 'rgba(197,168,105,0.35)' : 'rgba(255,255,255,0.08)'}`,
+                      borderRadius: 'var(--radius-md)',
+                      padding: '1.4rem',
+                      display: 'flex', flexDirection: 'column', gap: '0.75rem'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                          <div style={{ fontSize: '0.68rem', color: 'var(--gold-light)', fontWeight: 700, letterSpacing: '0.08em', marginBottom: '0.25rem' }}>
+                            {new Date(lead.criadoEm).toLocaleString('pt-BR')}
+                          </div>
+                          <h3 style={{ fontSize: '1rem', color: '#FFFFFF', margin: 0 }}>{lead.empresa}</h3>
+                          <div style={{ fontSize: '0.78rem', color: '#94A3B8', marginTop: '0.2rem' }}>{lead.nome}</div>
+                        </div>
+                        <span style={{
+                          fontSize: '0.68rem', padding: '0.15rem 0.5rem', borderRadius: '9999px', fontWeight: 700,
+                          background: lead.status === 'novo' ? 'rgba(197,168,105,0.2)' : 'rgba(16,185,129,0.15)',
+                          color: lead.status === 'novo' ? 'var(--gold-light)' : '#34D399'
+                        }}>
+                          {lead.status === 'novo' ? 'NOVO' : 'APROVADO'}
+                        </span>
+                      </div>
+
+                      <div style={{ fontSize: '0.8rem', color: '#94A3B8', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                        <span>📧 <a href={`mailto:${lead.email}`} style={{ color: 'var(--gold-light)' }}>{lead.email}</a></span>
+                        <span>📱 {lead.telefone}</span>
+                        <span>🎯 Prática: <strong style={{ color: '#CBD5E1' }}>{lead.pratica}</strong></span>
+                        {lead.contexto && <span style={{ fontStyle: 'italic', color: '#64748B' }}>"{lead.contexto}"</span>}
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '0.65rem', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.75rem' }}>
+                        {lead.status === 'novo' && (
+                          <button
+                            onClick={() => handleApproveLead(lead.id)}
+                            className="btn-primary-gold"
+                            style={{ flex: 1, padding: '0.5rem', fontSize: '0.76rem', justifyContent: 'center' }}
+                          >
+                            <UserCheck size={13} /> Aprovar
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDeleteLead(lead.id)}
+                          style={{
+                            background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)',
+                            color: '#F87171', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', cursor: 'pointer'
+                          }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* TAB 1: CONSULTA DE CLIENTES CADASTRADOS                  */}
           {/* ======================================================== */}
           {activeView === 'clients_list' && (

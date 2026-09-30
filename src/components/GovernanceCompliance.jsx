@@ -1,6 +1,7 @@
 import React from 'react';
 import { ShieldCheck, Lock, FileText, CheckCircle2 } from 'lucide-react';
 import { COMPANY_DATA } from '../data/companyData';
+import { useInView } from '../hooks/useInView';
 
 export const GovernanceCompliance = () => {
   const principles = [
@@ -22,12 +23,15 @@ export const GovernanceCompliance = () => {
     }
   ];
 
+  const [headerRef, headerInView] = useInView();
+  const [gridRef, gridInView] = useInView();
+
   return (
     <section id="governanca" style={{ padding: '5rem 0', borderBottom: '1px solid var(--border-subtle)' }}>
       <div className="container-xl">
         
         {/* Header */}
-        <div style={{ maxWidth: '800px', marginBottom: '3rem' }}>
+        <div ref={headerRef} className={`fade-up${headerInView ? ' in-view' : ''}`} style={{ maxWidth: '800px', marginBottom: '3rem' }}>
           <span className="badge-institutional" style={{ marginBottom: '0.8rem' }}>
             INTEGRIDADE INSTITUCIONAL
           </span>
@@ -40,9 +44,9 @@ export const GovernanceCompliance = () => {
         </div>
 
         {/* 4 Cards Grid */}
-        <div className="grid-2" style={{ gap: '1.75rem' }}>
+        <div ref={gridRef} className="grid-2" style={{ gap: '1.75rem' }}>
           {principles.map((pr, idx) => (
-            <div key={idx} className="advisory-card">
+            <div key={idx} className={`advisory-card fade-up fade-up-delay-${idx % 3}${gridInView ? ' in-view' : ''}`}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.8rem' }}>
                 <ShieldCheck size={18} color="var(--gold-primary)" />
                 <h3 style={{ fontSize: '1.15rem', color: '#FFFFFF' }}>{pr.title}</h3>

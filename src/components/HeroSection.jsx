@@ -1,7 +1,11 @@
 import React from 'react';
-import { ArrowRight, ArrowUpRight, Shield, Layers, TrendingUp } from 'lucide-react';
+import { ArrowRight, ArrowUpRight } from 'lucide-react';
+import { useInView } from '../hooks/useInView';
 
 export const HeroSection = ({ onNavigate, onOpenContact }) => {
+  const [heroRef, heroInView] = useInView({ threshold: 0.05 });
+  const [cardsRef, cardsInView] = useInView();
+
   return (
     <section style={{
       position: 'relative',
@@ -10,92 +14,49 @@ export const HeroSection = ({ onNavigate, onOpenContact }) => {
       background: 'radial-gradient(ellipse at 50% 15%, rgba(197, 168, 105, 0.08) 0%, transparent 65%)'
     }}>
       <div className="container-xl">
-        <div style={{ maxWidth: '920px', margin: '0 auto', textAlign: 'center' }}>
-          
-          {/* Majestic Centerpiece 3D Gold Seal */}
-          <div style={{
-            marginBottom: '2.5rem',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            position: 'relative'
-          }}>
-            {/* Luminous Atmospheric Aura */}
-            <div style={{
-              position: 'absolute',
-              width: '320px',
-              height: '320px',
-              borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(197, 168, 105, 0.22) 0%, rgba(197, 168, 105, 0.03) 60%, transparent 80%)',
-              filter: 'blur(30px)',
-              pointerEvents: 'none'
-            }} />
+        <div ref={heroRef} className={`fade-up${heroInView ? ' in-view' : ''}`} style={{ maxWidth: '920px', margin: '0 auto', textAlign: 'center' }}>
 
-            <img 
-              src="/mourato-seal-circle.png" 
-              alt="Selo Oficial Mourato & Associados" 
-              style={{ 
-                height: 'clamp(170px, 20vw, 220px)', 
-                width: 'auto', 
-                objectFit: 'contain',
-                position: 'relative',
-                zIndex: 1,
-                borderRadius: '50%',
-                boxShadow: '0 20px 50px rgba(0, 0, 0, 0.8), 0 0 35px rgba(197, 168, 105, 0.25)',
+          {/* Seal */}
+          <div style={{ marginBottom: '2.5rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+            <div style={{
+              position: 'absolute', width: '320px', height: '320px', borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(197, 168, 105, 0.22) 0%, rgba(197, 168, 105, 0.03) 60%, transparent 80%)',
+              filter: 'blur(30px)', pointerEvents: 'none'
+            }} />
+            <img
+              src="/mourato-seal-circle.png"
+              alt="Selo Oficial Mourato & Associados"
+              loading="lazy"
+              style={{
+                height: 'clamp(110px, 14vw, 220px)', width: 'auto', objectFit: 'contain',
+                position: 'relative', zIndex: 1, borderRadius: '50%',
+                boxShadow: '0 20px 50px rgba(0,0,0,0.8), 0 0 35px rgba(197,168,105,0.25)',
                 transition: 'transform 0.4s ease'
-              }} 
+              }}
               onMouseEnter={(e) => e.target.style.transform = 'scale(1.03)'}
               onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
             />
           </div>
 
-          {/* Discreet Exclusivity Tag */}
           <div style={{ display: 'block', marginBottom: '1.25rem' }}>
-            <span className="badge-institutional">
-              MANDATOS RESERVADOS • BY APPOINTMENT ONLY
-            </span>
+            <span className="badge-institutional">MANDATOS RESERVADOS • BY APPOINTMENT ONLY</span>
           </div>
 
-          {/* Master Headline */}
           <h1 style={{ marginBottom: '1.5rem', fontWeight: 800 }}>
             Inteligência Financeira &amp; Governança de Alto Escalão: <br />
             <span className="text-gradient-gold">Da Engenharia de Spread à Reestruturação Societária</span>
           </h1>
 
-          {/* Authoritative, restrained subtitle */}
-          <p style={{
-            fontSize: '1.12rem',
-            color: '#CBD5E1',
-            lineHeight: 1.7,
-            maxWidth: '780px',
-            margin: '0 auto 2.5rem'
-          }}>
+          <p style={{ fontSize: '1.12rem', color: '#CBD5E1', lineHeight: 1.7, maxWidth: '780px', margin: '0 auto 2.5rem' }}>
             Assessoria boutique independente para companhias e grandes grupos econômicos. Desintermediamos o acesso ao capital de atacado para reduzir agressivamente o custo financeiro, integrando a operação com blindagem de governança, contabilidade e reorganização societária.
           </p>
 
-          {/* CTAs */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '1.25rem',
-            flexWrap: 'wrap',
-            marginBottom: '4.5rem'
-          }}>
-            <button 
-              className="btn-primary-gold"
-              onClick={onOpenContact}
-              style={{ padding: '0.95rem 2rem', fontSize: '0.9rem' }}
-            >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1.25rem', flexWrap: 'wrap', marginBottom: '4.5rem' }}>
+            <button className="btn-primary-gold" onClick={onOpenContact} style={{ padding: '0.95rem 2rem', fontSize: '0.9rem' }}>
               Solicitar Audiência Privada
               <ArrowRight size={15} />
             </button>
-
-            <button 
-              className="btn-secondary-subtle"
-              onClick={() => onNavigate('espectro')}
-              style={{ padding: '0.95rem 2rem', fontSize: '0.9rem' }}
-            >
+            <button className="btn-secondary-subtle" onClick={() => onNavigate('espectro')} style={{ padding: '0.95rem 2rem', fontSize: '0.9rem' }}>
               Estrutura das Práticas
               <ArrowUpRight size={15} />
             </button>
@@ -103,47 +64,40 @@ export const HeroSection = ({ onNavigate, onOpenContact }) => {
 
         </div>
 
-        {/* 3 Imposing Pillars of Practice */}
-        <div className="grid-3">
-          
-          <div className="advisory-card">
+        {/* 3 Pillars */}
+        <div ref={cardsRef} className="grid-3">
+
+          <div className={`advisory-card fade-up${cardsInView ? ' in-view' : ''}`}>
             <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--gold-light)', marginBottom: '0.6rem', fontWeight: 700 }}>
               01 • Mercado de Capitais
             </div>
-            <h3 style={{ marginBottom: '0.6rem', color: '#FFFFFF', fontSize: '1.25rem' }}>
-              Engenharia de Spread &amp; Funding
-            </h3>
+            <h3 style={{ marginBottom: '0.6rem', color: '#FFFFFF', fontSize: '1.25rem' }}>Engenharia de Spread &amp; Funding</h3>
             <p style={{ fontSize: '0.88rem', color: '#94A3B8', lineHeight: 1.65 }}>
               Desoneração de taxas bancárias, antecipação estruturada de recebíveis via FIDCs e emissões privadas de dívida corporativa (CRI, CRA, Debêntures) com prazos de atacado.
             </p>
           </div>
 
-          <div className="advisory-card">
+          <div className={`advisory-card fade-up fade-up-delay-1${cardsInView ? ' in-view' : ''}`}>
             <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--gold-light)', marginBottom: '0.6rem', fontWeight: 700 }}>
               02 • Estrutura &amp; Governança
             </div>
-            <h3 style={{ marginBottom: '0.6rem', color: '#FFFFFF', fontSize: '1.25rem' }}>
-              Consultoria Societária &amp; Gestão
-            </h3>
+            <h3 style={{ marginBottom: '0.6rem', color: '#FFFFFF', fontSize: '1.25rem' }}>Consultoria Societária &amp; Gestão</h3>
             <p style={{ fontSize: '0.88rem', color: '#94A3B8', lineHeight: 1.65 }}>
               Holdings patrimoniais, acordos de acionistas, contabilidade consultiva orientada a rating, otimização fiscal preventiva e assessoria técnica em processos de M&amp;A.
             </p>
           </div>
 
-          <div className="advisory-card">
+          <div className={`advisory-card fade-up fade-up-delay-2${cardsInView ? ' in-view' : ''}`}>
             <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--gold-light)', marginBottom: '0.6rem', fontWeight: 700 }}>
               03 • Padrão de Atendimento
             </div>
-            <h3 style={{ marginBottom: '0.6rem', color: '#FFFFFF', fontSize: '1.25rem' }}>
-              Sigilo Absoluto &amp; Independência
-            </h3>
+            <h3 style={{ marginBottom: '0.6rem', color: '#FFFFFF', fontSize: '1.25rem' }}>Sigilo Absoluto &amp; Independência</h3>
             <p style={{ fontSize: '0.88rem', color: '#94A3B8', lineHeight: 1.65 }}>
               Mandatos conduzidos diretamente com sócios seniores sob estrito protocolo de não divulgação (NDA), com total isenção e lealdade exclusiva aos interesses da companhia.
             </p>
           </div>
 
         </div>
-
       </div>
     </section>
   );
