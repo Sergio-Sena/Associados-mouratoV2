@@ -80,3 +80,40 @@ npm run build
 
 Repositório configurado:
 [https://github.com/Sergio-Sena/Associados-mourato](https://github.com/Sergio-Sena/Associados-mourato)
+
+---
+
+## 📋 6. Histórico de Sessões de Desenvolvimento
+
+### Sessão 2025-07 — Refinamento Visual & Mobile
+
+#### Footer — Reescrita Completa
+- Hierarquia visual premium: títulos das colunas em `Cinzel` + linha separadora com gradiente dourado
+- Grid assimétrico `1.4fr 1fr 1fr 1.1fr` — coluna brand com mais peso visual
+- Links com seta `→` animada no hover (desliza da esquerda)
+- Botão "Solicitar Contato Reservado" em outline gold (substituiu fill sólido)
+- Ícones `MapPin` e `Shield` no endereço e CNPJ
+- Visibilidade dos textos aumentada: `#4E5D72` → `#94A3B8` em parágrafos e links
+- Bottom bar: `#2E3A4A` → `#64748B`
+
+#### Header — Brand Refinada
+- Nome da marca em linha única sem quebra: `MOURATO & ASSOCIADOS`
+- Tagline trocada para `QUALIDADE • CONFIANÇA • EXCELÊNCIA` (alinhado ao footer)
+- Logo reduzido para `42px` (scrolled: `34px`) para caber no espaço disponível
+- Nome: `0.75rem` → `0.82rem`, tagline: `0.5rem` → `0.52rem`
+- Removido wrapper `header-seal-wrap` desnecessário
+
+#### Header Mobile — Correções
+- Botões "Login" e "Audiência Privada" ocultados no mobile (`display: none`) — ambos estão no drawer
+- Hamburger agora tem espaço real e aparece corretamente
+- Drawer ganhou botão X explícito no topo direito
+- `padding-top` do drawer: `5rem` fixo → `1.25rem` com botão X real
+- Body scroll travado quando drawer aberto
+
+#### Tipografia — Novo Sistema de 3 Fontes
+- **Cinzel** — títulos (mantida)
+- **Cormorant Garamond** — corpo/parágrafos (substituiu Plus Jakarta Sans)
+- **DM Sans** — UI: botões, nav, badges, labels, topbar
+- `font-size` base: `15px` → `17px`
+- `line-height` base: `1.65` → `1.75`
+- Aplicado `font-family: var(--font-sans)` explicitamente em todos os elementos de UI

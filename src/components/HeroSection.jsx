@@ -9,7 +9,7 @@ export const HeroSection = ({ onNavigate, onOpenContact }) => {
   return (
     <section style={{
       position: 'relative',
-      padding: '5rem 0 4.5rem',
+      padding: '3rem 0 3.5rem',
       borderBottom: '1px solid var(--border-subtle)',
       background: 'radial-gradient(ellipse at 50% 15%, rgba(197, 168, 105, 0.08) 0%, transparent 65%)'
     }}>
@@ -17,7 +17,7 @@ export const HeroSection = ({ onNavigate, onOpenContact }) => {
         <div ref={heroRef} className={`fade-up${heroInView ? ' in-view' : ''}`} style={{ maxWidth: '920px', margin: '0 auto', textAlign: 'center' }}>
 
           {/* Seal */}
-          <div style={{ marginBottom: '2.5rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+          <div style={{ marginBottom: '1.5rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
             <div style={{
               position: 'absolute', width: '320px', height: '320px', borderRadius: '50%',
               background: 'radial-gradient(circle, rgba(197, 168, 105, 0.22) 0%, rgba(197, 168, 105, 0.03) 60%, transparent 80%)',
@@ -40,20 +40,23 @@ export const HeroSection = ({ onNavigate, onOpenContact }) => {
             />
           </div>
 
-          <div style={{ display: 'block', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'block', marginBottom: '0.85rem' }}>
             <span className="badge-institutional">MANDATOS RESERVADOS • BY APPOINTMENT ONLY</span>
           </div>
 
-          <h1 style={{ marginBottom: '1.5rem', fontWeight: 800 }}>
-            Inteligência Financeira &amp; Governança de Alto Escalão: <br />
-            <span className="text-gradient-gold">Da Engenharia de Spread à Reestruturação Societária</span>
+          <h1 style={{ marginBottom: '1.25rem', fontWeight: 800 }}>
+            <div>Inteligência Financeira &amp; Governança de Alto Escalão:</div>
+            <div className="text-gradient-gold">Da Engenharia de Spread à Reestruturação Societária</div>
           </h1>
 
-          <p style={{ fontSize: '1.12rem', color: '#CBD5E1', lineHeight: 1.7, maxWidth: '780px', margin: '0 auto 2.5rem' }}>
+          <p style={{
+            fontSize: '1.12rem', color: '#CBD5E1', lineHeight: 1.7,
+            maxWidth: '780px', margin: '0 auto 2rem', textAlign: 'justify'
+          }}>
             Assessoria boutique independente para companhias e grandes grupos econômicos. Desintermediamos o acesso ao capital de atacado para reduzir agressivamente o custo financeiro, integrando a operação com blindagem de governança, contabilidade e reorganização societária.
           </p>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1.25rem', flexWrap: 'wrap', marginBottom: '4.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1.25rem', flexWrap: 'wrap', marginBottom: '3rem' }}>
             <button className="btn-primary-gold" onClick={onOpenContact} style={{ padding: '0.95rem 2rem', fontSize: '0.9rem' }}>
               Solicitar Audiência Privada
               <ArrowRight size={15} />
