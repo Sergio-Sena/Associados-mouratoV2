@@ -48,22 +48,6 @@ export const Header = ({ onNavigate, onOpenContact, onOpenLogin }) => {
   return (
     <>
       <header className={`header-institutional${scrolled ? ' header-scrolled' : ''}`}>
-
-        {!scrolled && (
-          <div className="header-topbar">
-            <div className="header-topbar-left">
-              <span>MANDATOS RESERVADOS</span>
-              <span className="topbar-dot">•</span>
-              <span>CNPJ: <strong>38.377.738/0001-45</strong></span>
-              <span className="topbar-dot">•</span>
-              <span>SÃO PAULO — ATUAÇÃO NACIONAL</span>
-            </div>
-            <div className="header-topbar-right">
-              QUALIDADE • CONFIANÇA • EXCELÊNCIA
-            </div>
-          </div>
-        )}
-
         <div className="header-inner">
 
           <div className="header-brand" onClick={() => handleNav('hero')}>

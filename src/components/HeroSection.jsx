@@ -49,14 +49,11 @@ export const HeroSection = ({ onNavigate, onOpenContact }) => {
             <div className="text-gradient-gold">Da Engenharia de Spread à Reestruturação Societária</div>
           </h1>
 
-          <p style={{
-            fontSize: '1.12rem', color: '#CBD5E1', lineHeight: 1.7,
-            maxWidth: '780px', margin: '0 auto 2rem', textAlign: 'justify'
-          }}>
+          <p className="hero-subtitle">
             Assessoria boutique independente para companhias e grandes grupos econômicos. Desintermediamos o acesso ao capital de atacado para reduzir agressivamente o custo financeiro, integrando a operação com blindagem de governança, contabilidade e reorganização societária.
           </p>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1.25rem', flexWrap: 'wrap', marginBottom: '3rem' }}>
+          <div className="hero-actions">
             <button className="btn-primary-gold" onClick={onOpenContact} style={{ padding: '0.95rem 2rem', fontSize: '0.9rem' }}>
               Solicitar Audiência Privada
               <ArrowRight size={15} />
