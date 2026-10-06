@@ -45,6 +45,34 @@
 - **CSS**: `--font-body` adicionado ao design system, `font-family` explícito em botões/nav/badges
 - **Adicionados**: `.mobile-drawer-close`, `.mobile-drawer-close:hover`
 
+## Deploy & Infraestrutura
+
+### Repositórios
+| Projeto | Repo Original | Fork (Produção) | Hosting | Domínio |
+|---|---|---|---|---|
+| Associados-mourato | `mouratoimportacao-cloud/Associados-mourato` | `Sergio-Sena/Associados-mouratoV2` | AWS Amplify (`d3309gx1hqzwt1`) | `mouratoassociados.com.br` |
+| y7-service | `mouratoimportacao-cloud/y7-service` | `Sergio-Sena/y7-service` | AWS Amplify (`d3pgghxxzqjef5`) | `y7service.com.br` |
+
+### Branches
+- `dev` — desenvolvimento e testes (GitHub Actions valida)
+- `main` — produção (Amplify dispara deploy automático em ~2-3 min)
+
+### Fluxo
+1. Desenvolver em `dev` → push → GitHub Actions valida (`npm ci` → `lint` → `build` → `dist/`)
+2. Merge `dev` → `main` no repo original
+3. Sergio Sena sincroniza fork (`git fetch upstream && git merge upstream/main`) → Amplify deploya
+
+### Regras
+- Nunca fazer push direto em `main`
+- Sincronizar antes de começar: `git fetch upstream && git merge upstream/dev`
+- Commit messages semânticas: `feat:`, `fix:`, `docs:`, etc.
+- Sem force push
+
+### Persistência de dados
+- `ClientManagementModal` salva no `localStorage` (5 chaves: clientes, despesas, agendamentos, recebíveis, config Mercado Pago)
+- `AdvisoryOnboardingModal` envia leads via `POST` para `VITE_API_URL/leads` — sem fallback local
+- Supabase **não está integrado** neste projeto — pertence ao y7-service
+
 ## Padrões visuais
 - Fonte serif: Cinzel (títulos)
 - Fonte sans: Plus Jakarta Sans (corpo)

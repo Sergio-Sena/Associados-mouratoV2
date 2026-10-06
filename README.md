@@ -76,10 +76,53 @@ npm run build
 
 ---
 
-## 📦 5. Repositório Remoto GitHub
+## 📦 5. Repositórios & Infraestrutura de Deploy
 
-Repositório configurado:
-[https://github.com/Sergio-Sena/Associados-mourato](https://github.com/Sergio-Sena/Associados-mourato)
+### Repositórios
+
+| Projeto | Repo Original | Fork (Produção) | Hosting | Domínio |
+|---------|---------------|-----------------|---------|--------|
+| **Associados-mourato** | `mouratoimportacao-cloud/Associados-mourato` | `Sergio-Sena/Associados-mouratoV2` | AWS Amplify (`d3309gx1hqzwt1`) | `mouratoassociados.com.br` |
+| **y7-service** | `mouratoimportacao-cloud/y7-service` | `Sergio-Sena/y7-service` | AWS Amplify (`d3pgghxxzqjef5`) | `y7service.com.br` |
+
+### Branches
+
+- **`dev`** — desenvolvimento e testes (GitHub Actions valida)
+- **`main`** — produção (Amplify dispara deploy automático)
+
+### Fluxo de Trabalho
+
+```bash
+# Desenvolvimento (branch dev)
+git checkout dev
+# ... editar arquivos ...
+git add . && git commit -m "feat: descrição" && git push origin dev
+# GitHub Actions valida automaticamente
+
+# Promoção para produção
+git checkout main && git merge dev && git push origin main
+# Amplify detecta push em main e deploya (~2-3 min)
+```
+
+### GitHub Actions (`.github/workflows/test-dev.yml`)
+
+Roda em cada push para `dev` ou PR para `dev`/`main`:
+1. `npm ci` — instala dependências
+2. `npm run lint` — linter
+3. `npm run build` — build
+4. Valida existência do `dist/`
+
+### Regras
+- Sempre desenvolver em `dev` — nunca direto em `main`
+- Sincronizar antes de começar: `git fetch upstream && git merge upstream/dev`
+- Commit messages semânticas: `feat:`, `fix:`, `docs:`, etc.
+- Sem force push
+
+### Links
+- **Repo Original:** https://github.com/mouratoimportacao-cloud/Associados-mourato
+- **Fork Produção:** https://github.com/Sergio-Sena/Associados-mouratoV2
+- **Amplify Console:** https://console.aws.amazon.com/amplify/
+- **GitHub Actions:** https://github.com/Sergio-Sena/Associados-mouratoV2/actions
 
 ---
 
@@ -117,3 +160,18 @@ Repositório configurado:
 - `font-size` base: `15px` → `17px`
 - `line-height` base: `1.65` → `1.75`
 - Aplicado `font-family: var(--font-sans)` explicitamente em todos os elementos de UI
+
+### Sessão 2025-07 — Fluxo de Dev & Deploy + Análise de Persistência
+
+#### Infraestrutura de Deploy — Documentada
+- Arquitetura de dois repositórios: `mouratoimportacao-cloud/Associados-mourato` (original) e `Sergio-Sena/Associados-mouratoV2` (fork de produção)
+- AWS Amplify (`d3309gx1hqzwt1`) monitorando branch `main` do fork — deploy automático em ~2-3 min
+- Branch `dev` protegida por GitHub Actions (`.github/workflows/test-dev.yml`): `npm ci` → `lint` → `build` → valida `dist/`
+- Fluxo: desenvolver em `dev` → merge para `main` → Sergio Sena sincroniza fork → Amplify deploya
+- Domínio de produção: `mouratoassociados.com.br`
+
+#### Análise de Persistência de Dados — ClientManagementModal
+- Confirmado que `ClientManagementModal` persiste dados no `localStorage` do browser (5 chaves: clientes, despesas, agendamentos, recebíveis, config Mercado Pago)
+- `AdvisoryOnboardingModal` (formulário público de leads) envia via `POST` para `VITE_API_URL/leads` — sem fallback local
+- Supabase **não está integrado** neste projeto (ausente no `package.json` e sem `.env` configurado)
+- Projeto y7-service possui integração Supabase — não confundir os dois projetos
