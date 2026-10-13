@@ -4,6 +4,7 @@ import { HeroSection } from './components/HeroSection';
 import { SpreadVsConsultoriaSpectrum } from './components/SpreadVsConsultoriaSpectrum';
 import { SpreadOperationsModule } from './components/SpreadOperationsModule';
 import { ConsultingModule } from './components/ConsultingModule';
+import { CreditBureauSection } from './components/CreditBureauSection';
 import { InteractiveSimulator } from './components/InteractiveSimulator';
 import { GovernanceCompliance } from './components/GovernanceCompliance';
 import { AdvisoryOnboardingModal } from './components/AdvisoryOnboardingModal';
@@ -14,6 +15,12 @@ import { ArrowUpRight } from 'lucide-react';
 export function App() {
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+  const [clientModalInitialView, setClientModalInitialView] = useState('leads');
+
+  const handleOpenLogin = () => {
+    setClientModalInitialView('leads');
+    setIsClientModalOpen(true);
+  };
 
   const handleNavigate = (sectionId) => {
     const el = document.getElementById(sectionId);
@@ -31,7 +38,7 @@ export function App() {
       <Header 
         onNavigate={handleNavigate}
         onOpenContact={() => setIsContactOpen(true)}
-        onOpenLogin={() => setIsClientModalOpen(true)}
+        onOpenLogin={handleOpenLogin}
       />
 
       <main style={{ flex: 1 }}>
@@ -57,6 +64,11 @@ export function App() {
 
         {/* Practice II: Strategic Advisory & Consulting */}
         <ConsultingModule 
+          onOpenContact={() => setIsContactOpen(true)}
+        />
+
+        {/* Practice III: Birôs de Crédito & Reabilitação de Rating (PF & PJ) */}
+        <CreditBureauSection 
           onOpenContact={() => setIsContactOpen(true)}
         />
 
@@ -114,6 +126,7 @@ export function App() {
       <ClientManagementModal 
         isOpen={isClientModalOpen}
         onClose={() => setIsClientModalOpen(false)}
+        initialView={clientModalInitialView}
       />
 
     </div>

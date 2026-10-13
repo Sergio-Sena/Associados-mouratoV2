@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowUpRight, Menu, X } from 'lucide-react';
+import { ArrowUpRight, Menu, X, ShieldCheck } from 'lucide-react';
 
 const NAV_ITEMS = [
   { label: 'O Espectro',               id: 'espectro'   },
   { label: 'Mercado de Capitais',       id: 'spread'     },
   { label: 'Consultoria Estratégica',   id: 'consultoria'},
+  { label: 'Birôs de Crédito',          id: 'biros'      },
   { label: 'Simulador de Capital',      id: 'simulador'  },
   { label: 'Governança & Sigilo',       id: 'governanca' },
 ];
