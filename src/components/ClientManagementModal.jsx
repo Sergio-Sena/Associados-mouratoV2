@@ -933,12 +933,14 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
 
   if (!isOpen) return null;
 
-  // Login Handler (Acesso Exclusivo Mourato)
+  // Login Handler (Acesso Corporativo)
   const handleLogin = (e) => {
     e.preventDefault();
     const userInput = authForm.user.trim().toLowerCase();
     const passInput = authForm.password;
-    if (userInput === 'mourato' && passInput === '@Jota1307') {
+    const validUsers = ['mourato', 'admin', 'operador', 'diretoria', 'gerencia'];
+    const validPass = ['@Jota1307', '@Mourato2024', '@Admin2024'];
+    if (validUsers.includes(userInput) && validPass.includes(passInput)) {
       setIsAuthenticated(true);
       setAuthError('');
     } else {
@@ -1562,7 +1564,8 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                 type="text" 
                 value={authForm.user}
                 onChange={(e) => setAuthForm({ ...authForm, user: e.target.value })}
-                placeholder="mourato"
+                placeholder="Digite seu usuário"
+                autoComplete="off"
                 autoFocus
                 style={{
                   width: '100%',
@@ -2983,7 +2986,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               required
                               value={newClient.nomeRazao}
                               onChange={(e) => setNewClient({ ...newClient, nomeRazao: e.target.value })}
-                              placeholder="Ex: MOURATO E ASSOCIADOS LTDA"
+                              placeholder="Ex: Razão Social da Empresa Ltda"
                               style={{
                                 width: '100%',
                                 padding: '0.7rem 0.9rem',
@@ -3026,7 +3029,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               type="text" 
                               value={newClient.socioVinculado}
                               onChange={(e) => setNewClient({ ...newClient, socioVinculado: e.target.value, responsavel: e.target.value })}
-                              placeholder="Ex: José Jailson Mourato da Silva (CPF 317.769.598-92)"
+                              placeholder="Ex: Nome do Responsável / Sócio (CPF 000.000.000-00)"
                               style={{
                                 width: '100%',
                                 padding: '0.7rem 0.9rem',
@@ -3068,7 +3071,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               type="text" 
                               value={newClient.nire}
                               onChange={(e) => setNewClient({ ...newClient, nire: e.target.value })}
-                              placeholder="Ex: 35270804594"
+                              placeholder="Ex: 00000000000"
                               style={{
                                 width: '100%',
                                 padding: '0.7rem 0.9rem',
@@ -3122,7 +3125,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               type="text"
                               value={newClient.balanco?.ativo || ''}
                               onChange={(e) => handleBalancoChange('ativo', e.target.value)}
-                              placeholder="Ex: R$ 1.714.304,26"
+                              placeholder="Ex: R$ 0,00"
                               style={{
                                 width: '100%',
                                 padding: '0.65rem',
@@ -3143,7 +3146,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               type="text"
                               value={newClient.balanco?.patrimonioLiquido || ''}
                               onChange={(e) => handleBalancoChange('patrimonioLiquido', e.target.value)}
-                              placeholder="Ex: R$ 1.563.732,99"
+                              placeholder="Ex: R$ 0,00"
                               style={{
                                 width: '100%',
                                 padding: '0.65rem',
@@ -3164,7 +3167,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               type="text"
                               value={newClient.balanco?.capitalSocial || ''}
                               onChange={(e) => handleBalancoChange('capitalSocial', e.target.value)}
-                              placeholder="Ex: R$ 1.000.000,00"
+                              placeholder="Ex: R$ 0,00"
                               style={{
                                 width: '100%',
                                 padding: '0.65rem',
@@ -3185,7 +3188,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               type="text"
                               value={newClient.balanco?.faturamentoAnual || ''}
                               onChange={(e) => handleBalancoChange('faturamentoAnual', e.target.value)}
-                              placeholder="Ex: R$ 1.409.898,34"
+                              placeholder="Ex: R$ 0,00"
                               style={{
                                 width: '100%',
                                 padding: '0.65rem',
@@ -3206,7 +3209,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               type="text"
                               value={newClient.balanco?.contadorResponsavel || ''}
                               onChange={(e) => handleBalancoChange('contadorResponsavel', e.target.value)}
-                              placeholder="Ex: Nilson Oliveira dos Santos (CRC/SP)"
+                              placeholder="Ex: Nome do Contador (CRC/UF)"
                               style={{
                                 width: '100%',
                                 padding: '0.65rem',
@@ -3244,7 +3247,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               required
                               value={newClient.nomeRazao}
                               onChange={(e) => setNewClient({ ...newClient, nomeRazao: e.target.value })}
-                              placeholder="Ex: JOSÉ JAILSON MOURATO DA SILVA"
+                              placeholder="Ex: Nome Completo do Titular"
                               style={{
                                 width: '100%',
                                 padding: '0.7rem 0.9rem',
@@ -3287,7 +3290,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               type="text" 
                               value={newClient.empresaVinculada}
                               onChange={(e) => setNewClient({ ...newClient, empresaVinculada: e.target.value })}
-                              placeholder="Ex: MOURATO E ASSOCIADOS LTDA"
+                              placeholder="Ex: Razão Social da Empresa Ltda"
                               style={{
                                 width: '100%',
                                 padding: '0.7rem 0.9rem',
@@ -3425,7 +3428,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               type="text"
                               value={newClient.rendaPatrimonio?.veiculos || ''}
                               onChange={(e) => handleRendaPatrimonioChange('veiculos', e.target.value)}
-                              placeholder="Ex: Yamaha YBR 125K Placa DUZ0988 Renavam 00909604606"
+                              placeholder="Ex: Modelo do Veículo, Placa, Renavam"
                               style={{
                                 width: '100%',
                                 padding: '0.65rem',
@@ -7079,7 +7082,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                       required
                       value={chargeForm.cliente}
                       onChange={(e) => setChargeForm({ ...chargeForm, cliente: e.target.value })}
-                      placeholder="Ex: Mourato Alimentos Ltda"
+                      placeholder="Ex: Razão Social do Cliente Ltda"
                       list="charge-clients-list"
                       style={{
                         width: '100%',
