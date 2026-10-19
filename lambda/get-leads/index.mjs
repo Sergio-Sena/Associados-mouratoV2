@@ -1,12 +1,12 @@
 import { DynamoDBClient, ScanCommand, DeleteItemCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
 
 const db = new DynamoDBClient({ region: 'us-east-1' });
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '@Jota1307';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type,x-admin-password',
-  'Access-Control-Allow-Methods': 'GET,DELETE,PATCH,OPTIONS'
+  'Access-Control-Allow-Headers': 'Content-Type,x-admin-password,X-Admin-Password',
+  'Access-Control-Allow-Methods': 'GET,POST,DELETE,PATCH,OPTIONS'
 };
 
 const unauthorized = () => ({
@@ -27,19 +27,19 @@ export const handler = async (event) => {
   const id = event.pathParameters?.id;
 
   try {
-    // GET /leads — lista todos
+    // GET /leads - lista todos com proteção contra campos ausentes
     if (method === 'GET') {
       const result = await db.send(new ScanCommand({ TableName: 'mourato-leads' }));
       const items = (result.Items || []).map(item => ({
-        id:       item.id.S,
-        empresa:  item.empresa.S,
-        nome:     item.nome.S,
-        email:    item.email.S,
-        telefone: item.telefone.S,
-        pratica:  item.pratica.S,
-        contexto: item.contexto.S,
-        status:   item.status.S,
-        criadoEm: item.criadoEm.S
+        id:       item.id?.S || '',
+        empresa:  item.empresa?.S || 'Empresa',
+        nome:     item.nome?.S || 'Responsável',
+        email:    item.email?.S || '',
+        telefone: item.telefone?.S || '',
+        pratica:  item.pratica?.S || 'hibrido',
+        contexto: item.contexto?.S || '',
+        status:   item.status?.S || 'novo',
+        criadoEm: item.criadoEm?.S || new Date().toISOString()
       })).sort((a, b) => new Date(b.criadoEm) - new Date(a.criadoEm));
 
       return { statusCode: 200, headers: CORS, body: JSON.stringify(items) };
@@ -54,22 +54,36 @@ export const handler = async (event) => {
       return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true }) };
     }
 
-    // PATCH /leads/{id} — atualiza status (ex: 'novo' -> 'aprovado')
-    if (method === 'PATCH' && id) {
+    // PATCH ou POST /leads/{id} - atualiza status (ex: 'novo' -> 'aprovado')
+    if ((method === 'PATCH' || method === 'POST') && id) {
       const body = JSON.parse(event.body || '{}');
+      const novoStatus = body.status || 'aprovado';
+
       await db.send(new UpdateItemCommand({
         TableName: 'mourato-leads',
         Key: { id: { S: id } },
-        UpdateExpression: 'SET #s = :s',
-        ExpressionAttributeNames: { '#s': 'status' },
-        ExpressionAttributeValues: { ':s': { S: body.status || 'aprovado' } }
+        UpdateExpression: 'SET #s = :s, #a = :a',
+        ExpressionAttributeNames: { '#s': 'status', '#a': 'aprovadoEm' },
+        ExpressionAttributeValues: { 
+          ':s': { S: novoStatus },
+          ':a': { S: new Date().toISOString() }
+        }
       }));
-      return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true }) };
+
+      return { 
+        statusCode: 200, 
+        headers: CORS, 
+        body: JSON.stringify({ 
+          ok: true, 
+          status: novoStatus, 
+          message: 'Lead aprovado com sucesso!' 
+        }) 
+      };
     }
 
     return { statusCode: 404, headers: CORS, body: JSON.stringify({ error: 'Rota não encontrada.' }) };
   } catch (err) {
     console.error(err);
-    return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: 'Erro interno.' }) };
+    return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: err.message || 'Erro interno.' }) };
   }
 };

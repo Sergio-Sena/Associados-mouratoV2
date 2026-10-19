@@ -10,7 +10,7 @@ const NAV_ITEMS = [
   { label: 'Governança & Sigilo',       id: 'governanca' },
 ];
 
-export const Header = ({ onNavigate, onOpenContact, onOpenLogin }) => {
+export const Header = ({ onNavigate, onOpenContact, onOpenLogin, onOpenOnboarding }) => {
   const [scrolled,   setScrolled]   = useState(false);
   const [activeId,   setActiveId]   = useState('');
   const [mobileOpen, setMobileOpen] = useState(false);

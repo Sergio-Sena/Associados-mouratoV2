@@ -52,7 +52,7 @@ const FooterLink = ({ onClick, children }) => (
   </li>
 );
 
-export const Footer = ({ onNavigate, onOpenContact }) => {
+export const Footer = ({ onNavigate, onOpenContact, onOpenOnboarding }) => {
   return (
     <footer style={{ background: '#05070B', borderTop: '1px solid var(--border-subtle)', padding: '4.5rem 0 0' }}>
       <div className="container-xl">
@@ -147,7 +147,8 @@ export const Footer = ({ onNavigate, onOpenContact }) => {
                 fontSize: '0.75rem', fontWeight: 700,
                 letterSpacing: '0.08em', textTransform: 'uppercase',
                 cursor: 'pointer',
-                transition: 'all 0.25s ease'
+                transition: 'all 0.25s ease',
+                marginBottom: '0.65rem'
               }}
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(197,168,105,0.08)'; e.currentTarget.style.borderColor = 'var(--gold-primary)'; e.currentTarget.style.color = '#FFFFFF'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'var(--gold-border)'; e.currentTarget.style.color = 'var(--gold-light)'; }}
