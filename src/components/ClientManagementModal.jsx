@@ -109,7 +109,7 @@ const getDeletedClientIds = () => {
 };
 
 
-// Gerenciador de Aprovação Resiliente (Evita que o Lead reverta para 'novo')
+// Gerenciador de Aprovação Resiliente Multi-Chaves (Evita que o Lead reverta para 'novo')
 const STORAGE_APPROVED_LEADS = 'mourato_approved_leads_ids';
 const getApprovedLeadsSet = () => {
   try {
@@ -119,10 +119,16 @@ const getApprovedLeadsSet = () => {
     return new Set();
   }
 };
-const markLeadAsApprovedLocally = (id) => {
+const markLeadAsApprovedLocally = (id, lead = null) => {
   try {
     const set = getApprovedLeadsSet();
-    set.add(id);
+    if (id) set.add(String(id));
+    if (lead) {
+      if (lead.email) set.add(lead.email.toLowerCase().trim());
+      if (lead.telefone) set.add(lead.telefone.replace(/\D/g, ''));
+      if (lead.email && lead.empresa) set.add(`${lead.email.toLowerCase().trim()}_${lead.empresa.trim()}`);
+      if (lead.nome && lead.telefone) set.add(`${lead.nome.trim()}_${lead.telefone.replace(/\D/g, '')}`);
+    }
     localStorage.setItem(STORAGE_APPROVED_LEADS, JSON.stringify(Array.from(set)));
   } catch (e) {
     console.warn('Erro ao salvar lead aprovado localmente:', e);
@@ -197,11 +203,21 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
       } catch (err) {}
     }
 
-    // 4. Aplica blindagem: se foi aprovado, NUNCA mais volta para 'novo'
-    const finalLeads = (items || []).map(lead => ({
-      ...lead,
-      status: (approvedSet.has(lead.id) || lead.status === 'aprovado') ? 'aprovado' : (lead.status || 'novo')
-    }));
+    // 4. Aplica blindagem definitiva com múltiplas chaves: se foi aprovado, NUNCA mais volta para 'novo'
+    const finalLeads = (items || []).map(lead => {
+      const isApproved = 
+        (lead.id && approvedSet.has(String(lead.id))) ||
+        (lead.email && approvedSet.has(lead.email.toLowerCase().trim())) ||
+        (lead.telefone && approvedSet.has(lead.telefone.replace(/\D/g, ''))) ||
+        (lead.email && lead.empresa && approvedSet.has(`${lead.email.toLowerCase().trim()}_${lead.empresa.trim()}`)) ||
+        (lead.nome && lead.telefone && approvedSet.has(`${lead.nome.trim()}_${lead.telefone.replace(/\D/g, '')}`)) ||
+        lead.status === 'aprovado';
+
+      return {
+        ...lead,
+        status: isApproved ? 'aprovado' : (lead.status || 'novo')
+      };
+    });
 
     setLeads(finalLeads);
     setLeadsLoading(false);
@@ -228,11 +244,65 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
     } catch (e) {}
   };
 
-  const handleApproveLead = async (id) => {
-    // 1. Marca imediatamente como aprovado na trava local (impossível reverter)
-    markLeadAsApprovedLocally(id);
+  const [approvalModalData, setApprovalModalData] = useState(null);
 
-    // 2. Tenta sincronizar com o backend AWS (tanto PATCH quanto POST para garantir compatibilidade com API Gateway)
+  const handleApproveLead = async (id, explicitLead = null) => {
+    const targetLead = explicitLead || leads.find(l => l.id === id);
+    if (!targetLead) return;
+
+    // 1. Marca imediatamente como aprovado na trava local com chaves múltiplas
+    markLeadAsApprovedLocally(id, targetLead);
+
+    // 2. Monta o link oficial da Ficha Cadastral com os dados preenchidos
+    const baseUrl = window.location.origin || 'https://www.mouratoassociados.com.br';
+    const linkFicha = `${baseUrl}/ficha-cadastral?nome=${encodeURIComponent(targetLead.nome || '')}&empresa=${encodeURIComponent(targetLead.empresa || '')}&telefone=${encodeURIComponent(targetLead.telefone || '')}&email=${encodeURIComponent(targetLead.email || '')}&origem=audiencia_aprovada`;
+
+    // 3. Monta o texto oficial para WhatsApp
+    const wppMsg = `Olá, *${targetLead.nome || 'Cliente'}* (${targetLead.empresa || 'Empresa'})!\n\nSua solicitação de assessoria na *Mourato & Associados* foi *APROVADA* com sucesso pela diretoria pericial.\n\nPara darmos início imediato à sua auditoria de crédito e calibragem de rating junto aos birôs oficiais (Banco Central SCR, Serasa, Boa Vista e Quod), por favor preencha sua Ficha Cadastral Oficial no link seguro abaixo:\n\n🔗 *Acesse sua Ficha:* ${linkFicha}\n\n_Mourato & Associados Ltda — CNPJ: 38.377.738/0001-45_\nAtendimento Oficial: (11) 97899-0034 | mourato@mouratoassociados.com.br`;
+
+    // Telefone limpo (garante formato internacional 5511...)
+    let rawDigits = (targetLead.telefone || '11978990034').replace(/\D/g, '');
+    let cleanPhone = rawDigits;
+    if (rawDigits.length === 10 || rawDigits.length === 11) {
+      cleanPhone = '55' + rawDigits;
+    } else if (cleanPhone.length < 10) {
+      cleanPhone = '5511978990034';
+    }
+    const wppUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(wppMsg)}`;
+
+    // 4. Monta o e-mail oficial (mailto) com cópia para mourato@mouratoassociados.com.br
+    const emailSubject = `[Mourato & Associados] Solicitação Aprovada — Link da sua Ficha Cadastral`;
+    const emailBody = `Prezado(a) ${targetLead.nome} (${targetLead.empresa}),\n\nÉ com satisfação que informamos que sua solicitação de assessoria corporativa foi APROVADA por nossa Diretoria.\n\nPara procedermos com a abertura de prontuário e auditoria pericial de crédito perante o Banco Central do Brasil (SCR) e birôs oficiais, solicitamos o preenchimento da sua Ficha Cadastral no link oficial abaixo:\n\n${linkFicha}\n\n(O fornecimento de senhas de birôs é estritamente opcional e todas as informações estão sob sigilo pericial e LGPD).\n\nAtenciosamente,\n\nJosé Jailson Mourato da Silva\nMourato & Associados — Governança e Inteligência Financeira\nAv. São Luís, 187, Sala 69 A - República, São Paulo/SP\nTelefone: (11) 97899-0034 | E-mail: mourato@mouratoassociados.com.br\nwww.mouratoassociados.com.br`;
+    const mailtoUrl = `mailto:${targetLead.email || 'mourato@mouratoassociados.com.br'}?cc=mourato@mouratoassociados.com.br&subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+
+    // 5. Configura e abre o Modal de Envio e Feedback
+    setApprovalModalData({
+      lead: targetLead,
+      linkFicha,
+      wppUrl,
+      wppMsg,
+      cleanPhone,
+      mailtoUrl,
+      emailSubject,
+      emailBody
+    });
+
+    // 6. Atualiza estado em tempo real no painel
+    const updated = leads.map(l => (l.id === id || (targetLead.email && l.email === targetLead.email)) ? { ...l, status: 'aprovado' } : l);
+    setLeads(updated);
+    try {
+      localStorage.setItem('mourato_leads_solicitacoes', JSON.stringify(updated));
+    } catch (e) {}
+
+    // 7. Sincroniza com backend local (Node) e AWS
+    try {
+      await fetch(`http://localhost:3000/api/leads/${id || 'lead'}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'aprovado', lead: targetLead, linkFicha })
+      });
+    } catch (e) {}
+
     if (import.meta.env.VITE_API_URL) {
       try {
         await fetch(`${import.meta.env.VITE_API_URL}/leads/${id}`, {
@@ -244,7 +314,6 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
           body: JSON.stringify({ status: 'aprovado' })
         });
       } catch (e) {
-        console.warn('Tentando fallback POST para AWS...');
         try {
           await fetch(`${import.meta.env.VITE_API_URL}/leads/${id}`, {
             method: 'POST',
@@ -254,34 +323,15 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
             },
             body: JSON.stringify({ status: 'aprovado' })
           });
-        } catch (e2) {}
+        } catch (_) {}
       }
     }
 
-    // 3. Tenta notificar o backend local de e-mails
+    // 8. Abre automaticamente o WhatsApp Web
     try {
-      await fetch(`http://localhost:3000/api/leads/${id}/approve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'aprovado' })
-      });
-    } catch (e) {}
-
-    // 4. Atualiza estado em tempo real no painel
-    const updated = leads.map(l => l.id === id ? { ...l, status: 'aprovado' } : l);
-    setLeads(updated);
-    try {
-      localStorage.setItem('mourato_leads_solicitacoes', JSON.stringify(updated));
-    } catch (e) {}
-
-    const targetLead = leads.find(l => l.id === id);
-    if (targetLead) {
-      abrirDisparoEmailWorkspace(targetLead);
-    }
+      window.open(wppUrl, '_blank');
+    } catch (_) {}
   };
-
-  // Helper para disparo via Google Workspace (mourato@mouratoassociados.com.br)
-  const [emailModalLead, setEmailModalLead] = useState(null);
 
   const abrirDisparoEmailWorkspace = (lead) => {
     setEmailModalLead(lead);
@@ -2149,22 +2199,35 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                       </div>
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.75rem' }}>
-                        {lead.status === 'aprovado' && (
-                          <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: 'var(--radius-xs)', padding: '0.65rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            <div style={{ fontSize: '0.72rem', color: '#34D399', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        {lead.status === 'aprovado' ? (
+                          <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: 'var(--radius-xs)', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                            <div style={{ fontSize: '0.72rem', color: '#34D399', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                               <span>✓ AUDIÊNCIA APROVADA</span>
-                              <span style={{ fontSize: '0.68rem', color: '#94A3B8', fontWeight: 400 }}>( mourato@mouratoassociados.com.br )</span>
+                              <span style={{ fontSize: '0.68rem', color: '#94A3B8', fontWeight: 400 }}>mourato@mouratoassociados.com.br</span>
                             </div>
                             
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.4rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.45rem' }}>
                               <button
                                 type="button"
-                                onClick={() => abrirDisparoEmailWorkspace(lead)}
-                                className="btn-primary-gold"
-                                style={{ padding: '0.45rem', fontSize: '0.72rem', justifyContent: 'center' }}
-                                title="Enviar e-mail oficial com o link da planilha"
+                                onClick={() => handleApproveLead(lead.id, lead)}
+                                style={{
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem',
+                                  padding: '0.55rem', background: 'rgba(37, 211, 102, 0.15)', border: '1px solid rgba(37, 211, 102, 0.35)',
+                                  color: '#34D399', fontWeight: 700, fontSize: '0.74rem', borderRadius: '4px', cursor: 'pointer'
+                                }}
+                                title="Abrir WhatsApp para envio imediato do link da planilha"
                               >
-                                ✉️ Disparar E-mail
+                                💬 WhatsApp
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleApproveLead(lead.id, lead)}
+                                className="btn-primary-gold"
+                                style={{ padding: '0.55rem', fontSize: '0.74rem', justifyContent: 'center' }}
+                                title="Disparar e-mail com link da ficha cadastral"
+                              >
+                                ✉️ E-mail
                               </button>
 
                               <button
@@ -2175,7 +2238,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                                   alert('Link oficial da Planilha/Ficha Cadastral copiado:\n\n' + url);
                                 }}
                                 className="btn-secondary-subtle"
-                                style={{ padding: '0.45rem', fontSize: '0.72rem', justifyContent: 'center' }}
+                                style={{ padding: '0.55rem', fontSize: '0.74rem', justifyContent: 'center' }}
                               >
                                 📋 Copiar Link
                               </button>
@@ -2185,43 +2248,33 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                                 target="_blank"
                                 rel="noreferrer"
                                 className="btn-secondary-subtle"
-                                style={{ padding: '0.45rem', fontSize: '0.72rem', justifyContent: 'center', textDecoration: 'none' }}
+                                style={{ padding: '0.55rem', fontSize: '0.74rem', justifyContent: 'center', textDecoration: 'none' }}
                               >
                                 🔗 Abrir Ficha
                               </a>
                             </div>
                           </div>
-                        )}
-
-                        <div style={{ display: 'flex', gap: '0.65rem' }}>
-                          {lead.status === 'novo' ? (
+                        ) : (
+                          <div style={{ display: 'flex', gap: '0.65rem' }}>
                             <button
-                              onClick={() => handleApproveLead(lead.id)}
+                              onClick={() => handleApproveLead(lead.id, lead)}
                               className="btn-primary-gold"
-                              style={{ flex: 1, padding: '0.55rem', fontSize: '0.78rem', justifyContent: 'center' }}
+                              style={{ flex: 1, padding: '0.65rem', fontSize: '0.82rem', justifyContent: 'center', fontWeight: 700 }}
                             >
-                              <UserCheck size={14} /> Aprovar Audiência & Enviar Link
+                              <UserCheck size={15} /> APROVAR & ENVIAR PLANILHA
                             </button>
-                          ) : (
                             <button
-                              onClick={() => abrirDisparoEmailWorkspace(lead)}
-                              className="btn-secondary-subtle"
-                              style={{ flex: 1, padding: '0.5rem', fontSize: '0.74rem', justifyContent: 'center' }}
+                              onClick={() => handleDeleteLead(lead.id)}
+                              style={{
+                                background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)',
+                                color: '#F87171', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', cursor: 'pointer'
+                              }}
+                              title="Remover Lead"
                             >
-                              ✉️ Reenviar E-mail (mourato@mouratoassociados.com.br)
+                              <Trash2 size={14} />
                             </button>
-                          )}
-                          <button
-                            onClick={() => handleDeleteLead(lead.id)}
-                            style={{
-                              background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)',
-                              color: '#F87171', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', cursor: 'pointer'
-                            }}
-                            title="Remover Lead"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -7785,6 +7838,135 @@ Mourato & Associados Ltda
             <p style={{ color: '#CBD5E1', fontSize: '0.76rem', margin: 0, lineHeight: 1.45 }}>
               {bureauToast.message}
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIRMAÇÃO E DISPARO DA AUDIÊNCIA APROVADA (WHATSAPP & E-MAIL) */}
+      {approvalModalData && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 999999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '1.5rem'
+        }}>
+          <div style={{
+            maxWidth: '560px', width: '100%',
+            background: '#0D121D',
+            border: '1px solid rgba(197, 168, 105, 0.5)',
+            borderRadius: 'var(--radius-md, 12px)',
+            boxShadow: '0 25px 60px rgba(0,0,0,0.85)',
+            padding: '2rem',
+            display: 'flex', flexDirection: 'column', gap: '1.25rem'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span style={{
+                  fontSize: '0.72rem', padding: '0.2rem 0.6rem', borderRadius: '4px',
+                  background: 'rgba(16, 185, 129, 0.15)', color: '#34D399', fontWeight: 700,
+                  letterSpacing: '0.05em'
+                }}>
+                  ✓ AUDIÊNCIA APROVADA
+                </span>
+                <h3 style={{ fontSize: '1.35rem', color: '#FFFFFF', marginTop: '0.5rem', marginBottom: '0.2rem' }}>
+                  {approvalModalData.lead.empresa}
+                </h3>
+                <p style={{ fontSize: '0.82rem', color: '#94A3B8', margin: 0 }}>
+                  {approvalModalData.lead.nome} • {approvalModalData.lead.telefone} • {approvalModalData.lead.email}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setApprovalModalData(null)}
+                style={{ background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: '1.35rem', padding: '0.25rem' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: '8px', padding: '1rem',
+              display: 'flex', flexDirection: 'column', gap: '0.5rem'
+            }}>
+              <label style={{ fontSize: '0.72rem', color: 'var(--gold-light, #E2C98A)', fontWeight: 700, textTransform: 'uppercase' }}>
+                Link da Ficha Cadastral Gerado:
+              </label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input
+                  type="text"
+                  readOnly
+                  value={approvalModalData.linkFicha}
+                  style={{
+                    flex: 1, background: '#070A10', border: '1px solid rgba(255,255,255,0.15)',
+                    color: '#CBD5E1', padding: '0.55rem 0.75rem', borderRadius: '6px', fontSize: '0.78rem'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(approvalModalData.linkFicha);
+                    alert('Link oficial copiado para a área de transferência!');
+                  }}
+                  className="btn-secondary-subtle"
+                  style={{ padding: '0.55rem 0.9rem', fontSize: '0.75rem', whiteSpace: 'nowrap' }}
+                >
+                  📋 Copiar
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <a
+                href={approvalModalData.wppUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem',
+                  padding: '0.85rem 1.25rem', background: '#25D366', color: '#0A180E',
+                  fontWeight: 700, fontSize: '0.88rem', borderRadius: '8px', textDecoration: 'none',
+                  boxShadow: '0 4px 12px rgba(37, 211, 102, 0.3)'
+                }}
+              >
+                <span>💬</span> Enviar Link via WhatsApp ({approvalModalData.cleanPhone})
+              </a>
+
+              <a
+                href={approvalModalData.mailtoUrl}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem',
+                  padding: '0.85rem 1.25rem', background: 'var(--gold-primary, #C5A869)', color: '#0D121D',
+                  fontWeight: 700, fontSize: '0.88rem', borderRadius: '8px', textDecoration: 'none',
+                  boxShadow: '0 4px 12px rgba(197, 168, 105, 0.3)'
+                }}
+              >
+                <span>✉️</span> Enviar E-mail Oficial (mourato@mouratoassociados.com.br)
+              </a>
+
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+                <a
+                  href={approvalModalData.linkFicha}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn-secondary-subtle"
+                  style={{ flex: 1, padding: '0.65rem', fontSize: '0.78rem', justifyContent: 'center', textDecoration: 'none' }}
+                >
+                  🔗 Abrir / Testar Ficha
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setApprovalModalData(null)}
+                  className="btn-secondary-subtle"
+                  style={{ padding: '0.65rem 1.5rem', fontSize: '0.78rem' }}
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
