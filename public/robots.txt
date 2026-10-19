@@ -1,0 +1,47 @@
+# robots.txt para Mourato & Associados (mouratoassociados.com.br)
+# Entidade Oficial: MOURATO & ASSOCIADOS LTDA - CNPJ: 38.377.738/0001-45
+# Atividade: Assessoria Corporativa, Recuperação de Crédito, Otimização de Spread Bancário e Consultoria Financeira.
+
+User-agent: *
+Allow: /
+Allow: /ficha-cadastral
+
+# DESINDEXAÇÃO IMEDIATA E PURGA DE LEGADO DE E-COMMERCE / PERFUMARIA / COSMÉTICOS
+# Bloqueio expresso a todos os robôs (Googlebot, Bingbot, etc.) para páginas e categorias antigas
+Disallow: /produtos/
+Disallow: /produto/
+Disallow: /produtos
+Disallow: /produto
+Disallow: /perfumes/
+Disallow: /perfume/
+Disallow: /perfumes
+Disallow: /perfume
+Disallow: /fragrancias/
+Disallow: /fragrancia/
+Disallow: /cosmeticos/
+Disallow: /cosmetico/
+Disallow: /marcas/
+Disallow: /marca/
+Disallow: /marcas
+Disallow: /marca
+Disallow: /categorias/
+Disallow: /categoria/
+Disallow: /carrinho/
+Disallow: /carrinho
+Disallow: /cart/
+Disallow: /cart
+Disallow: /checkout/
+Disallow: /checkout
+Disallow: /loja/
+Disallow: /loja
+Disallow: /shop/
+Disallow: /shop
+Disallow: /busca
+Disallow: /search
+Disallow: /*?*perfume*
+Disallow: /*?*produto*
+Disallow: /*?*marca*
+Disallow: /*?*cosmetico*
+
+# Sitemap oficial e exclusivo dos serviços corporativos
+Sitemap: https://mouratoassociados.com.br/sitemap.xml

@@ -36,6 +36,36 @@ export function App() {
     hash === '#ficha' ||
     hash === '#confirmar';
 
+  const isLegacyStoreRoute = 
+    path.startsWith('/produto') ||
+    path.startsWith('/perfume') ||
+    path.startsWith('/fragrancia') ||
+    path.startsWith('/cosmetico') ||
+    path.startsWith('/marca') ||
+    path.startsWith('/categoria') ||
+    path.startsWith('/carrinho') ||
+    path.startsWith('/cart') ||
+    path.startsWith('/checkout') ||
+    path.startsWith('/loja') ||
+    path.startsWith('/shop') ||
+    search.includes('perfume') ||
+    search.includes('cosmetico') ||
+    search.includes('produto');
+
+  // Purga e desindexacao imediata de URLs legadas de e-commerce / perfumaria no Google e Bing
+  useEffect(() => {
+    if (isLegacyStoreRoute) {
+      let meta = document.querySelector('meta[name="robots"]');
+      if (!meta) {
+        meta = document.createElement('meta');
+        meta.name = 'robots';
+        document.head.appendChild(meta);
+      }
+      meta.content = 'noindex, nofollow, noarchive, nosnippet';
+      document.title = '410 - Conteúdo Descontinuado | Mourato & Associados';
+    }
+  }, [isLegacyStoreRoute]);
+
   // Abre automaticamente o Birô de Crédito caso solicitado na URL (?view=bureau ou #bureau)
   useEffect(() => {
     const s = window.location.search.toLowerCase();
@@ -88,6 +118,36 @@ export function App() {
             isFullPage={true} 
             defaultMode={search.includes('iframe') ? 'iframe' : 'native'} 
           />
+        </div>
+      </div>
+    );
+  }
+
+  // RESPOSTA DE PURGA E DESINDEXAÇÃO DEFINITIVA (410 GONE) PARA ROTAS LEGADAS DE E-COMMERCE / PERFUMARIA
+  if (isLegacyStoreRoute) {
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--bg-primary, #0A0F1D)', color: '#F8FAFC', padding: '4rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ maxWidth: '640px', width: '100%', background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(239, 68, 68, 0.35)', borderRadius: '16px', padding: '2.5rem', textAlign: 'center', boxShadow: '0 25px 50px rgba(0,0,0,0.6)' }}>
+          <div style={{ display: 'inline-flex', padding: '0.6rem 1.2rem', background: 'rgba(239, 68, 68, 0.12)', color: '#EF4444', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 'bold', marginBottom: '1.5rem', letterSpacing: '0.05em' }}>
+            STATUS 410: CONTEÚDO DEFINITIVAMENTE EXCLUÍDO (GONE)
+          </div>
+          <h1 style={{ fontFamily: 'Cinzel, serif', fontSize: '1.6rem', color: '#FFFFFF', marginBottom: '1rem', lineHeight: 1.3 }}>
+            Página de E-commerce / Cosméticos Descontinuada
+          </h1>
+          <p style={{ color: '#94A3B8', fontSize: '0.95rem', lineHeight: 1.6, marginBottom: '1.75rem' }}>
+            Aviso formal aos robôs de busca (Googlebot, Bingbot) e usuários: as antigas páginas de produtos de perfumaria, cosméticos ou e-commerce foram definitivamente descontinuadas e excluídas deste domínio.
+          </p>
+          <div style={{ background: 'rgba(30, 58, 138, 0.15)', border: '1px solid rgba(217, 119, 6, 0.3)', borderRadius: '10px', padding: '1.25rem', marginBottom: '2rem', textAlign: 'left', fontSize: '0.88rem', color: '#CBD5E1', lineHeight: 1.5 }}>
+            <strong style={{ color: '#F59E0B', display: 'block', marginBottom: '0.35rem' }}>Titularidade Exclusiva do Domínio:</strong>
+            <strong>Mourato & Associados Ltda</strong> (CNPJ: 38.377.738/0001-45). Atividade exclusiva em Assessoria Corporativa, Otimização de Spread Bancário, Reabilitação de Crédito Pericial e Consultoria Financeira. Não comercializamos bens de consumo ou perfumes.
+          </div>
+          <a 
+            href="/"
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.9rem 2.2rem', background: '#D97706', color: '#0F172A', fontWeight: 'bold', borderRadius: '8px', textDecoration: 'none', fontSize: '0.92rem', transition: 'all 0.2s' }}
+          >
+            Acessar Plataforma Oficial Mourato & Associados
+            <ArrowUpRight size={16} />
+          </a>
         </div>
       </div>
     );
