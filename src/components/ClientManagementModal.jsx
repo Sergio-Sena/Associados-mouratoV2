@@ -135,6 +135,86 @@ const markLeadAsApprovedLocally = (id, lead = null) => {
   }
 };
 
+// Conversor Oficial de Lead Aprovado em Registro de Cliente
+const convertLeadToClientRecord = (lead, linkFicha = '') => {
+  const cleanDoc = (lead.documento || lead.cnpj || lead.cpf || '').trim();
+  const docDigits = cleanDoc.replace(/\D/g, '');
+  const docTipo = docDigits.length === 11 ? 'CPF' : 'CNPJ';
+  const phone = lead.telefone || '';
+  const leadId = String(lead.id || Date.now());
+
+  const baseUrl = typeof window !== 'undefined' ? (window.location.origin || 'https://www.mouratoassociados.com.br') : 'https://www.mouratoassociados.com.br';
+  const calculatedLink = linkFicha || `${baseUrl}/ficha-cadastral?nome=${encodeURIComponent(lead.nome || '')}&empresa=${encodeURIComponent(lead.empresa || '')}&telefone=${encodeURIComponent(lead.telefone || '')}&email=${encodeURIComponent(lead.email || '')}&origem=audiencia_aprovada`;
+
+  return {
+    id: `cli-lead-${leadId}`,
+    leadOriginId: leadId,
+    tipo: lead.tipo || (docDigits.length === 11 ? 'PF' : 'PJ'),
+    nomeRazao: (lead.empresa || lead.nome || 'Cliente Cadastrado').toUpperCase(),
+    documento: cleanDoc || 'Em Cadastramento (Ficha Enviada)',
+    documentoTipo: docTipo,
+    natureza: lead.natureza || 'Sociedade Empresária / Auditoria de Rating',
+    nire: '',
+    situacao: 'EM AUDITORIA',
+    statusConta: 'Lead Aprovado / Ficha Enviada',
+    dataAbertura: lead.dataAbertura || new Date().toISOString().split('T')[0],
+    dataCadastro: new Date().toISOString().split('T')[0],
+    dataAprovacao: lead.aprovadoEm || new Date().toISOString(),
+    socioVinculado: (lead.nome || '').toUpperCase(),
+    responsavel: `${(lead.nome || '').toUpperCase()} (${lead.email || 'mourato@mouratoassociados.com.br'})`,
+    contato: phone,
+    email: (lead.email || '').toLowerCase().trim(),
+    endereco: lead.endereco || 'Aguardando preenchimento da Ficha Cadastral',
+    cep: lead.cep || '',
+    origem: 'Lead do Site Aprovado',
+    pratica: lead.pratica || 'Auditoria & Rating Bancário',
+    contexto: lead.contexto || '',
+    linkFicha: calculatedLink,
+    balanco: {
+      exercicio: '2026 (Em Análise)',
+      ativo: 'Aguardando DRE/Balanço',
+      patrimonioLiquido: 'Aguardando DRE/Balanço',
+      capitalSocial: 'Aguardando Ficha',
+      faturamentoAnual: 'Aguardando Faturamento',
+      contadorResponsavel: 'Aguardando Ficha'
+    },
+    contasBancarias: [],
+    bancosHomologados: [],
+    scrBacen: {
+      ratingGeral: 'AA',
+      limiteTotalLiberado: 'R$ 0,00',
+      volumeOperacoes: '0 operacoes',
+      prejuizoRegistrado: 'R$ 0,00',
+      pontualidade: '100%',
+      detalhes: []
+    },
+    birosScores: {
+      serasaScore: 'Em Análise',
+      boaVistaScore: 'Em Análise',
+      quodScore: 'Em Análise',
+      bacenScrStatus: 'Em Análise'
+    }
+  };
+};
+
+const isClientAlreadyInList = (clientList, lead) => {
+  if (!lead || !Array.isArray(clientList)) return false;
+  const leadEmail = (lead.email || '').toLowerCase().trim();
+  const leadPhone = (lead.telefone || '').replace(/\D/g, '');
+  const leadEmpresa = (lead.empresa || '').toLowerCase().trim();
+  const leadNome = (lead.nome || '').toLowerCase().trim();
+  const leadId = String(lead.id || '');
+
+  return clientList.some(c => {
+    if (c.id === `cli-lead-${leadId}` || c.leadOriginId === leadId) return true;
+    if (leadEmail && (c.email || '').toLowerCase().trim() === leadEmail) return true;
+    if (leadEmpresa && (c.nomeRazao || '').toLowerCase().trim() === leadEmpresa) return true;
+    if (leadNome && (c.nomeRazao || '').toLowerCase().trim() === leadNome) return true;
+    if (leadPhone && leadPhone.length >= 8 && (c.contato || '').replace(/\D/g, '').includes(leadPhone)) return true;
+    return false;
+  });
+};
+
 export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authForm, setAuthForm] = useState({ user: '', password: '' });
@@ -161,6 +241,51 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
       }
     }
   }, [isOpen, initialView]);
+
+  // 1. Clients Database State (Carregamento Inteligente: Base Teia + LocalStorage com respeito a exclusões)
+  const [clients, setClients] = useState(() => {
+    try {
+      const deletedIds = getDeletedClientIds();
+      const saved = localStorage.getItem(STORAGE_CLIENTS_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(c => !deletedIds.has(c.id) && !deletedIds.has((c.documento || '').replace(/\D/g, '')));
+        }
+      }
+      return TEIA_INITIAL_CLIENTS.filter(t => !deletedIds.has(t.id) && !deletedIds.has((t.documento || '').replace(/\D/g, '')));
+    } catch (e) {
+      console.error('Erro ao recuperar clientes do storage:', e);
+      return TEIA_INITIAL_CLIENTS;
+    }
+  });
+
+  // Recarrega em tempo real quando um novo cliente preenche a Ficha de Onboarding no site oficial
+  useEffect(() => {
+    const handleClientSaved = () => {
+      try {
+        const deletedIds = getDeletedClientIds();
+        const saved = localStorage.getItem(STORAGE_CLIENTS_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            const filtered = parsed.filter(c => !deletedIds.has(c.id) && !deletedIds.has((c.documento || '').replace(/\D/g, '')));
+            setClients(filtered);
+          }
+        }
+      } catch (e) {
+        console.error('Erro ao recarregar clientes:', e);
+      }
+    };
+
+    window.addEventListener('mourato_client_saved', handleClientSaved);
+    window.addEventListener('storage', handleClientSaved);
+    return () => {
+      window.removeEventListener('mourato_client_saved', handleClientSaved);
+      window.removeEventListener('storage', handleClientSaved);
+    };
+  }, []);
+
   const [leads, setLeads] = useState([]);
   const [leadsLoading, setLeadsLoading] = useState(false);
 
@@ -203,8 +328,11 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
       } catch (err) {}
     }
 
-    // 4. Aplica blindagem definitiva com múltiplas chaves: se foi aprovado, NUNCA mais volta para 'novo'
-    const finalLeads = (items || []).map(lead => {
+    // 4. Segrega: Leads Aprovados saem de Leads e entram em Clientes
+    const pendingLeads = [];
+    const approvedLeadsToMigrate = [];
+
+    (items || []).forEach(lead => {
       const isApproved = 
         (lead.id && approvedSet.has(String(lead.id))) ||
         (lead.email && approvedSet.has(lead.email.toLowerCase().trim())) ||
@@ -213,13 +341,36 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
         (lead.nome && lead.telefone && approvedSet.has(`${lead.nome.trim()}_${lead.telefone.replace(/\D/g, '')}`)) ||
         lead.status === 'aprovado';
 
-      return {
-        ...lead,
-        status: isApproved ? 'aprovado' : (lead.status || 'novo')
-      };
+      if (isApproved) {
+        approvedLeadsToMigrate.push({ ...lead, status: 'aprovado' });
+      } else {
+        pendingLeads.push({ ...lead, status: lead.status || 'novo' });
+      }
     });
 
-    setLeads(finalLeads);
+    // Migra leads aprovados para a lista de Clientes caso ainda não estejam lá
+    if (approvedLeadsToMigrate.length > 0) {
+      setClients(prevClients => {
+        let updatedList = [...prevClients];
+        let hasChanges = false;
+        approvedLeadsToMigrate.forEach(approvedLead => {
+          if (!isClientAlreadyInList(updatedList, approvedLead)) {
+            const clientRec = convertLeadToClientRecord(approvedLead);
+            updatedList = [clientRec, ...updatedList];
+            hasChanges = true;
+          }
+        });
+        if (hasChanges) {
+          try {
+            localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(updatedList));
+          } catch (e) {}
+        }
+        return updatedList;
+      });
+    }
+
+    // Na aba Leads, somente permanecem leads pendentes (os aprovados saem para Clientes)
+    setLeads(pendingLeads);
     setLeadsLoading(false);
   };
 
@@ -275,7 +426,27 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
     const emailBody = `Prezado(a) ${targetLead.nome} (${targetLead.empresa}),\n\nÉ com satisfação que informamos que sua solicitação de assessoria corporativa foi APROVADA por nossa Diretoria.\n\nPara procedermos com a abertura de prontuário e auditoria pericial de crédito perante o Banco Central do Brasil (SCR) e birôs oficiais, solicitamos o preenchimento da sua Ficha Cadastral no link oficial abaixo:\n\n${linkFicha}\n\n(O fornecimento de senhas de birôs é estritamente opcional e todas as informações estão sob sigilo pericial e LGPD).\n\nAtenciosamente,\n\nJosé Jailson Mourato da Silva\nMourato & Associados — Governança e Inteligência Financeira\nAv. São Luís, 187, Sala 69 A - República, São Paulo/SP\nTelefone: (11) 97899-0034 | E-mail: mourato@mouratoassociados.com.br\nwww.mouratoassociados.com.br`;
     const mailtoUrl = `mailto:${targetLead.email || 'mourato@mouratoassociados.com.br'}?cc=mourato@mouratoassociados.com.br&subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
 
-    // 5. Configura e abre o Modal de Envio e Feedback
+    // 5. Converte o Lead e Adiciona a Clientes (Sai de Leads e entra em Clientes)
+    const newClientRecord = convertLeadToClientRecord(targetLead, linkFicha);
+    setClients(prevClients => {
+      const filtered = prevClients.filter(c => c.id !== newClientRecord.id && (!targetLead.email || (c.email || '').toLowerCase() !== targetLead.email.toLowerCase()));
+      const updated = [newClientRecord, ...filtered];
+      try {
+        localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    // 6. Remove da lista de Leads (sai imediatamente da aba Leads)
+    setLeads(prevLeads => {
+      const remaining = prevLeads.filter(l => l.id !== id && (!targetLead.email || l.email !== targetLead.email));
+      try {
+        localStorage.setItem('mourato_leads_solicitacoes', JSON.stringify(remaining));
+      } catch (e) {}
+      return remaining;
+    });
+
+    // 7. Configura e abre o Modal de Envio e Feedback
     setApprovalModalData({
       lead: targetLead,
       linkFicha,
@@ -284,17 +455,19 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
       cleanPhone,
       mailtoUrl,
       emailSubject,
-      emailBody
+      emailBody,
+      clientCreated: newClientRecord
     });
 
-    // 6. Atualiza estado em tempo real no painel
-    const updated = leads.map(l => (l.id === id || (targetLead.email && l.email === targetLead.email)) ? { ...l, status: 'aprovado' } : l);
-    setLeads(updated);
+    // 8. Notifica criação do cliente para ouvintes do sistema
     try {
-      localStorage.setItem('mourato_leads_solicitacoes', JSON.stringify(updated));
-    } catch (e) {}
+      window.dispatchEvent(new CustomEvent('mourato_client_saved', { detail: newClientRecord }));
+    } catch (_) {}
 
-    // 7. Sincroniza com backend local (Node) e AWS
+    // 9. Toast de sucesso claro e imediato
+    showToast('🎉 Lead Aprovado!', `"${targetLead.empresa || targetLead.nome}" saiu de Leads e agora é um Cliente ativo.`);
+
+    // 10. Sincroniza com backend local (Node) e AWS
     try {
       await fetch(`http://localhost:3000/api/leads/${id || 'lead'}/approve`, {
         method: 'POST',
@@ -327,7 +500,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
       }
     }
 
-    // 8. Abre automaticamente o WhatsApp Web
+    // 11. Abre automaticamente o WhatsApp Web
     try {
       window.open(wppUrl, '_blank');
     } catch (_) {}
@@ -337,56 +510,12 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
     setEmailModalLead(lead);
   };
 
-    const [selectedClient, setSelectedClient] = useState(null);
+  const [selectedClient, setSelectedClient] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Password visibility maps
   const [showFormPasswords, setShowFormPasswords] = useState({});
   const [showDetailPasswords, setShowDetailPasswords] = useState({});
-
-  // 1. Clients Database State (Carregamento Inteligente: Base Teia + LocalStorage com respeito a exclusões)
-  const [clients, setClients] = useState(() => {
-    try {
-      const deletedIds = getDeletedClientIds();
-      const saved = localStorage.getItem(STORAGE_CLIENTS_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          return parsed.filter(c => !deletedIds.has(c.id) && !deletedIds.has((c.documento || '').replace(/\D/g, '')));
-        }
-      }
-      return TEIA_INITIAL_CLIENTS.filter(t => !deletedIds.has(t.id) && !deletedIds.has((t.documento || '').replace(/\D/g, '')));
-    } catch (e) {
-      console.error('Erro ao recuperar clientes do storage:', e);
-      return TEIA_INITIAL_CLIENTS;
-    }
-  });
-
-  // Recarrega em tempo real quando um novo cliente preenche a Ficha de Onboarding no site oficial
-  useEffect(() => {
-    const handleClientSaved = () => {
-      try {
-        const deletedIds = getDeletedClientIds();
-        const saved = localStorage.getItem(STORAGE_CLIENTS_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            const filtered = parsed.filter(c => !deletedIds.has(c.id) && !deletedIds.has((c.documento || '').replace(/\D/g, '')));
-            setClients(filtered);
-          }
-        }
-      } catch (e) {
-        console.error('Erro ao recarregar clientes:', e);
-      }
-    };
-
-    window.addEventListener('mourato_client_saved', handleClientSaved);
-    window.addEventListener('storage', handleClientSaved);
-    return () => {
-      window.removeEventListener('mourato_client_saved', handleClientSaved);
-      window.removeEventListener('storage', handleClientSaved);
-    };
-  }, []);
 
   // Filtro de clientes: todos, empresas PJ ou sócios PF
   const [clientTypeFilter, setClientTypeFilter] = useState('todos');
@@ -2579,12 +2708,18 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               fontSize: '0.68rem', 
                               padding: '0.15rem 0.5rem', 
                               borderRadius: '9999px', 
-                              background: 'rgba(16, 185, 129, 0.12)', 
-                              color: '#34D399',
-                              border: '1px solid rgba(16, 185, 129, 0.25)',
-                              fontWeight: 600 
+                              background: (client.origem === 'Lead do Site Aprovado' || client.statusConta === 'Lead Aprovado / Ficha Enviada')
+                                ? 'rgba(197, 168, 105, 0.2)'
+                                : 'rgba(16, 185, 129, 0.12)', 
+                              color: (client.origem === 'Lead do Site Aprovado' || client.statusConta === 'Lead Aprovado / Ficha Enviada')
+                                ? 'var(--gold-light)'
+                                : '#34D399',
+                              border: (client.origem === 'Lead do Site Aprovado' || client.statusConta === 'Lead Aprovado / Ficha Enviada')
+                                ? '1px solid var(--gold-border)'
+                                : '1px solid rgba(16, 185, 129, 0.25)',
+                              fontWeight: 700 
                             }}>
-                              Contas Ativas
+                              {(client.origem === 'Lead do Site Aprovado' || client.statusConta === 'Lead Aprovado / Ficha Enviada') ? '✓ Lead Aprovado' : 'Contas Ativas'}
                             </span>
                           </div>
 
@@ -2592,6 +2727,52 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                           <h3 style={{ fontSize: '1.08rem', color: '#FFFFFF', margin: '0 0 0.35rem', fontWeight: 700, lineHeight: 1.3 }}>
                             {client.nomeRazao}
                           </h3>
+
+                          {/* Link Direto da Ficha Cadastral se gerado */}
+                          {client.linkFicha && (
+                            <div style={{
+                              background: 'rgba(197, 168, 105, 0.08)',
+                              border: '1px dashed rgba(197, 168, 105, 0.35)',
+                              borderRadius: '4px',
+                              padding: '0.35rem 0.55rem',
+                              marginBottom: '0.55rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '0.5rem'
+                            }}>
+                              <span style={{ fontSize: '0.68rem', color: 'var(--gold-light)', fontWeight: 600 }}>
+                                📋 Ficha Cadastral Enviada
+                              </span>
+                              <div style={{ display: 'flex', gap: '0.35rem' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(client.linkFicha);
+                                    showToast('📋 Link Copiado!', 'Link da Ficha Cadastral copiado para a área de transferência.');
+                                  }}
+                                  style={{
+                                    background: 'rgba(255,255,255,0.08)', border: 'none', color: '#FFFFFF',
+                                    fontSize: '0.66rem', padding: '0.15rem 0.4rem', borderRadius: '3px', cursor: 'pointer'
+                                  }}
+                                  title="Copiar link da ficha"
+                                >
+                                  Copiar
+                                </button>
+                                <a
+                                  href={client.linkFicha}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={{
+                                    background: 'var(--gold-primary)', color: '#0A0D14', textDecoration: 'none',
+                                    fontSize: '0.66rem', padding: '0.15rem 0.45rem', borderRadius: '3px', fontWeight: 700
+                                  }}
+                                >
+                                  Abrir
+                                </a>
+                              </div>
+                            </div>
+                          )}
 
                           {/* CNPJ ou CPF */}
                           <div style={{ fontSize: '0.78rem', color: '#94A3B8', marginBottom: '0.65rem' }}>
@@ -7950,13 +8131,24 @@ Mourato & Associados Ltda
                 <span>✉️</span> Enviar E-mail Oficial (mourato@mouratoassociados.com.br)
               </a>
 
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setApprovalModalData(null);
+                    setActiveView('clients_list');
+                  }}
+                  className="btn-primary-gold"
+                  style={{ flex: 1, padding: '0.65rem 1.1rem', fontSize: '0.78rem', justifyContent: 'center', whiteSpace: 'nowrap' }}
+                >
+                  👥 Ver na Lista de Clientes
+                </button>
                 <a
                   href={approvalModalData.linkFicha}
                   target="_blank"
                   rel="noreferrer"
                   className="btn-secondary-subtle"
-                  style={{ flex: 1, padding: '0.65rem', fontSize: '0.78rem', justifyContent: 'center', textDecoration: 'none' }}
+                  style={{ flex: 1, padding: '0.65rem', fontSize: '0.78rem', justifyContent: 'center', textDecoration: 'none', whiteSpace: 'nowrap' }}
                 >
                   🔗 Abrir / Testar Ficha
                 </a>
@@ -7964,7 +8156,7 @@ Mourato & Associados Ltda
                   type="button"
                   onClick={() => setApprovalModalData(null)}
                   className="btn-secondary-subtle"
-                  style={{ padding: '0.65rem 1.5rem', fontSize: '0.78rem' }}
+                  style={{ padding: '0.65rem 1.25rem', fontSize: '0.78rem' }}
                 >
                   Fechar
                 </button>
