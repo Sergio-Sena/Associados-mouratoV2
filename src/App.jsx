@@ -11,6 +11,7 @@ import { AdvisoryOnboardingModal } from './components/AdvisoryOnboardingModal';
 import { ClientManagementModal } from './components/ClientManagementModal';
 import { OnboardingModal } from './components/OnboardingModal';
 import { FichaCadastralStandalone } from './components/FichaCadastralStandalone';
+import { WikipediaArticle } from './components/WikipediaArticle';
 import { Footer } from './components/Footer';
 import { ArrowUpRight } from 'lucide-react';
 
@@ -24,6 +25,18 @@ export function App() {
   const path = typeof window !== 'undefined' ? window.location.pathname.toLowerCase() : '';
   const search = typeof window !== 'undefined' ? window.location.search.toLowerCase() : '';
   const hash = typeof window !== 'undefined' ? window.location.hash.toLowerCase() : '';
+
+  const isWikipediaRoute = 
+    path === '/wikipedia' || 
+    path === '/wiki' || 
+    path === '/wikipedia.html' || 
+    path === '/sobre/wikipedia' ||
+    search.includes('view=wikipedia') || 
+    search.includes('wiki=true') ||
+    hash === '#wikipedia' ||
+    hash === '#wiki';
+
+  const [isWikiOpen, setIsWikiOpen] = useState(isWikipediaRoute);
 
   const isDirectFichaRoute = 
     path === '/ficha-cadastral' || 
@@ -109,6 +122,20 @@ export function App() {
     }
   };
 
+  // PÁGINA ENCICLOPÉDICA: Visão de Artigo Oficial na Wikipédia (/wikipedia ou #wikipedia)
+  if (isWikiOpen || isWikipediaRoute) {
+    return (
+      <WikipediaArticle 
+        onBack={() => {
+          setIsWikiOpen(false);
+          if (window.location.hash.includes('wiki') || window.location.search.includes('wiki') || window.location.pathname.includes('wiki')) {
+            window.history.pushState({}, '', '/');
+          }
+        }} 
+      />
+    );
+  }
+
   // ROTA DEDICADA DIRETA: Link oficial para o cliente no celular ou computador (/ficha-cadastral)
   if (isDirectFichaRoute) {
     return (
@@ -162,6 +189,7 @@ export function App() {
         onOpenContact={() => setIsContactOpen(true)}
         onOpenLogin={handleOpenLogin}
         onOpenOnboarding={() => handleOpenOnboarding('native')}
+        onOpenWiki={() => setIsWikiOpen(true)}
       />
 
       <main style={{ flex: 1 }}>
@@ -242,6 +270,7 @@ export function App() {
         onNavigate={handleNavigate}
         onOpenContact={() => setIsContactOpen(true)}
         onOpenOnboarding={() => handleOpenOnboarding('native')}
+        onOpenWiki={() => setIsWikiOpen(true)}
       />
 
       {/* Modal de Agendamento Executivo */}

@@ -52,7 +52,7 @@ const FooterLink = ({ onClick, children }) => (
   </li>
 );
 
-export const Footer = ({ onNavigate, onOpenContact, onOpenOnboarding }) => {
+export const Footer = ({ onNavigate, onOpenContact, onOpenOnboarding, onOpenWiki }) => {
   return (
     <footer style={{ background: '#05070B', borderTop: '1px solid var(--border-subtle)', padding: '4.5rem 0 0' }}>
       <div className="container-xl">
@@ -125,6 +125,7 @@ export const Footer = ({ onNavigate, onOpenContact, onOpenOnboarding }) => {
               <FooterLink onClick={() => onNavigate('consultoria')}>Contabilidade Consultiva & Covenants</FooterLink>
               <FooterLink onClick={() => onNavigate('consultoria')}>Planejamento Tributário Estratégico</FooterLink>
               <FooterLink onClick={() => onNavigate('consultoria')}>Valuation & Assessoria em M&A</FooterLink>
+              <FooterLink onClick={onOpenWiki}>Perfil Enciclopédico (Wikipédia)</FooterLink>
             </ul>
           </div>
 
@@ -175,7 +176,28 @@ export const Footer = ({ onNavigate, onOpenContact, onOpenOnboarding }) => {
           letterSpacing: '0.01em'
         }}>
           <div>© {new Date().getFullYear()} Mourato e Associados Ltda. · Todos os direitos reservados.</div>
-          <div style={{ color: '#64748B' }}>São Paulo — SP · Atuação em Todo o Território Nacional</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
+            <button
+              onClick={onOpenWiki}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--gold-light)',
+                cursor: 'pointer',
+                fontSize: '0.78rem',
+                fontFamily: 'var(--font-sans)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                padding: 0,
+                textDecoration: 'underline'
+              }}
+            >
+              <span>Ver como seria na Wikipédia</span>
+              <ArrowUpRight size={12} />
+            </button>
+            <div style={{ color: '#64748B' }}>São Paulo — SP · Atuação em Todo o Território Nacional</div>
+          </div>
         </div>
 
       </div>
