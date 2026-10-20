@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useInView } from '../hooks/useInView';
 
-export const CreditBureauSection = ({ onOpenContact }) => {
+export const CreditBureauSection = ({ onOpenContact, onOpenOnboarding }) => {
   const [headerRef, headerInView] = useInView();
   const [institutionsRef, institutionsInView] = useInView({ threshold: 0 });
   const [advantagesRef, advantagesInView] = useInView({ threshold: 0 });
@@ -286,7 +286,7 @@ export const CreditBureauSection = ({ onOpenContact }) => {
             <button 
               className="btn-primary-gold"
               onClick={onOpenContact}
-              style={{ padding: '0.8rem 1.6rem', fontSize: '0.85rem' }}
+              style={{ padding: '0.8rem 1.8rem', fontSize: '0.88rem' }}
             >
               Solicitar Diagnóstico Reservado
               <ArrowUpRight size={14} />

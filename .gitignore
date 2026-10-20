@@ -30,6 +30,7 @@ Contrato.pdf
 
 # Screenshots
 scripts/screenshots/
+screenshots/
 
 # gstack (global install)
 .amazonq/rules/gstack.md

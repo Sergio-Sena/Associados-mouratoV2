@@ -49,16 +49,170 @@ import {
   Activity,
   Edit,
   Edit2,
-  Save
+  Save,
+  RotateCcw,
+  Share2
 } from 'lucide-react';
 import { createPixCharge, createCheckoutProPreference, validateAntifraudPayer } from '../services/mercadoPagoService';
 import { TEIA_INITIAL_CLIENTS } from '../data/teiaDatabase';
 
 const STORAGE_CLIENTS_KEY = 'mourato_clients_records_v2';
+const STORAGE_DELETED_CLIENTS_KEY = 'mourato_deleted_clients_v2';
 const STORAGE_EXPENSES_KEY = 'mourato_corporate_expenses_v1';
 const STORAGE_APPOINTMENTS_KEY = 'mourato_appointments_v1';
 const STORAGE_RECEIVABLES_KEY = 'mourato_receivables_v1';
 const STORAGE_MP_CONFIG_KEY = 'mourato_mercadopago_config_v1';
+
+// Helpers de Validação Monetária & Conversão Blindada contra erros de cálculo
+const parseMonetaryValue = (val) => {
+  if (val === null || val === undefined || val === '') return 0;
+  if (typeof val === 'number') return isNaN(val) ? 0 : val;
+  const str = String(val).trim();
+  const clean = str.replace(/[^0-9,-.]/g, '');
+  if (!clean) return 0;
+  if (clean.includes(',') && clean.includes('.')) {
+    if (clean.lastIndexOf(',') > clean.lastIndexOf('.')) {
+      return parseFloat(clean.replace(/\./g, '').replace(',', '.')) || 0;
+    } else {
+      return parseFloat(clean.replace(/,/g, '')) || 0;
+    }
+  }
+  if (clean.includes(',')) {
+    return parseFloat(clean.replace(',', '.')) || 0;
+  }
+  return parseFloat(clean) || 0;
+};
+
+const formatMonetaryValue = (val) => {
+  const num = parseMonetaryValue(val);
+  return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
+
+// Helper de Extração de Score Numérico sem valores fixos artificiais
+const parseScoreValue = (val) => {
+  if (val === null || val === undefined || val === '') return 0;
+  if (typeof val === 'number') return isNaN(val) ? 0 : Math.max(0, Math.min(1000, Math.round(val)));
+  const match = String(val).match(/\d+/);
+  if (match) {
+    const num = parseInt(match[0], 10);
+    return isNaN(num) ? 0 : Math.max(0, Math.min(1000, num));
+  }
+  return 0;
+};
+
+const getDeletedClientIds = () => {
+  try {
+    const raw = localStorage.getItem(STORAGE_DELETED_CLIENTS_KEY);
+    if (raw) return new Set(JSON.parse(raw));
+  } catch (_) {}
+  return new Set();
+};
+
+
+// Gerenciador de Aprovação Resiliente Multi-Chaves (Evita que o Lead reverta para 'novo')
+const STORAGE_APPROVED_LEADS = 'mourato_approved_leads_ids';
+const getApprovedLeadsSet = () => {
+  try {
+    const raw = localStorage.getItem(STORAGE_APPROVED_LEADS);
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch (e) {
+    return new Set();
+  }
+};
+const markLeadAsApprovedLocally = (id, lead = null) => {
+  try {
+    const set = getApprovedLeadsSet();
+    if (id) set.add(String(id));
+    if (lead) {
+      if (lead.email) set.add(lead.email.toLowerCase().trim());
+      if (lead.telefone) set.add(lead.telefone.replace(/\D/g, ''));
+      if (lead.email && lead.empresa) set.add(`${lead.email.toLowerCase().trim()}_${lead.empresa.trim()}`);
+      if (lead.nome && lead.telefone) set.add(`${lead.nome.trim()}_${lead.telefone.replace(/\D/g, '')}`);
+    }
+    localStorage.setItem(STORAGE_APPROVED_LEADS, JSON.stringify(Array.from(set)));
+  } catch (e) {
+    console.warn('Erro ao salvar lead aprovado localmente:', e);
+  }
+};
+
+// Conversor Oficial de Lead Aprovado em Registro de Cliente
+const convertLeadToClientRecord = (lead, linkFicha = '') => {
+  const cleanDoc = (lead.documento || lead.cnpj || lead.cpf || '').trim();
+  const docDigits = cleanDoc.replace(/\D/g, '');
+  const docTipo = docDigits.length === 11 ? 'CPF' : 'CNPJ';
+  const phone = lead.telefone || '';
+  const leadId = String(lead.id || Date.now());
+
+  const baseUrl = typeof window !== 'undefined' ? (window.location.origin || 'https://www.mouratoassociados.com.br') : 'https://www.mouratoassociados.com.br';
+  const calculatedLink = linkFicha || `${baseUrl}/ficha-cadastral?nome=${encodeURIComponent(lead.nome || '')}&empresa=${encodeURIComponent(lead.empresa || '')}&telefone=${encodeURIComponent(lead.telefone || '')}&email=${encodeURIComponent(lead.email || '')}&origem=audiencia_aprovada`;
+
+  return {
+    id: `cli-lead-${leadId}`,
+    leadOriginId: leadId,
+    tipo: lead.tipo || (docDigits.length === 11 ? 'PF' : 'PJ'),
+    nomeRazao: (lead.empresa || lead.nome || 'Cliente Cadastrado').toUpperCase(),
+    documento: cleanDoc || 'Em Cadastramento (Ficha Enviada)',
+    documentoTipo: docTipo,
+    natureza: lead.natureza || 'Sociedade Empresária / Auditoria de Rating',
+    nire: '',
+    situacao: 'EM AUDITORIA',
+    statusConta: 'Lead Aprovado / Ficha Enviada',
+    dataAbertura: lead.dataAbertura || new Date().toISOString().split('T')[0],
+    dataCadastro: new Date().toISOString().split('T')[0],
+    dataAprovacao: lead.aprovadoEm || new Date().toISOString(),
+    socioVinculado: (lead.nome || '').toUpperCase(),
+    responsavel: `${(lead.nome || '').toUpperCase()} (${lead.email || 'mourato@mouratoassociados.com.br'})`,
+    contato: phone,
+    email: (lead.email || '').toLowerCase().trim(),
+    endereco: lead.endereco || 'Aguardando preenchimento da Ficha Cadastral',
+    cep: lead.cep || '',
+    origem: 'Lead do Site Aprovado',
+    pratica: lead.pratica || 'Auditoria & Rating Bancário',
+    contexto: lead.contexto || '',
+    linkFicha: calculatedLink,
+    balanco: {
+      exercicio: '2026 (Em Análise)',
+      ativo: 'Aguardando DRE/Balanço',
+      patrimonioLiquido: 'Aguardando DRE/Balanço',
+      capitalSocial: 'Aguardando Ficha',
+      faturamentoAnual: 'Aguardando Faturamento',
+      contadorResponsavel: 'Aguardando Ficha'
+    },
+    contasBancarias: [],
+    bancosHomologados: [],
+    scrBacen: {
+      ratingGeral: 'AA',
+      limiteTotalLiberado: 'R$ 0,00',
+      volumeOperacoes: '0 operacoes',
+      prejuizoRegistrado: 'R$ 0,00',
+      pontualidade: '100%',
+      detalhes: []
+    },
+    birosScores: {
+      serasaScore: 'Em Análise',
+      boaVistaScore: 'Em Análise',
+      quodScore: 'Em Análise',
+      bacenScrStatus: 'Em Análise'
+    }
+  };
+};
+
+const isClientAlreadyInList = (clientList, lead) => {
+  if (!lead || !Array.isArray(clientList)) return false;
+  const leadEmail = (lead.email || '').toLowerCase().trim();
+  const leadEmpresa = (lead.empresa || '').toLowerCase().trim();
+  const leadNome = (lead.nome || '').toLowerCase().trim();
+  const leadId = String(lead.id || '');
+  const leadDoc = (lead.documento || lead.cnpj || lead.cpf || '').replace(/\D/g, '');
+
+  return clientList.some(c => {
+    if (c.id === `cli-lead-${leadId}` || c.leadOriginId === leadId) return true;
+    if (leadDoc && leadDoc.length >= 11 && (c.documento || '').replace(/\D/g, '') === leadDoc) return true;
+    if (leadEmpresa && (c.nomeRazao || '').toLowerCase().trim() === leadEmpresa) return true;
+    if (leadEmail && (c.email || '').toLowerCase().trim() === leadEmail && leadEmail !== 'mourato@mouratoassociados.com.br' && leadEmail !== 'mourato.importacao@gmail.com') return true;
+    return false;
+  });
+};
 
 export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -86,72 +240,281 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
       }
     }
   }, [isOpen, initialView]);
+
+  // 1. Clients Database State (Carregamento Inteligente: Base Teia + LocalStorage com respeito a exclusões)
+  const [clients, setClients] = useState(() => {
+    try {
+      const deletedIds = getDeletedClientIds();
+      const saved = localStorage.getItem(STORAGE_CLIENTS_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(c => !deletedIds.has(c.id) && !deletedIds.has((c.documento || '').replace(/\D/g, '')));
+        }
+      }
+      return TEIA_INITIAL_CLIENTS.filter(t => !deletedIds.has(t.id) && !deletedIds.has((t.documento || '').replace(/\D/g, '')));
+    } catch (e) {
+      console.error('Erro ao recuperar clientes do storage:', e);
+      return TEIA_INITIAL_CLIENTS;
+    }
+  });
+
+  // Recarrega em tempo real quando um novo cliente preenche a Ficha de Onboarding no site oficial
+  useEffect(() => {
+    const handleClientSaved = () => {
+      try {
+        const deletedIds = getDeletedClientIds();
+        const saved = localStorage.getItem(STORAGE_CLIENTS_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            const filtered = parsed.filter(c => !deletedIds.has(c.id) && !deletedIds.has((c.documento || '').replace(/\D/g, '')));
+            setClients(filtered);
+          }
+        }
+      } catch (e) {
+        console.error('Erro ao recarregar clientes:', e);
+      }
+    };
+
+    window.addEventListener('mourato_client_saved', handleClientSaved);
+    window.addEventListener('storage', handleClientSaved);
+    return () => {
+      window.removeEventListener('mourato_client_saved', handleClientSaved);
+      window.removeEventListener('storage', handleClientSaved);
+    };
+  }, []);
+
   const [leads, setLeads] = useState([]);
   const [leadsLoading, setLeadsLoading] = useState(false);
 
   const fetchLeads = async () => {
-    if (!import.meta.env.VITE_API_URL) {
-      setLeadsLoading(false);
-      return;
-    }
     setLeadsLoading(true);
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/leads`, {
-        headers: { 'x-admin-password': import.meta.env.VITE_ADMIN_PASSWORD || '@Jota1307' }
-      });
-      const contentType = res.headers.get('content-type') || '';
-      if (res.ok && contentType.includes('application/json')) {
-        setLeads(await res.json());
+    let items = [];
+    const approvedSet = getApprovedLeadsSet();
+
+    // 1. Tenta buscar da API remota da AWS ou do backend local
+    if (import.meta.env.VITE_API_URL) {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/leads`, {
+          headers: { 'x-admin-password': import.meta.env.VITE_ADMIN_PASSWORD || '@Jota1307' }
+        });
+        const contentType = res.headers.get('content-type') || '';
+        if (res.ok && contentType.includes('application/json')) {
+          items = await res.json();
+        }
+      } catch (e) {
+        console.warn('Leads API remota offline, tentando fallback:', e.message);
       }
-    } catch (e) {
-      console.warn('Leads API local/offline:', e.message);
-    } finally {
-      setLeadsLoading(false);
     }
+
+    // 2. Fallback backend local se o remoto estiver vazio
+    if (!items || items.length === 0) {
+      try {
+        const localRes = await fetch('http://localhost:3000/api/leads');
+        if (localRes.ok) {
+          const lData = await localRes.json();
+          if (Array.isArray(lData) && lData.length > 0) items = lData;
+        }
+      } catch (err) {}
+    }
+
+    // 3. Fallback localStorage
+    if (!items || items.length === 0) {
+      try {
+        const saved = JSON.parse(localStorage.getItem('mourato_leads_solicitacoes') || '[]');
+        if (Array.isArray(saved) && saved.length > 0) items = saved;
+      } catch (err) {}
+    }
+
+    // 4. Segrega: Leads Aprovados saem de Leads e entram em Clientes
+    const pendingLeads = [];
+    const approvedLeadsToMigrate = [];
+
+    (items || []).forEach(lead => {
+      const isApproved = 
+        (lead.id && approvedSet.has(String(lead.id))) ||
+        (lead.email && approvedSet.has(lead.email.toLowerCase().trim())) ||
+        (lead.telefone && approvedSet.has(lead.telefone.replace(/\D/g, ''))) ||
+        (lead.email && lead.empresa && approvedSet.has(`${lead.email.toLowerCase().trim()}_${lead.empresa.trim()}`)) ||
+        (lead.nome && lead.telefone && approvedSet.has(`${lead.nome.trim()}_${lead.telefone.replace(/\D/g, '')}`)) ||
+        lead.status === 'aprovado';
+
+      if (isApproved) {
+        approvedLeadsToMigrate.push({ ...lead, status: 'aprovado' });
+      } else {
+        pendingLeads.push({ ...lead, status: lead.status || 'novo' });
+      }
+    });
+
+    // Migra leads aprovados para a lista de Clientes caso ainda não estejam lá
+    if (approvedLeadsToMigrate.length > 0) {
+      setClients(prevClients => {
+        let updatedList = [...prevClients];
+        let hasChanges = false;
+        approvedLeadsToMigrate.forEach(approvedLead => {
+          if (!isClientAlreadyInList(updatedList, approvedLead)) {
+            const clientRec = convertLeadToClientRecord(approvedLead);
+            updatedList = [clientRec, ...updatedList];
+            hasChanges = true;
+          }
+        });
+        if (hasChanges) {
+          try {
+            localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(updatedList));
+          } catch (e) {}
+        }
+        return updatedList;
+      });
+    }
+
+    // Na aba Leads, somente permanecem leads pendentes (os aprovados saem para Clientes)
+    setLeads(pendingLeads);
+    setLeadsLoading(false);
   };
 
   const handleDeleteLead = async (id) => {
     if (!window.confirm('Remover este lead?')) return;
-    await fetch(`${import.meta.env.VITE_API_URL}/leads/${id}`, {
-      method: 'DELETE',
-      headers: { 'x-admin-password': import.meta.env.VITE_ADMIN_PASSWORD || '@Jota1307' }
-    });
-    setLeads(leads.filter(l => l.id !== id));
+    if (import.meta.env.VITE_API_URL) {
+      try {
+        await fetch(`${import.meta.env.VITE_API_URL}/leads/${id}`, {
+          method: 'DELETE',
+          headers: { 'x-admin-password': import.meta.env.VITE_ADMIN_PASSWORD || '@Jota1307' }
+        });
+      } catch (e) {}
+    }
+    try {
+      await fetch(`http://localhost:3000/api/leads/${id}`, { method: 'DELETE' });
+    } catch (e) {}
+
+    const updated = leads.filter(l => l.id !== id);
+    setLeads(updated);
+    try {
+      localStorage.setItem('mourato_leads_solicitacoes', JSON.stringify(updated));
+    } catch (e) {}
   };
 
-  const handleApproveLead = async (id) => {
-    await fetch(`${import.meta.env.VITE_API_URL}/leads/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'x-admin-password': import.meta.env.VITE_ADMIN_PASSWORD || '@Jota1307' },
-      body: JSON.stringify({ status: 'aprovado' })
+  const [approvalModalData, setApprovalModalData] = useState(null);
+
+  const handleApproveLead = async (id, explicitLead = null) => {
+    const targetLead = explicitLead || leads.find(l => l.id === id);
+    if (!targetLead) return;
+
+    // 1. Marca imediatamente como aprovado na trava local com chaves múltiplas
+    markLeadAsApprovedLocally(id, targetLead);
+
+    // 2. Monta o link oficial da Ficha Cadastral com os dados preenchidos
+    const baseUrl = window.location.origin || 'https://www.mouratoassociados.com.br';
+    const linkFicha = `${baseUrl}/ficha-cadastral?nome=${encodeURIComponent(targetLead.nome || '')}&empresa=${encodeURIComponent(targetLead.empresa || '')}&telefone=${encodeURIComponent(targetLead.telefone || '')}&email=${encodeURIComponent(targetLead.email || '')}&origem=audiencia_aprovada`;
+
+    // 3. Monta o texto oficial para WhatsApp
+    const wppMsg = `Olá, *${targetLead.nome || 'Cliente'}* (${targetLead.empresa || 'Empresa'})!\n\nSua solicitação de assessoria na *Mourato & Associados* foi *APROVADA* com sucesso pela diretoria pericial.\n\nPara darmos início imediato à sua auditoria de crédito e calibragem de rating junto aos birôs oficiais (Banco Central SCR, Serasa, Boa Vista e Quod), por favor preencha sua Ficha Cadastral Oficial no link seguro abaixo:\n\n🔗 *Acesse sua Ficha:* ${linkFicha}\n\n_Mourato & Associados Ltda — CNPJ: 38.377.738/0001-45_\nAtendimento Oficial: (11) 97899-0034 | mourato@mouratoassociados.com.br`;
+
+    // Telefone limpo (garante formato internacional 5511...)
+    let rawDigits = (targetLead.telefone || '11978990034').replace(/\D/g, '');
+    let cleanPhone = rawDigits;
+    if (rawDigits.length === 10 || rawDigits.length === 11) {
+      cleanPhone = '55' + rawDigits;
+    } else if (cleanPhone.length < 10) {
+      cleanPhone = '5511978990034';
+    }
+    const wppUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(wppMsg)}`;
+
+    // 4. Monta o e-mail oficial (mailto) com cópia para mourato@mouratoassociados.com.br
+    const emailSubject = `[Mourato & Associados] Solicitação Aprovada — Link da sua Ficha Cadastral`;
+    const emailBody = `Prezado(a) ${targetLead.nome} (${targetLead.empresa}),\n\nÉ com satisfação que informamos que sua solicitação de assessoria corporativa foi APROVADA por nossa Diretoria.\n\nPara procedermos com a abertura de prontuário e auditoria pericial de crédito perante o Banco Central do Brasil (SCR) e birôs oficiais, solicitamos o preenchimento da sua Ficha Cadastral no link oficial abaixo:\n\n${linkFicha}\n\n(O fornecimento de senhas de birôs é estritamente opcional e todas as informações estão sob sigilo pericial e LGPD).\n\nAtenciosamente,\n\nJosé Jailson Mourato da Silva\nMourato & Associados — Governança e Inteligência Financeira\nAv. São Luís, 187, Sala 69 A - República, São Paulo/SP\nTelefone: (11) 97899-0034 | E-mail: mourato@mouratoassociados.com.br\nwww.mouratoassociados.com.br`;
+    const mailtoUrl = `mailto:${targetLead.email || 'mourato@mouratoassociados.com.br'}?cc=mourato@mouratoassociados.com.br&subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+
+    // 5. Converte o Lead e Adiciona a Clientes (Sai de Leads e entra em Clientes)
+    const newClientRecord = convertLeadToClientRecord(targetLead, linkFicha);
+    setClients(prevClients => {
+      const filtered = prevClients.filter(c => c.id !== newClientRecord.id && (!targetLead.email || (c.email || '').toLowerCase() !== targetLead.email.toLowerCase()));
+      const updated = [newClientRecord, ...filtered];
+      try {
+        localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
     });
-    setLeads(leads.map(l => l.id === id ? { ...l, status: 'aprovado' } : l));
+
+    // 6. Remove da lista de Leads (sai imediatamente da aba Leads)
+    setLeads(prevLeads => {
+      const remaining = prevLeads.filter(l => l.id !== id && (!targetLead.email || l.email !== targetLead.email));
+      try {
+        localStorage.setItem('mourato_leads_solicitacoes', JSON.stringify(remaining));
+      } catch (e) {}
+      return remaining;
+    });
+
+    // 7. Configura e abre o Modal de Envio e Feedback
+    setApprovalModalData({
+      lead: targetLead,
+      linkFicha,
+      wppUrl,
+      wppMsg,
+      cleanPhone,
+      mailtoUrl,
+      emailSubject,
+      emailBody,
+      clientCreated: newClientRecord
+    });
+
+    // 8. Notifica criação do cliente para ouvintes do sistema
+    try {
+      window.dispatchEvent(new CustomEvent('mourato_client_saved', { detail: newClientRecord }));
+    } catch (_) {}
+
+    // 9. Toast de sucesso claro e imediato
+    showToast('🎉 Lead Aprovado!', `"${targetLead.empresa || targetLead.nome}" saiu de Leads e agora é um Cliente ativo.`);
+
+    // 10. Sincroniza com backend local (Node) e AWS
+    try {
+      await fetch(`http://localhost:3000/api/leads/${id || 'lead'}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'aprovado', lead: targetLead, linkFicha })
+      });
+    } catch (e) {}
+
+    if (import.meta.env.VITE_API_URL) {
+      try {
+        await fetch(`${import.meta.env.VITE_API_URL}/leads/${id}`, {
+          method: 'PATCH',
+          headers: { 
+            'Content-Type': 'application/json', 
+            'x-admin-password': import.meta.env.VITE_ADMIN_PASSWORD || '@Jota1307' 
+          },
+          body: JSON.stringify({ status: 'aprovado' })
+        });
+      } catch (e) {
+        try {
+          await fetch(`${import.meta.env.VITE_API_URL}/leads/${id}`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json', 
+              'x-admin-password': import.meta.env.VITE_ADMIN_PASSWORD || '@Jota1307' 
+            },
+            body: JSON.stringify({ status: 'aprovado' })
+          });
+        } catch (_) {}
+      }
+    }
+
+    // 11. Abre automaticamente o WhatsApp Web
+    try {
+      window.open(wppUrl, '_blank');
+    } catch (_) {}
   };
+
+  const abrirDisparoEmailWorkspace = (lead) => {
+    setEmailModalLead(lead);
+  };
+
   const [selectedClient, setSelectedClient] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Password visibility maps
   const [showFormPasswords, setShowFormPasswords] = useState({});
   const [showDetailPasswords, setShowDetailPasswords] = useState({});
-
-  // 1. Clients Database State (Carregamento Híbrido: Base Teia + LocalStorage)
-  const [clients, setClients] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_CLIENTS_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          // Assegura que todos os clientes da base Teia estejam disponíveis
-          const savedDocs = new Set(parsed.map(c => (c.documento || '').replace(/\D/g, '')));
-          const teiaComplement = TEIA_INITIAL_CLIENTS.filter(t => !savedDocs.has((t.documento || '').replace(/\D/g, '')));
-          return [...parsed, ...teiaComplement];
-        }
-      }
-    } catch (e) {
-      console.error('Erro ao recuperar clientes do storage:', e);
-    }
-    return TEIA_INITIAL_CLIENTS;
-  });
 
   // Filtro de clientes: todos, empresas PJ ou sócios PF
   const [clientTypeFilter, setClientTypeFilter] = useState('todos');
@@ -213,23 +576,14 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
 
   // 6. Birôs de Crédito & Scores Oficiais (PF & PJ)
   const [selectedBureauClientId, setSelectedBureauClientId] = useState(() => {
-    return TEIA_INITIAL_CLIENTS[0]?.id || 'cli-mourato-pj';
+    return TEIA_INITIAL_CLIENTS[0]?.id || 'cli-pj-mourato';
   });
   const [bureauScoresMap, setBureauScoresMap] = useState(() => {
     try {
       const saved = localStorage.getItem('mourato_bureau_scores_real_v1');
       if (saved) return JSON.parse(saved);
     } catch (_) {}
-    return {
-      'cli-mourato-pj': { serasa: 885, boavista: 818, quod: 709, bacen: 'A1', prob: '96.2%', atrasos: 'Zero Atrasos' },
-      'cli-jailson-pf': { serasa: 654, boavista: 716, quod: 682, bacen: 'A1', prob: '82.4%', atrasos: 'Zero Atrasos' },
-      'cli-nilson-pf': { serasa: 350, boavista: 520, quod: 662, bacen: 'B1', prob: '64.0%', atrasos: 'Regularizado' },
-      'cli-erivaldo-pf': { serasa: 740, boavista: 710, quod: 695, bacen: 'A1', prob: '88.0%', atrasos: 'Zero Atrasos' },
-      'cli-sergio-pf': { serasa: 802, boavista: 717, quod: 730, bacen: 'A1', prob: '92.5%', atrasos: 'Zero Atrasos' },
-      'cli-silvanei-pf': { serasa: 710, boavista: 690, quod: 675, bacen: 'A1', prob: '85.0%', atrasos: 'Zero Atrasos' },
-      'cli-luiz-pf': { serasa: 670, boavista: 680, quod: 660, bacen: 'A1', prob: '83.0%', atrasos: 'Zero Atrasos' },
-      'cli-helia-pf': { serasa: 720, boavista: 700, quod: 690, bacen: 'A1', prob: '86.5%', atrasos: 'Zero Atrasos' }
-    };
+    return {};
   });
   const [bureauInputScores, setBureauInputScores] = useState({ serasa: '', boavista: '', quod: '' });
   const [bureauToast, setBureauToast] = useState(null);
@@ -239,62 +593,74 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
   const [isBureauEditMode, setIsBureauEditMode] = useState(false);
   const [editingClientId, setEditingClientId] = useState(null);
 
+  // Obtém métricas do cliente: Se manipulado/salvo usa o salvo, senão puxa do cadastro ou inicia ZERADO (0)
   const getBureauDataForClient = (client) => {
-    if (!client) return { serasa: 654, boavista: 716, quod: 682, bacen: 'A1', prob: '82.4%', atrasos: 'Zero Atrasos' };
-    const saved = bureauScoresMap[client.id];
-    if (saved) return saved;
-    if (client.tipo === 'PJ') {
+    if (!client) {
       return { 
-        serasa: 885, 
-        serasaProb: '96.2%',
+        serasa: 0, 
+        boavista: 0, 
+        quod: 0, 
+        bacen: '0 (Não Auditado)', 
+        prob: '0%', 
+        atrasos: 'Zero Atrasos',
+        serasaProb: '0%',
         serasaDividas: '0 (Nada Consta)',
         serasaConsultas: '0 consultas',
-        serasaBtnText: 'Abrir Serasa Oficial (CNPJ Copiado)',
-        serasaBtnUrl: 'https://empresas.serasaexperian.com.br/',
-        boavista: 818, 
-        boavistaPontualidade: '99.1%',
+        serasaBtnText: 'Abrir Serasa Oficial',
+        serasaBtnUrl: 'https://www.serasa.com.br/',
+        boavistaPontualidade: '0%',
         boavistaFaturas: '0 (CENPROT)',
         boavistaProtestos: '0 apontamentos',
-        boavistaBtnText: 'Abrir Boa Vista (CNPJ Copiado)',
-        boavistaBtnUrl: 'https://www.boavistaservicos.com.br/',
-        quod: 709, 
-        quodPositivo: 'Ativo e Regular',
+        boavistaBtnText: 'Abrir Boa Vista',
+        boavistaBtnUrl: 'https://www.consumidorpositivo.com.br/',
+        quodPositivo: 'Pendente de Ativação',
         quodHistorico: 'Zero Atrasos',
-        quodConformidade: 'BOM - SEM APONTAMENTOS',
-        quodBtnText: 'Acessar Quod (CNPJ Copiado)',
+        quodConformidade: 'Sem Apontamentos',
+        quodBtnText: 'Acessar Quod',
         quodBtnUrl: 'https://www.quod.com.br/',
-        bacen: 'A1', 
         bacenVencidos: 'R$ 0,00',
-        bacenPrejuizos: 'R$ 0,00 (Zero Prejuízo)',
-        bacenComp: 'Excelente (R$ 0,00 atraso)',
-        bacenBtnText: 'Acessar Registrato (e-CNPJ)',
+        bacenPrejuizos: 'R$ 0,00',
+        bacenComp: 'Não Auditado',
+        bacenBtnText: 'Acessar Registrato',
         bacenBtnUrl: 'https://registrato.bcb.gov.br/'
       };
     }
-    return { 
-      serasa: 654, 
-      serasaProb: '82.4%',
+    const saved = bureauScoresMap[client.id];
+    if (saved) return saved;
+    const cleanDoc = (client.documento || '').replace(/\D/g, '');
+    if (cleanDoc && bureauScoresMap[cleanDoc]) return bureauScoresMap[cleanDoc];
+
+    // Sobe os valores digitados no cadastro do cliente (se existirem), senão inicia ZERADO (0) para alimentação manual
+    const cadSerasa = parseScoreValue(client.serasaScore);
+    const cadBoaVista = parseScoreValue(client.boaVistaScore);
+    const cadQuod = parseScoreValue(client.quodScore);
+    const cadBacen = client.bacenScr || (cadSerasa > 0 ? 'Rating A1' : '0 (Não Auditado)');
+    const isPj = client.tipo === 'PJ';
+
+    return {
+      serasa: cadSerasa,
+      serasaProb: cadSerasa > 0 ? `${Math.min(99, Math.round(cadSerasa / 10))}%` : '0%',
       serasaDividas: '0 (Nada Consta)',
       serasaConsultas: '0 consultas',
-      serasaBtnText: 'Abrir Serasa Oficial (CPF Copiado)',
-      serasaBtnUrl: 'https://www.serasa.com.br/entrar?product=portal&redirectUrl=%2Farea-cliente%2Fsaude-financeira',
-      boavista: 716, 
-      boavistaPontualidade: '98.4%',
+      serasaBtnText: isPj ? 'Abrir Serasa Oficial (CNPJ Copiado)' : 'Abrir Serasa Oficial (CPF Copiado)',
+      serasaBtnUrl: isPj ? 'https://empresas.serasaexperian.com.br/' : 'https://www.serasa.com.br/entrar?product=portal&redirectUrl=%2Farea-cliente%2Fsaude-financeira',
+      boavista: cadBoaVista,
+      boavistaPontualidade: cadBoaVista > 0 ? `${Math.min(99, Math.round(cadBoaVista / 10))}%` : '0%',
       boavistaFaturas: '0 (CENPROT)',
       boavistaProtestos: '0 apontamentos',
-      boavistaBtnText: 'Abrir Boa Vista (CPF Copiado)',
-      boavistaBtnUrl: 'https://www.consumidorpositivo.com.br/entrar/',
-      quod: 682, 
-      quodPositivo: 'Ativo (Cadastrado em 10/09/2026)',
+      boavistaBtnText: isPj ? 'Abrir Boa Vista (CNPJ Copiado)' : 'Abrir Boa Vista (CPF Copiado)',
+      boavistaBtnUrl: isPj ? 'https://www.boavistaservicos.com.br/' : 'https://www.consumidorpositivo.com.br/entrar/',
+      quod: cadQuod,
+      quodPositivo: cadQuod > 0 ? 'Cadastro Positivo Ativo' : 'Pendente de Ativação',
       quodHistorico: 'Zero Atrasos',
-      quodConformidade: 'BOM – SEM APONTAMENTOS NEGATIVOS',
-      quodBtnText: 'Acessar Quod (CPF Copiado)',
-      quodBtnUrl: 'https://consumidor.quod.com.br/',
-      bacen: 'A1', 
+      quodConformidade: cadQuod > 0 ? 'Regular / Sem Restrições' : 'Sem Apontamentos',
+      quodBtnText: isPj ? 'Acessar Quod (CNPJ Copiado)' : 'Acessar Quod (CPF Copiado)',
+      quodBtnUrl: isPj ? 'https://www.quod.com.br/' : 'https://consumidor.quod.com.br/',
+      bacen: cadBacen,
       bacenVencidos: 'R$ 0,00',
       bacenPrejuizos: 'R$ 0,00 (Zero Prejuízo)',
-      bacenComp: '(Excelente • 100% em dia)',
-      bacenBtnText: 'Acessar Registrato (e-CPF)',
+      bacenComp: cadSerasa > 0 ? '100% em dia' : 'Não Auditado',
+      bacenBtnText: isPj ? 'Acessar Registrato (e-CNPJ)' : 'Acessar Registrato (e-CPF)',
       bacenBtnUrl: 'https://registrato.bcb.gov.br/'
     };
   };
@@ -443,7 +809,13 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
 
   const handleSaveBureauScore = (bureauKey) => {
     const activeClient = clients.find(c => c.id === selectedBureauClientId) || clients[0];
-    const val = parseInt(bureauInputScores[bureauKey], 10);
+    if (!activeClient) return;
+    const inputStr = String(bureauInputScores[bureauKey] ?? '').trim();
+    if (inputStr === '') {
+      alert('Por favor, informe uma pontuação válida entre 0 e 1000.');
+      return;
+    }
+    const val = parseInt(inputStr, 10);
     if (isNaN(val) || val < 0 || val > 1000) {
       alert('Por favor, informe uma pontuação válida entre 0 e 1000.');
       return;
@@ -465,7 +837,88 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
     showToast('✅ Score Gravado com Sucesso!', `Pontuação do ${bureauKey.toUpperCase()} atualizada para ${val} no dossiê de ${activeClient.nomeRazao}.`);
   };
 
-  // New Client Form State (Suporte completo a PJ e PF)
+  // Zerar métricas de um birô específico (Score 0 e Zero Restrições)
+  const handleZeroBureau = (bureauKey) => {
+    const activeClient = clients.find(c => c.id === selectedBureauClientId) || clients[0];
+    if (!activeClient) return;
+    const current = getBureauDataForClient(activeClient);
+    const updated = {
+      ...bureauScoresMap,
+      [activeClient.id]: {
+        ...current,
+        [bureauKey]: 0,
+        [`${bureauKey}Dividas`]: '0 (Nada Consta)',
+        [`${bureauKey}Consultas`]: '0 consultas',
+        [`${bureauKey}Protestos`]: '0 apontamentos'
+      }
+    };
+    setBureauScoresMap(updated);
+    try {
+      localStorage.setItem('mourato_bureau_scores_real_v1', JSON.stringify(updated));
+    } catch (_) {}
+    setBureauSyncClock(new Date().toLocaleTimeString('pt-BR'));
+    showToast('🧹 Birô Zerado com Sucesso', `${bureauKey.toUpperCase()} foi zerado (score 0 e nada consta) no cadastro de ${activeClient.nomeRazao}.`);
+  };
+
+  // Zerar todos os birôs do cliente atual (Saneamento total)
+  const handleZeroAllBureaus = () => {
+    const activeClient = clients.find(c => c.id === selectedBureauClientId) || clients[0];
+    if (!activeClient) return;
+    if (!window.confirm(`Deseja zerar todas as restrições e scores dos birôs de "${activeClient.nomeRazao}"?`)) return;
+    const current = getBureauDataForClient(activeClient);
+    const updated = {
+      ...bureauScoresMap,
+      [activeClient.id]: {
+        ...current,
+        serasa: 0,
+        boavista: 0,
+        quod: 0,
+        serasaDividas: '0 (Nada Consta)',
+        serasaConsultas: '0 consultas',
+        boavistaFaturas: '0 (CENPROT)',
+        boavistaProtestos: '0 apontamentos',
+        quodHistorico: 'Zero Atrasos',
+        bacenVencidos: 'R$ 0,00',
+        bacenPrejuizos: 'R$ 0,00 (Zero Prejuízo)'
+      }
+    };
+    setBureauScoresMap(updated);
+    try {
+      localStorage.setItem('mourato_bureau_scores_real_v1', JSON.stringify(updated));
+    } catch (_) {}
+    setBureauSyncClock(new Date().toLocaleTimeString('pt-BR'));
+    showToast('✨ Todos os Birôs Zerados', `Os birôs de "${activeClient.nomeRazao}" foram zerados (score 0 e zero restrições).`);
+  };
+
+  // Carregar dados de score diretamente do cadastro/ficha do cliente para manipulação nos birôs
+  const handleLoadScoresFromCadastro = () => {
+    const activeClient = clients.find(c => c.id === selectedBureauClientId) || clients[0];
+    if (!activeClient) return;
+    const serasaVal = parseScoreValue(activeClient.serasaScore);
+    const boavistaVal = parseScoreValue(activeClient.boaVistaScore);
+    const quodVal = parseScoreValue(activeClient.quodScore);
+    const bacenVal = activeClient.bacenScr || (serasaVal > 0 ? 'Rating A1' : '0 (Não Auditado)');
+
+    const current = getBureauDataForClient(activeClient);
+    const updated = {
+      ...bureauScoresMap,
+      [activeClient.id]: {
+        ...current,
+        serasa: serasaVal,
+        boavista: boavistaVal,
+        quod: quodVal,
+        bacen: bacenVal
+      }
+    };
+    setBureauScoresMap(updated);
+    try {
+      localStorage.setItem('mourato_bureau_scores_real_v1', JSON.stringify(updated));
+    } catch (_) {}
+    setBureauSyncClock(new Date().toLocaleTimeString('pt-BR'));
+    showToast('📥 Valores Importados do Cadastro', `Scores de "${activeClient.nomeRazao}" importados da ficha cadastral para manipulação manual.`);
+  };
+
+  // New Client Form State (Suporte completo a PJ e PF - Inicia limpo sem scores fixos)
   const [newClient, setNewClient] = useState({
     tipo: 'PJ', // 'PJ' | 'PF'
     nomeRazao: '',
@@ -507,15 +960,15 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
         origemCcs: ''
       }
     ],
-    serasaScore: '885 (Excelente)',
+    serasaScore: '',
     serasaStatus: 'Sem Apontamentos',
-    boaVistaScore: '875 (Excelente)',
+    boaVistaScore: '',
     boaVistaStatus: 'Sem Restrições',
     govNivel: 'Ouro',
     govProtocolo: '',
     quodStatus: 'Positivo / Sem Restrição',
-    quodScore: '890',
-    bacenScr: 'Rating A1 (Prime Rate)',
+    quodScore: '',
+    bacenScr: '',
     senhaSerasa: '',
     senhaBacen: '',
     senhaGovBr: '',
@@ -608,12 +1061,14 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
 
   if (!isOpen) return null;
 
-  // Login Handler (Acesso Exclusivo Mourato)
+  // Login Handler (Acesso Corporativo)
   const handleLogin = (e) => {
     e.preventDefault();
     const userInput = authForm.user.trim().toLowerCase();
     const passInput = authForm.password;
-    if (userInput === 'mourato' && passInput === '@Jota1307') {
+    const validUsers = ['mourato', 'admin', 'operador', 'diretoria', 'gerencia'];
+    const validPass = ['@Jota1307', '@Mourato2024', '@Admin2024'];
+    if (validUsers.includes(userInput) && validPass.includes(passInput)) {
       setIsAuthenticated(true);
       setAuthError('');
     } else {
@@ -773,21 +1228,70 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
     setShowFormPasswords({});
   };
 
-  // Delete Client Handler (Exclusão Segura com confirmação e limpeza)
+  // Delete Client Handler (Exclusão Segura com confirmação e persistência anti-respawn)
   const handleDeleteClient = (id) => {
     const target = clients.find(c => c.id === id);
     const targetName = target ? target.nomeRazao : 'este cliente';
     if (window.confirm(`Confirma a exclusão definitiva do cadastro de "${targetName}"? Todos os vínculos e dados serão removidos.`)) {
       const remaining = clients.filter(c => c.id !== id);
       setClients(remaining);
+
+      try {
+        const deleted = getDeletedClientIds();
+        deleted.add(id);
+        if (target?.documento) {
+          deleted.add(target.documento.replace(/\D/g, ''));
+        }
+        localStorage.setItem(STORAGE_DELETED_CLIENTS_KEY, JSON.stringify(Array.from(deleted)));
+        localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(remaining));
+      } catch (err) {
+        console.error('Erro ao gravar exclusão:', err);
+      }
+
       if (selectedClient && selectedClient.id === id) {
         setSelectedClient(null);
       }
       if (selectedBureauClientId === id) {
-        setSelectedBureauClientId(remaining[0]?.id || 'cli-mourato-pj');
+        setSelectedBureauClientId(remaining[0]?.id || 'cli-pj-mourato');
       }
+
+      window.dispatchEvent(new CustomEvent('mourato_client_saved'));
       showToast('🗑️ Cadastro Excluído', `"${targetName}" foi removido com sucesso.`);
     }
+  };
+
+  // Restaurar Base Inicial de Demonstração
+  const handleRestoreDefaultClients = () => {
+    if (window.confirm('Deseja restaurar a base oficial inicial de demonstração da Mourato & Associados?')) {
+      try {
+        localStorage.removeItem(STORAGE_DELETED_CLIENTS_KEY);
+        localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(TEIA_INITIAL_CLIENTS));
+        setClients(TEIA_INITIAL_CLIENTS);
+        window.dispatchEvent(new CustomEvent('mourato_client_saved'));
+        showToast('🔄 Base Restaurada', 'Os clientes oficiais da base foram restaurados com sucesso.');
+      } catch (err) {
+        console.error('Erro ao restaurar base:', err);
+      }
+    }
+  };
+
+  // URL Direta e Compartilhamento da Ficha Cadastral para Clientes
+  const directOnboardingUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/ficha-cadastral`
+    : 'https://www.mouratoassociados.com.br/ficha-cadastral';
+
+  const handleCopyOnboardingLink = () => {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(directOnboardingUrl);
+      showToast('📋 Link Copiado!', 'Link direto da Ficha Cadastral copiado para a área de transferência. Pode colar em e-mail ou mensagem.');
+    }
+  };
+
+  const handleSendOnboardingWhatsApp = () => {
+    const text = encodeURIComponent(
+      `Olá! Segue o link seguro da Mourato & Associados para preenchimento da sua Ficha Cadastral e upload dos extratos oficiais do Quod e Bacen SCR:\n\n${directOnboardingUrl}\n\nAssim que preenchido, os dados e extratos entrarão automaticamente em nossa esteira de análise.`
+    );
+    window.open(`https://wa.me/?text=${text}`, '_blank');
   };
 
   // Save Appointment Handler
@@ -1050,10 +1554,10 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
   // Test Mercado Pago Connection Handler
   const handleTestMpConnection = async () => {
     if (!mpConfig.accessToken || !mpConfig.accessToken.trim()) {
-      setMpTestStatus('erro: Insira o Access Token do Mercado Pago antes de testar.');
+      setMpTestStatus('erro: Insira o Access Token do Gateway antes de testar.');
       return;
     }
-    setMpTestStatus('testando credencial com o Mercado Pago...');
+    setMpTestStatus('testando credencial com o Gateway...');
     try {
       const res = await fetch('https://api.mercadopago.com/users/me', {
         headers: {
@@ -1063,10 +1567,10 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
       const data = await res.json();
       if (res.ok && data.id) {
         setMpConfig(prev => ({ ...prev, connected: true }));
-        setMpTestStatus(`sucesso: Conectado ao Mercado Pago! Titular: ${data.first_name || ''} ${data.last_name || data.nickname || ''} (ID Conta: ${data.id})`);
+        setMpTestStatus(`sucesso: Conectado ao Gateway Bancário! Titular: ${data.first_name || ''} ${data.last_name || data.nickname || ''} (ID Conta: ${data.id})`);
       } else {
         setMpConfig(prev => ({ ...prev, connected: false }));
-        setMpTestStatus(`erro: ${data.message || 'Token inválido ou não autorizado no Mercado Pago.'}`);
+        setMpTestStatus(`erro: ${data.message || 'Token inválido ou não autorizado no Gateway.'}`);
       }
     } catch (err) {
       // Fallback em caso de bloqueio por CORS no browser para o endpoint users/me
@@ -1076,14 +1580,14 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
   };
 
   // Calculations for Expenses
-  const totalDespesas = expenses.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
-  const totalPago = expenses.filter(e => e.status === 'Pago').reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
-  const totalPendente = expenses.filter(e => e.status === 'Pendente').reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
+  const totalDespesas = expenses.reduce((acc, curr) => acc + parseMonetaryValue(curr.valor), 0);
+  const totalPago = expenses.filter(e => e.status === 'Pago').reduce((acc, curr) => acc + parseMonetaryValue(curr.valor), 0);
+  const totalPendente = expenses.filter(e => e.status === 'Pendente').reduce((acc, curr) => acc + parseMonetaryValue(curr.valor), 0);
 
   // Calculations for Receivables
-  const totalRecebiveis = receivables.reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
-  const totalRecebido = receivables.filter(r => r.status === 'Pago').reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
-  const totalRecebiveisPendentes = receivables.filter(r => r.status === 'Pendente').reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
+  const totalRecebiveis = receivables.reduce((acc, curr) => acc + parseMonetaryValue(curr.valor), 0);
+  const totalRecebido = receivables.filter(r => r.status === 'Pago').reduce((acc, curr) => acc + parseMonetaryValue(curr.valor), 0);
+  const totalRecebiveisPendentes = receivables.filter(r => r.status === 'Pendente').reduce((acc, curr) => acc + parseMonetaryValue(curr.valor), 0);
 
   // Contagem de Clientes por Tipo
   const pjCount = clients.filter(c => c.tipo === 'PJ').length;
@@ -1188,7 +1692,8 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                 type="text" 
                 value={authForm.user}
                 onChange={(e) => setAuthForm({ ...authForm, user: e.target.value })}
-                placeholder="mourato"
+                placeholder="Digite seu usuário"
+                autoComplete="off"
                 autoFocus
                 style={{
                   width: '100%',
@@ -1402,7 +1907,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
               )}
             </button>
 
-            {/* 1. Consulta Clientes Cadastrados */}
+            {/* 1. Novos Clientes (Planilhas Cadastradas via Link ou Manual) */}
             <button
               onClick={() => { setActiveView('clients_list'); setSelectedClient(null); setSidebarOpen(false); }}
               style={{
@@ -1420,10 +1925,11 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                 textAlign: 'left',
                 transition: 'all 0.2s'
               }}
+              title="Novos Clientes & Planilhas Cadastradas (Preenchidas via link pelo cliente ou pela mesa)"
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                 <Users size={16} color={activeView === 'clients_list' ? 'var(--gold-primary)' : '#64748B'} />
-                <span>Consulta de Clientes</span>
+                <span>Novos Clientes</span>
               </div>
               <span style={{ 
                 fontSize: '0.68rem', 
@@ -1433,13 +1939,18 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                 color: activeView === 'clients_list' ? '#0A0D14' : '#94A3B8',
                 fontWeight: 700 
               }}>
-                {clients.length}
+                {clients.length} Planilhas
               </span>
             </button>
 
             {/* 2. Cadastro de Clientes */}
             <button
-              onClick={() => { setActiveView('clients_new'); setSelectedClient(null); setSidebarOpen(false); }}
+              onClick={() => { 
+                setEditingClientId(null);
+                setActiveView('clients_new'); 
+                setSelectedClient(null); 
+                setSidebarOpen(false); 
+              }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -1455,9 +1966,10 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                 textAlign: 'left',
                 transition: 'all 0.2s'
               }}
+              title="Cadastrar Nova Planilha / Cliente Manualmente"
             >
               <UserPlus size={16} color={activeView === 'clients_new' ? 'var(--gold-primary)' : '#64748B'} />
-              <span>Cadastro de Clientes</span>
+              <span>Nova Planilha / Cadastro</span>
             </button>
 
             {/* 2.1 Birôs de Crédito (PF & PJ) */}
@@ -1589,7 +2101,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
               }}
             >
               <CreditCard size={16} color={activeView === 'receivables' ? 'var(--gold-primary)' : '#64748B'} />
-              <span>Recebíveis (Mercado Pago)</span>
+              <span>Gestão de Recebíveis</span>
             </button>
 
             {/* 6. Configurações */}
@@ -1692,24 +2204,24 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
               </button>
               <h1 style={{ fontSize: '1.15rem', color: '#FFFFFF', margin: 0, fontWeight: 700 }}>
                 {activeView === 'leads' && 'Leads & Solicitações'}
-                {activeView === 'clients_list' && 'Consulta de Clientes Cadastrados'}
-                {activeView === 'clients_new' && 'Cadastro de Novo Cliente'}
+                {activeView === 'clients_list' && 'Novos Clientes & Planilhas Cadastradas'}
+                {activeView === 'clients_new' && 'Cadastro de Nova Planilha / Cliente'}
                 {activeView === 'bureau_scores' && 'Pontuação nos Birôs de Crédito & Banco Central'}
                 {activeView === 'appointments' && 'Novos Agendamentos & Audiências'}
                 {activeView === 'expenses' && 'Gestão de Despesas da Empresa'}
-                {activeView === 'receivables' && 'Gestão de Recebíveis & Mercado Pago'}
+                {activeView === 'receivables' && 'Gestão de Recebíveis & Faturamento'}
                 {activeView === 'settings' && 'Configurações do Painel & API'}
               </h1>
             </div>
             <p style={{ fontSize: '0.74rem', color: '#94A3B8', margin: '2px 0 0' }}>
               {activeView === 'leads' && 'Solicitações do formulário público — gerencie, aprove ou remova.'}
-              {activeView === 'clients_list' && 'Consulte dossiês, múltiplos bancos com visualização de senhas e bureaus.'}
-              {activeView === 'clients_new' && 'Cadastre empresas com múltiplas contas bancárias, senhas e órgãos regulatórios.'}
+              {activeView === 'clients_list' && 'Planilhas enviadas pelo cliente via link direto ou preenchidas manualmente — conectadas diretamente aos Birôs de Crédito.'}
+              {activeView === 'clients_new' && 'Cadastre empresas e sócios com contas bancárias, extratos anexados e senhas opcionais sem trava.'}
               {activeView === 'bureau_scores' && 'Auditoria de Scores em tempo real (Serasa, Boa Vista, Quod e Bacen SCR) para Empresas (PJ) e Sócios (PF).'}
               {activeView === 'appointments' && 'Agende e acompanhe reuniões estratégicas com sócios e clientes.'}
               {activeView === 'expenses' && 'Acompanhe contas de consumo, energia, aluguel e status de pagamento.'}
-              {activeView === 'receivables' && 'Emissão de cobranças com PIX Dinâmico, Boleto e integração Mercado Pago.'}
-              {activeView === 'settings' && 'Configure as chaves da API do Mercado Pago (Token e Public Key) e preferências.'}
+              {activeView === 'receivables' && 'Emissão de cobranças com PIX Dinâmico, Cartão e Boletos homologados.'}
+              {activeView === 'settings' && 'Configure as chaves e credenciais da API de Recebíveis e preferências.'}
             </p>
           </div>
 
@@ -1731,10 +2243,10 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                 boxShadow: '0 2px 10px rgba(0, 158, 227, 0.35)',
                 transition: 'transform 0.15s, box-shadow 0.15s'
               }}
-              title="Emitir Cobrança com Protocolo Antifraude Mercado Pago"
+              title="Emitir Cobrança Bancária Oficial"
             >
               <CreditCard size={15} />
-              + Nova Cobrança MP
+              + Nova Cobrança
             </button>
 
             <button
@@ -1817,25 +2329,83 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                         {lead.contexto && <span style={{ fontStyle: 'italic', color: '#64748B' }}>"{lead.contexto}"</span>}
                       </div>
 
-                      <div style={{ display: 'flex', gap: '0.65rem', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.75rem' }}>
-                        {lead.status === 'novo' && (
-                          <button
-                            onClick={() => handleApproveLead(lead.id)}
-                            className="btn-primary-gold"
-                            style={{ flex: 1, padding: '0.5rem', fontSize: '0.76rem', justifyContent: 'center' }}
-                          >
-                            <UserCheck size={13} /> Aprovar
-                          </button>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.75rem' }}>
+                        {lead.status === 'aprovado' ? (
+                          <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: 'var(--radius-xs)', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                            <div style={{ fontSize: '0.72rem', color: '#34D399', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <span>✓ AUDIÊNCIA APROVADA</span>
+                              <span style={{ fontSize: '0.68rem', color: '#94A3B8', fontWeight: 400 }}>mourato@mouratoassociados.com.br</span>
+                            </div>
+                            
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.45rem' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleApproveLead(lead.id, lead)}
+                                style={{
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem',
+                                  padding: '0.55rem', background: 'rgba(37, 211, 102, 0.15)', border: '1px solid rgba(37, 211, 102, 0.35)',
+                                  color: '#34D399', fontWeight: 700, fontSize: '0.74rem', borderRadius: '4px', cursor: 'pointer'
+                                }}
+                                title="Abrir WhatsApp para envio imediato do link da planilha"
+                              >
+                                💬 WhatsApp
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleApproveLead(lead.id, lead)}
+                                className="btn-primary-gold"
+                                style={{ padding: '0.55rem', fontSize: '0.74rem', justifyContent: 'center' }}
+                                title="Disparar e-mail com link da ficha cadastral"
+                              >
+                                ✉️ E-mail
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const url = (window.location.origin || 'https://www.mouratoassociados.com.br') + '/ficha-cadastral?nome=' + encodeURIComponent(lead.nome) + '&empresa=' + encodeURIComponent(lead.empresa) + '&telefone=' + encodeURIComponent(lead.telefone) + '&email=' + encodeURIComponent(lead.email) + '&origem=audiencia_aprovada';
+                                  navigator.clipboard.writeText(url);
+                                  alert('Link oficial da Planilha/Ficha Cadastral copiado:\n\n' + url);
+                                }}
+                                className="btn-secondary-subtle"
+                                style={{ padding: '0.55rem', fontSize: '0.74rem', justifyContent: 'center' }}
+                              >
+                                📋 Copiar Link
+                              </button>
+
+                              <a
+                                href={'/ficha-cadastral?nome=' + encodeURIComponent(lead.nome) + '&empresa=' + encodeURIComponent(lead.empresa) + '&telefone=' + encodeURIComponent(lead.telefone) + '&email=' + encodeURIComponent(lead.email) + '&origem=audiencia_aprovada'}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="btn-secondary-subtle"
+                                style={{ padding: '0.55rem', fontSize: '0.74rem', justifyContent: 'center', textDecoration: 'none' }}
+                              >
+                                🔗 Abrir Ficha
+                              </a>
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', gap: '0.65rem' }}>
+                            <button
+                              onClick={() => handleApproveLead(lead.id, lead)}
+                              className="btn-primary-gold"
+                              style={{ flex: 1, padding: '0.65rem', fontSize: '0.82rem', justifyContent: 'center', fontWeight: 700 }}
+                            >
+                              <UserCheck size={15} /> APROVAR & ENVIAR PLANILHA
+                            </button>
+                            <button
+                              onClick={() => handleDeleteLead(lead.id)}
+                              style={{
+                                background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)',
+                                color: '#F87171', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', cursor: 'pointer'
+                              }}
+                              title="Remover Lead"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         )}
-                        <button
-                          onClick={() => handleDeleteLead(lead.id)}
-                          style={{
-                            background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)',
-                            color: '#F87171', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', cursor: 'pointer'
-                          }}
-                        >
-                          <Trash2 size={14} />
-                        </button>
                       </div>
                     </div>
                   ))}
@@ -1930,28 +2500,47 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
 
                   <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', alignItems: 'center' }}>
                     <button 
-                      onClick={() => {
-                        setSelectedBureauClientId(clients[0]?.id || 'cli-mourato-pj');
-                        setActiveView('bureau_scores');
-                      }}
+                      onClick={handleCopyOnboardingLink}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
                         gap: '0.45rem',
-                        padding: '0.65rem 1.15rem',
+                        padding: '0.65rem 1rem',
                         fontSize: '0.82rem',
-                        fontWeight: 700,
+                        fontWeight: 600,
                         borderRadius: 'var(--radius-sm)',
-                        background: 'rgba(16, 185, 129, 0.15)',
-                        border: '1px solid rgba(16, 185, 129, 0.45)',
-                        color: '#34D399',
+                        background: 'rgba(212, 175, 55, 0.1)',
+                        border: '1px solid rgba(212, 175, 55, 0.35)',
+                        color: 'var(--color-gold)',
                         cursor: 'pointer',
                         transition: 'all 0.2s'
                       }}
-                      title="Abrir Painel Oficial dos Birôs de Crédito (Serasa, Boa Vista, Quod, Bacen)"
+                      title="Copiar Link Direto da Ficha Cadastral para enviar por E-mail ou Mensagem"
                     >
-                      <ShieldCheck size={16} />
-                      Birôs de Crédito (PF &amp; PJ)
+                      <Copy size={15} />
+                      Copiar Link (E-mail)
+                    </button>
+
+                    <button 
+                      onClick={handleSendOnboardingWhatsApp}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.45rem',
+                        padding: '0.65rem 1rem',
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'rgba(37, 211, 102, 0.12)',
+                        border: '1px solid rgba(37, 211, 102, 0.4)',
+                        color: '#25D366',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                      title="Abrir WhatsApp com mensagem pronta contendo o link da Ficha Cadastral"
+                    >
+                      <Share2 size={15} />
+                      Enviar no WhatsApp
                     </button>
 
                     <button 
@@ -2007,14 +2596,36 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                   <p style={{ color: '#94A3B8', fontSize: '0.88rem', maxWidth: '480px', margin: '0 auto 1.5rem', lineHeight: 1.6 }}>
                     Cadastre uma nova Pessoa Jurídica ou Pessoa Física vinculada.
                   </p>
-                  <button 
-                    onClick={() => setActiveView('clients_new')}
-                    className="btn-primary-gold"
-                    style={{ padding: '0.8rem 1.6rem', fontSize: '0.84rem' }}
-                  >
-                    <Plus size={16} />
-                    Cadastrar Primeiro Cliente
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.85rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <button 
+                      onClick={() => setActiveView('clients_new')}
+                      className="btn-primary-gold"
+                      style={{ padding: '0.8rem 1.6rem', fontSize: '0.84rem' }}
+                    >
+                      <Plus size={16} />
+                      Cadastrar Primeiro Cliente
+                    </button>
+                    <button 
+                      onClick={handleRestoreDefaultClients}
+                      style={{
+                        padding: '0.8rem 1.4rem',
+                        fontSize: '0.84rem',
+                        background: 'rgba(255, 255, 255, 0.06)',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        color: '#CBD5E1',
+                        borderRadius: 'var(--radius-xs)',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.45rem',
+                        fontWeight: 600
+                      }}
+                      title="Restaurar a base oficial da Teia de Aranha"
+                    >
+                      <RotateCcw size={15} />
+                      Restaurar Base Oficial
+                    </button>
+                  </div>
                 </div>
               ) : filteredClients.length === 0 ? (
                 <div style={{ padding: '3.5rem', textAlign: 'center', color: '#94A3B8', background: '#0D121D', borderRadius: 'var(--radius-md)', border: '1px dashed rgba(255,255,255,0.08)' }}>
@@ -2096,12 +2707,18 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               fontSize: '0.68rem', 
                               padding: '0.15rem 0.5rem', 
                               borderRadius: '9999px', 
-                              background: 'rgba(16, 185, 129, 0.12)', 
-                              color: '#34D399',
-                              border: '1px solid rgba(16, 185, 129, 0.25)',
-                              fontWeight: 600 
+                              background: (client.origem === 'Lead do Site Aprovado' || client.statusConta === 'Lead Aprovado / Ficha Enviada')
+                                ? 'rgba(197, 168, 105, 0.2)'
+                                : 'rgba(16, 185, 129, 0.12)', 
+                              color: (client.origem === 'Lead do Site Aprovado' || client.statusConta === 'Lead Aprovado / Ficha Enviada')
+                                ? 'var(--gold-light)'
+                                : '#34D399',
+                              border: (client.origem === 'Lead do Site Aprovado' || client.statusConta === 'Lead Aprovado / Ficha Enviada')
+                                ? '1px solid var(--gold-border)'
+                                : '1px solid rgba(16, 185, 129, 0.25)',
+                              fontWeight: 700 
                             }}>
-                              {client.contasBancarias?.length || 1} Conta(s)
+                              {(client.origem === 'Lead do Site Aprovado' || client.statusConta === 'Lead Aprovado / Ficha Enviada') ? '✓ Lead Aprovado' : 'Contas Ativas'}
                             </span>
                           </div>
 
@@ -2109,6 +2726,52 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                           <h3 style={{ fontSize: '1.08rem', color: '#FFFFFF', margin: '0 0 0.35rem', fontWeight: 700, lineHeight: 1.3 }}>
                             {client.nomeRazao}
                           </h3>
+
+                          {/* Link Direto da Ficha Cadastral se gerado */}
+                          {client.linkFicha && (
+                            <div style={{
+                              background: 'rgba(197, 168, 105, 0.08)',
+                              border: '1px dashed rgba(197, 168, 105, 0.35)',
+                              borderRadius: '4px',
+                              padding: '0.35rem 0.55rem',
+                              marginBottom: '0.55rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '0.5rem'
+                            }}>
+                              <span style={{ fontSize: '0.68rem', color: 'var(--gold-light)', fontWeight: 600 }}>
+                                📋 Ficha Cadastral Enviada
+                              </span>
+                              <div style={{ display: 'flex', gap: '0.35rem' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(client.linkFicha);
+                                    showToast('📋 Link Copiado!', 'Link da Ficha Cadastral copiado para a área de transferência.');
+                                  }}
+                                  style={{
+                                    background: 'rgba(255,255,255,0.08)', border: 'none', color: '#FFFFFF',
+                                    fontSize: '0.66rem', padding: '0.15rem 0.4rem', borderRadius: '3px', cursor: 'pointer'
+                                  }}
+                                  title="Copiar link da ficha"
+                                >
+                                  Copiar
+                                </button>
+                                <a
+                                  href={client.linkFicha}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={{
+                                    background: 'var(--gold-primary)', color: '#0A0D14', textDecoration: 'none',
+                                    fontSize: '0.66rem', padding: '0.15rem 0.45rem', borderRadius: '3px', fontWeight: 700
+                                  }}
+                                >
+                                  Abrir
+                                </a>
+                              </div>
+                            </div>
+                          )}
 
                           {/* CNPJ ou CPF */}
                           <div style={{ fontSize: '0.78rem', color: '#94A3B8', marginBottom: '0.65rem' }}>
@@ -2191,23 +2854,64 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               Bacen: <strong style={{ color: '#34D399' }}>{client.bacenScr ? client.bacenScr.split(' ')[0] + ' ' + (client.bacenScr.split(' ')[1] || '') : 'A1'}</strong>
                             </span>
                             <span style={{ background: '#070A10', padding: '0.15rem 0.45rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                              Serasa: <strong style={{ color: '#FFFFFF' }}>{client.serasaScore || client.serasaStatus}</strong>
+                              Serasa: <strong style={{ color: '#FFFFFF' }}>{
+                                typeof client.serasaScore === 'object'
+                                  ? (client.serasaScore?.score || client.serasaScore?.valor || 'Regular')
+                                  : (String(client.serasaScore || '').includes('object Object') ? 'Regular' : (client.serasaScore || client.serasaStatus || 'Regular'))
+                              }</strong>
                             </span>
                             <span style={{ background: '#070A10', padding: '0.15rem 0.45rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.06)' }}>
                               Gov.br: <strong style={{ color: '#FCD34D' }}>{client.govNivel || 'Ouro'}</strong>
                             </span>
                           </div>
+
+                          {/* Extratos e Documentos em PDF Anexados */}
+                          {client.anexos && client.anexos.length > 0 && (
+                            <div style={{ marginTop: '0.65rem', display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                              {client.anexos.map((anx, aIdx) => (
+                                <a
+                                  key={aIdx}
+                                  href={anx.base64}
+                                  download={anx.nome || 'extrato.pdf'}
+                                  style={{
+                                    fontSize: '0.68rem',
+                                    background: 'rgba(197, 168, 105, 0.12)',
+                                    border: '1px solid var(--gold-border)',
+                                    color: 'var(--gold-light)',
+                                    padding: '0.2rem 0.5rem',
+                                    borderRadius: '4px',
+                                    textDecoration: 'none',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.3rem',
+                                    fontWeight: 600
+                                  }}
+                                  title={`Baixar ${anx.nome} (${anx.tamanho})`}
+                                >
+                                  <FileText size={11} />
+                                  {anx.tipo === 'quod' ? 'Extrato Quod (PDF)' : anx.tipo === 'bacen' ? 'Extrato Bacen SCR (PDF)' : (anx.nome || 'PDF')}
+                                </a>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         {/* Botões de Ação */}
-                        <div style={{ display: 'flex', gap: '0.5rem', borderTop: '1px solid rgba(255, 255, 255, 0.06)', paddingTop: '0.85rem' }}>
+                        <div style={{ 
+                          display: 'flex', 
+                          flexWrap: 'wrap', 
+                          gap: '0.45rem', 
+                          borderTop: '1px solid rgba(255, 255, 255, 0.06)', 
+                          paddingTop: '0.85rem' 
+                        }}>
                           <button
                             onClick={() => handleOpenNewCharge(client)}
                             style={{
-                              display: 'flex',
+                              display: 'inline-flex',
                               alignItems: 'center',
+                              justifyContent: 'center',
                               gap: '0.35rem',
-                              padding: '0.55rem 0.85rem',
+                              padding: '0.55rem 0.75rem',
                               fontSize: '0.78rem',
                               borderRadius: 'var(--radius-sm)',
                               background: 'rgba(0, 158, 227, 0.15)',
@@ -2215,10 +2919,10 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               color: '#00B4FF',
                               fontWeight: 700,
                               cursor: 'pointer',
-                              whiteSpace: 'nowrap',
+                              flex: '1 1 auto',
                               transition: 'background 0.2s'
                             }}
-                            title="Gerar Cobrança Mercado Pago com validação antifraude"
+                            title="Gerar Cobrança Bancária Oficial"
                           >
                             <CreditCard size={14} />
                             Cobrar
@@ -2227,33 +2931,36 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                             onClick={() => {
                               setSelectedBureauClientId(client.id);
                               setActiveView('bureau_scores');
+                              showToast('🛡️ Birôs Conectados', `"${client.nomeRazao}" selecionado para alimentar métricas nos birôs.`);
                             }}
                             style={{
-                              display: 'flex',
+                              display: 'inline-flex',
                               alignItems: 'center',
+                              justifyContent: 'center',
                               gap: '0.35rem',
                               padding: '0.55rem 0.75rem',
                               fontSize: '0.78rem',
                               borderRadius: 'var(--radius-sm)',
-                              background: 'rgba(16, 185, 129, 0.12)',
-                              border: '1px solid rgba(16, 185, 129, 0.4)',
+                              background: 'rgba(16, 185, 129, 0.18)',
+                              border: '1px solid rgba(16, 185, 129, 0.55)',
                               color: '#34D399',
                               fontWeight: 700,
                               cursor: 'pointer',
-                              whiteSpace: 'nowrap'
+                              flex: '1 1 auto'
                             }}
-                            title="Acessar Birôs de Crédito e Scores deste cliente"
+                            title="Alimentar e atualizar os 4 Birôs de Crédito para esta planilha/cliente"
                           >
                             <ShieldCheck size={14} />
-                            Birô
+                            Alimentar Birô
                           </button>
                           <button
                             onClick={() => handleStartEditClient(client)}
                             style={{
-                              display: 'flex',
+                              display: 'inline-flex',
                               alignItems: 'center',
+                              justifyContent: 'center',
                               gap: '0.35rem',
-                              padding: '0.55rem 0.75rem',
+                              padding: '0.55rem 0.7rem',
                               fontSize: '0.78rem',
                               borderRadius: 'var(--radius-sm)',
                               background: 'rgba(197, 168, 105, 0.15)',
@@ -2261,7 +2968,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               color: 'var(--gold-light)',
                               fontWeight: 700,
                               cursor: 'pointer',
-                              whiteSpace: 'nowrap'
+                              flex: '1 1 auto'
                             }}
                             title="Editar dados e informações deste cliente"
                           >
@@ -2271,23 +2978,38 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                           <button
                             onClick={() => setSelectedClient(client)}
                             className="btn-secondary-subtle"
-                            style={{ flex: 1, padding: '0.55rem', fontSize: '0.78rem', justifyContent: 'center' }}
+                            style={{ 
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '0.35rem',
+                              padding: '0.55rem 0.75rem', 
+                              fontSize: '0.78rem', 
+                              flex: '1 1 auto' 
+                            }}
                           >
-                            Ver Dossiê Completo
+                            Dossiê
                           </button>
                           <button
                             onClick={() => handleDeleteClient(client.id)}
                             style={{
-                              background: 'rgba(239, 68, 68, 0.1)',
-                              border: '1px solid rgba(239, 68, 68, 0.25)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '0.35rem',
+                              background: 'rgba(239, 68, 68, 0.12)',
+                              border: '1px solid rgba(239, 68, 68, 0.35)',
                               color: '#F87171',
-                              padding: '0.55rem 0.75rem',
+                              padding: '0.55rem 0.7rem',
                               borderRadius: 'var(--radius-sm)',
-                              cursor: 'pointer'
+                              cursor: 'pointer',
+                              fontWeight: 700,
+                              fontSize: '0.78rem'
                             }}
-                            title="Excluir cadastro"
+                            title="Excluir este cadastro do sistema"
                           >
-                            <Trash2 size={14} />
+                            <Trash2 size={13} />
+                            Excluir
                           </button>
                         </div>
                       </div>
@@ -2444,7 +3166,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               required
                               value={newClient.nomeRazao}
                               onChange={(e) => setNewClient({ ...newClient, nomeRazao: e.target.value })}
-                              placeholder="Ex: MOURATO E ASSOCIADOS LTDA"
+                              placeholder="Ex: Razão Social da Empresa Ltda"
                               style={{
                                 width: '100%',
                                 padding: '0.7rem 0.9rem',
@@ -2487,7 +3209,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               type="text" 
                               value={newClient.socioVinculado}
                               onChange={(e) => setNewClient({ ...newClient, socioVinculado: e.target.value, responsavel: e.target.value })}
-                              placeholder="Ex: José Jailson Mourato da Silva (CPF 317.769.598-92)"
+                              placeholder="Ex: Nome do Responsável / Sócio (CPF 000.000.000-00)"
                               style={{
                                 width: '100%',
                                 padding: '0.7rem 0.9rem',
@@ -2529,7 +3251,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               type="text" 
                               value={newClient.nire}
                               onChange={(e) => setNewClient({ ...newClient, nire: e.target.value })}
-                              placeholder="Ex: 35270804594"
+                              placeholder="Ex: 00000000000"
                               style={{
                                 width: '100%',
                                 padding: '0.7rem 0.9rem',
@@ -2583,7 +3305,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               type="text"
                               value={newClient.balanco?.ativo || ''}
                               onChange={(e) => handleBalancoChange('ativo', e.target.value)}
-                              placeholder="Ex: R$ 1.714.304,26"
+                              placeholder="Ex: R$ 0,00"
                               style={{
                                 width: '100%',
                                 padding: '0.65rem',
@@ -2604,7 +3326,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               type="text"
                               value={newClient.balanco?.patrimonioLiquido || ''}
                               onChange={(e) => handleBalancoChange('patrimonioLiquido', e.target.value)}
-                              placeholder="Ex: R$ 1.563.732,99"
+                              placeholder="Ex: R$ 0,00"
                               style={{
                                 width: '100%',
                                 padding: '0.65rem',
@@ -2625,7 +3347,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               type="text"
                               value={newClient.balanco?.capitalSocial || ''}
                               onChange={(e) => handleBalancoChange('capitalSocial', e.target.value)}
-                              placeholder="Ex: R$ 1.000.000,00"
+                              placeholder="Ex: R$ 0,00"
                               style={{
                                 width: '100%',
                                 padding: '0.65rem',
@@ -2646,7 +3368,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               type="text"
                               value={newClient.balanco?.faturamentoAnual || ''}
                               onChange={(e) => handleBalancoChange('faturamentoAnual', e.target.value)}
-                              placeholder="Ex: R$ 1.409.898,34"
+                              placeholder="Ex: R$ 0,00"
                               style={{
                                 width: '100%',
                                 padding: '0.65rem',
@@ -2667,7 +3389,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               type="text"
                               value={newClient.balanco?.contadorResponsavel || ''}
                               onChange={(e) => handleBalancoChange('contadorResponsavel', e.target.value)}
-                              placeholder="Ex: Nilson Oliveira dos Santos (CRC/SP)"
+                              placeholder="Ex: Nome do Contador (CRC/UF)"
                               style={{
                                 width: '100%',
                                 padding: '0.65rem',
@@ -2705,7 +3427,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               required
                               value={newClient.nomeRazao}
                               onChange={(e) => setNewClient({ ...newClient, nomeRazao: e.target.value })}
-                              placeholder="Ex: JOSÉ JAILSON MOURATO DA SILVA"
+                              placeholder="Ex: Nome Completo do Titular"
                               style={{
                                 width: '100%',
                                 padding: '0.7rem 0.9rem',
@@ -2748,7 +3470,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               type="text" 
                               value={newClient.empresaVinculada}
                               onChange={(e) => setNewClient({ ...newClient, empresaVinculada: e.target.value })}
-                              placeholder="Ex: MOURATO E ASSOCIADOS LTDA"
+                              placeholder="Ex: Razão Social da Empresa Ltda"
                               style={{
                                 width: '100%',
                                 padding: '0.7rem 0.9rem',
@@ -2886,7 +3608,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               type="text"
                               value={newClient.rendaPatrimonio?.veiculos || ''}
                               onChange={(e) => handleRendaPatrimonioChange('veiculos', e.target.value)}
-                              placeholder="Ex: Yamaha YBR 125K Placa DUZ0988 Renavam 00909604606"
+                              placeholder="Ex: Modelo do Veículo, Placa, Renavam"
                               style={{
                                 width: '100%',
                                 padding: '0.65rem',
@@ -3077,14 +3799,14 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                             {/* Senha com Eye toggle */}
                             <div>
                               <label style={{ display: 'block', fontSize: '0.72rem', color: '#94A3B8', marginBottom: '0.3rem' }}>
-                                Senha de Acesso / Assinatura
+                                Senha de Acesso / Assinatura <span style={{ color: '#64748B' }}>(Opcional • Sem Trava)</span>
                               </label>
                               <div style={{ position: 'relative' }}>
                                 <input 
                                   type={showFormPasswords[index] ? "text" : "password"}
                                   value={bancoItem.senhaAcesso}
                                   onChange={(e) => handleBankFieldChange(index, 'senhaAcesso', e.target.value)}
-                                  placeholder="Assinatura eletrônica"
+                                  placeholder="Assinatura eletrônica (Opcional)"
                                   style={{
                                     width: '100%',
                                     padding: '0.65rem 2.4rem 0.65rem 0.75rem',
@@ -3186,7 +3908,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                             type={showFormPasswords.serasa ? 'text' : 'password'}
                             value={newClient.senhaSerasa || ''}
                             onChange={(e) => setNewClient({ ...newClient, senhaSerasa: e.target.value })}
-                            placeholder="🔑 Senha Consulta Serasa"
+                            placeholder="🔑 Senha Consulta Serasa (Opcional - Sem Trava)"
                             style={{
                               width: '100%',
                               padding: '0.55rem 2rem 0.55rem 0.6rem',
@@ -3251,7 +3973,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                             type={showFormPasswords.bacen ? 'text' : 'password'}
                             value={newClient.senhaBacen || ''}
                             onChange={(e) => setNewClient({ ...newClient, senhaBacen: e.target.value })}
-                            placeholder="🔑 Senha / Código Sisbacen"
+                            placeholder="🔑 Senha / Código Sisbacen (Opcional - Sem Trava)"
                             style={{
                               width: '100%',
                               padding: '0.55rem 2rem 0.55rem 0.6rem',
@@ -3330,7 +4052,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                             type={showFormPasswords.gov ? 'text' : 'password'}
                             value={newClient.senhaGovBr || ''}
                             onChange={(e) => setNewClient({ ...newClient, senhaGovBr: e.target.value })}
-                            placeholder="🔑 Senha Gov.br / PIN Certificado"
+                            placeholder="🔑 Senha Gov.br / PIN Certificado (Opcional - Sem Trava)"
                             style={{
                               width: '100%',
                               padding: '0.55rem 2rem 0.55rem 0.6rem',
@@ -3393,7 +4115,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                             type={showFormPasswords.quod ? 'text' : 'password'}
                             value={newClient.senhaQuod || ''}
                             onChange={(e) => setNewClient({ ...newClient, senhaQuod: e.target.value })}
-                            placeholder="🔑 Senha Consulta Quod"
+                            placeholder="🔑 Senha Consulta Quod (Opcional - Sem Trava)"
                             style={{
                               width: '100%',
                               padding: '0.55rem 2rem 0.55rem 0.6rem',
@@ -3456,7 +4178,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                             type={showFormPasswords.boavista ? 'text' : 'password'}
                             value={newClient.senhaBoaVista || ''}
                             onChange={(e) => setNewClient({ ...newClient, senhaBoaVista: e.target.value })}
-                            placeholder="🔑 Senha Boa Vista SCPC"
+                            placeholder="🔑 Senha Boa Vista SCPC (Opcional - Sem Trava)"
                             style={{
                               width: '100%',
                               padding: '0.55rem 2rem 0.55rem 0.6rem',
@@ -3504,19 +4226,19 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--gold-light)', fontSize: '0.78rem', fontWeight: 700 }}>
                         <KeyRound size={14} color="var(--gold-primary)" />
-                        CHAVES &amp; SENHAS COMPLEMENTARES PARA CONSULTAS PERICIAIS
+                        CHAVES &amp; SENHAS COMPLEMENTARES (TOTALMENTE OPCIONAIS • SEM TRAVA)
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem' }}>
                         <div>
                           <label style={{ display: 'block', fontSize: '0.72rem', color: '#94A3B8', marginBottom: '0.25rem' }}>
-                            Senha Mestra / Procuração Eletrônica (e-CAC / Receita Federal)
+                            Senha Mestra / Procuração Eletrônica (e-CAC) <span style={{ color: '#64748B' }}>(Opcional • Sem Trava)</span>
                           </label>
                           <div style={{ position: 'relative' }}>
                             <input
                               type={showFormPasswords.master ? 'text' : 'password'}
                               value={newClient.senhaMestraConsultas || ''}
                               onChange={(e) => setNewClient({ ...newClient, senhaMestraConsultas: e.target.value })}
-                              placeholder="Senha Código e-CAC / RFB"
+                              placeholder="Senha Código e-CAC / RFB (Opcional)"
                               style={{ width: '100%', padding: '0.55rem 2rem 0.55rem 0.6rem', background: '#06090F', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 'var(--radius-xs)', color: '#FFF', fontSize: '0.75rem' }}
                             />
                             <button
@@ -3531,14 +4253,14 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
 
                         <div>
                           <label style={{ display: 'block', fontSize: '0.72rem', color: '#94A3B8', marginBottom: '0.25rem' }}>
-                            PIN / Senha do Certificado Digital A1
+                            PIN / Senha do Certificado Digital A1 <span style={{ color: '#64748B' }}>(Opcional • Sem Trava)</span>
                           </label>
                           <div style={{ position: 'relative' }}>
                             <input
                               type={showFormPasswords.pinA1 ? 'text' : 'password'}
                               value={newClient.pinCertificadoA1 || ''}
                               onChange={(e) => setNewClient({ ...newClient, pinCertificadoA1: e.target.value })}
-                              placeholder="PIN / Senha Certificado Digital"
+                              placeholder="PIN / Senha Certificado Digital (Opcional)"
                               style={{ width: '100%', padding: '0.55rem 2rem 0.55rem 0.6rem', background: '#06090F', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 'var(--radius-xs)', color: '#FFF', fontSize: '0.75rem' }}
                             />
                             <button
@@ -4103,7 +4825,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                               <td style={{ padding: '0.85rem 1rem', color: '#FFFFFF', fontWeight: 600 }}>{e.descricao}</td>
                               <td style={{ padding: '0.85rem 1rem', color: '#94A3B8' }}>{e.vencimento || '---'}</td>
                               <td style={{ padding: '0.85rem 1rem', color: '#FFFFFF', fontWeight: 700 }}>
-                                {Number(e.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                {formatMonetaryValue(e.valor)}
                               </td>
                               <td style={{ padding: '0.85rem 1rem' }}>
                                 <button
@@ -4182,12 +4904,12 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <CreditCard size={20} color="var(--gold-primary)" />
                     <h3 style={{ fontSize: '1.05rem', color: '#FFFFFF', margin: 0 }}>
-                      Emitir Cobrança / Recebível Mercado Pago
+                      Emitir Cobrança / Recebível
                     </h3>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', color: mpConfig.connected ? '#34D399' : 'var(--gold-light)' }}>
                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: mpConfig.connected ? '#10B981' : 'var(--gold-primary)' }} />
-                    {mpConfig.connected ? 'Mercado Pago Ativo' : 'Modo Padrão / PIX Mourato'}
+                    {mpConfig.connected ? 'Gateway Homologado' : 'PIX Oficial Mourato'}
                   </div>
                 </div>
 
@@ -4312,7 +5034,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                       style={{ width: '100%', padding: '0.68rem', fontSize: '0.82rem', justifyContent: 'center' }}
                     >
                       <QrCode size={15} />
-                      Gerar Cobrança Mercado Pago
+                      Gerar Cobrança Oficial
                     </button>
                   </div>
                 </form>
@@ -4333,7 +5055,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', textAlign: 'left' }}>
                       <thead>
                         <tr style={{ background: '#090D14', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', color: '#94A3B8' }}>
-                          <th style={{ padding: '0.85rem 1rem' }}>ID Mercado Pago</th>
+                          <th style={{ padding: '0.85rem 1rem' }}>ID da Transação</th>
                           <th style={{ padding: '0.85rem 1rem' }}>Cliente</th>
                           <th style={{ padding: '0.85rem 1rem' }}>Descrição</th>
                           <th style={{ padding: '0.85rem 1rem' }}>Método</th>
@@ -4350,7 +5072,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                             <td style={{ padding: '0.85rem 1rem', color: '#94A3B8' }}>{r.descricao}</td>
                             <td style={{ padding: '0.85rem 1rem', color: 'var(--gold-light)' }}>{r.metodo}</td>
                             <td style={{ padding: '0.85rem 1rem', color: '#FFFFFF', fontWeight: 700 }}>
-                              {Number(r.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                              {formatMonetaryValue(r.valor)}
                             </td>
                             <td style={{ padding: '0.85rem 1rem' }}>
                               <button
@@ -4440,10 +5162,10 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                   </div>
                   <div>
                     <h2 style={{ fontSize: '1.15rem', color: '#FFFFFF', margin: 0 }}>
-                      Integração da API Mercado Pago (Recebíveis)
+                      Integração Gateway de Recebíveis (API)
                     </h2>
                     <p style={{ fontSize: '0.76rem', color: '#94A3B8', margin: 0 }}>
-                      Insira suas credenciais de produção ou testes obtidas no painel de desenvolvedores do Mercado Pago.
+                      Insira suas credenciais de produção ou testes para liquidação bancária automatizada.
                     </p>
                   </div>
                 </div>
@@ -4489,7 +5211,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                       </button>
                     </div>
                     <span style={{ fontSize: '0.7rem', color: '#64748B', marginTop: '0.25rem', display: 'block' }}>
-                      Encontrado em: Mercado Pago Developers &gt; Suas Aplicações &gt; Credenciais de Produção.
+                      Credenciais oficiais de integração segura para processamento financeiro.
                     </span>
                   </div>
 
@@ -4591,7 +5313,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                       }}
                     >
                       <RefreshCw size={14} />
-                      Testar Conexão com Mercado Pago
+                      Testar Conexão com Gateway
                     </button>
 
                     <button
@@ -4647,10 +5369,10 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
           {activeView === 'bureau_scores' && (() => {
             const activeClient = clients.find(c => c.id === selectedBureauClientId) || clients[0] || TEIA_INITIAL_CLIENTS[0];
             const bureauData = getBureauDataForClient(activeClient);
-            const activeSerasa = bureauData.serasa || 654;
-            const activeBoaVista = bureauData.boavista || 716;
-            const activeQuod = bureauData.quod || 682;
-            const activeBacen = bureauData.bacen || 'A1';
+            const activeSerasa = (bureauData.serasa !== undefined && bureauData.serasa !== null) ? bureauData.serasa : 0;
+            const activeBoaVista = (bureauData.boavista !== undefined && bureauData.boavista !== null) ? bureauData.boavista : 0;
+            const activeQuod = (bureauData.quod !== undefined && bureauData.quod !== null) ? bureauData.quod : 0;
+            const activeBacen = bureauData.bacen || '0 (Não Auditado)';
 
             const filteredForBureau = clients.filter(c => {
               if (bureauCategoryFilter === 'PJ') return c.tipo === 'PJ';
@@ -4683,7 +5405,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                       display: 'block',
                       marginBottom: '0.3rem'
                     }}>
-                      SCORES AUDITADOS EM TEMPO REAL
+                      ALIMENTAÇÃO MANUAL &amp; SCORES PERSONALIZADOS
                     </span>
                     <h2 style={{ fontSize: '1.45rem', color: '#FFFFFF', margin: 0, fontWeight: 800 }}>
                       Pontuação nos Birôs de Crédito &amp; Banco Central
@@ -4729,6 +5451,52 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                     >
                       {isBureauEditMode ? <Save size={14} /> : <Edit size={14} />}
                       {isBureauEditMode ? 'Concluir Edição dos Birôs' : 'Editar Métricas & Botões'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleLoadScoresFromCadastro}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.45rem',
+                        padding: '0.45rem 0.95rem',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'rgba(56, 189, 248, 0.15)',
+                        border: '1px solid rgba(56, 189, 248, 0.45)',
+                        color: '#38BDF8',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                      title="Subir os valores cadastrados na ficha deste cliente para os birôs"
+                    >
+                      <RotateCcw size={14} />
+                      Puxar Valores do Cadastro
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleZeroAllBureaus}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.45rem',
+                        padding: '0.45rem 0.95rem',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'rgba(239, 68, 68, 0.15)',
+                        border: '1px solid rgba(239, 68, 68, 0.4)',
+                        color: '#F87171',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                      title="Zerar todos os scores e limpar todas as restrições deste titular para 0"
+                    >
+                      <RotateCcw size={14} />
+                      Zerar Birôs (Score 0)
                     </button>
                   </div>
                 </div>
@@ -4920,10 +5688,10 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                           padding: '0.2rem 0.6rem',
                           borderRadius: '9999px',
                           background: 'rgba(16, 185, 129, 0.15)',
-                          color: '#34D399',
-                          border: '1px solid rgba(16, 185, 129, 0.4)'
+                          color: activeSerasa === 0 ? '#F87171' : '#34D399',
+                          border: activeSerasa === 0 ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(16, 185, 129, 0.4)'
                         }}>
-                          {activeSerasa >= 750 ? 'EXCELENTE (94.0%)' : activeSerasa >= 600 ? 'BOM (68.0%)' : 'REGULAR (45.0%)'}
+                          {activeSerasa >= 750 ? 'EXCELENTE (94.0%)' : activeSerasa >= 600 ? 'BOM (68.0%)' : activeSerasa > 0 ? 'REGULAR (45.0%)' : 'ZERADO / SANEADO (0)'}
                         </span>
                       </div>
 
@@ -5001,6 +5769,23 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                             }}
                           >
                             Gravar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleZeroBureau('serasa')}
+                            style={{
+                              background: 'rgba(239, 68, 68, 0.15)',
+                              border: '1px solid rgba(239, 68, 68, 0.4)',
+                              color: '#F87171',
+                              padding: '0.35rem 0.65rem',
+                              borderRadius: '4px',
+                              fontSize: '0.74rem',
+                              fontWeight: 700,
+                              cursor: 'pointer'
+                            }}
+                            title="Zerar pontuação do Serasa para 0"
+                          >
+                            Zerar (0)
                           </button>
                         </div>
                       </div>
@@ -5167,10 +5952,10 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                           padding: '0.2rem 0.6rem',
                           borderRadius: '9999px',
                           background: 'rgba(59, 130, 246, 0.15)',
-                          color: '#60A5FA',
-                          border: '1px solid rgba(59, 130, 246, 0.4)'
+                          color: activeBoaVista === 0 ? '#F87171' : '#60A5FA',
+                          border: activeBoaVista === 0 ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(59, 130, 246, 0.4)'
                         }}>
-                          FAIXA A (EXCELENTE)
+                          {activeBoaVista >= 750 ? 'FAIXA A (EXCELENTE)' : activeBoaVista >= 600 ? 'FAIXA B (BOM)' : activeBoaVista > 0 ? 'FAIXA C (REGULAR)' : 'ZERADO / SANEADO (0)'}
                         </span>
                       </div>
 
@@ -5248,6 +6033,23 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                             }}
                           >
                             Gravar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleZeroBureau('boavista')}
+                            style={{
+                              background: 'rgba(239, 68, 68, 0.15)',
+                              border: '1px solid rgba(239, 68, 68, 0.4)',
+                              color: '#F87171',
+                              padding: '0.35rem 0.65rem',
+                              borderRadius: '4px',
+                              fontSize: '0.74rem',
+                              fontWeight: 700,
+                              cursor: 'pointer'
+                            }}
+                            title="Zerar pontuação do Boa Vista para 0"
+                          >
+                            Zerar (0)
                           </button>
                         </div>
                       </div>
@@ -5414,10 +6216,10 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                           padding: '0.2rem 0.6rem',
                           borderRadius: '9999px',
                           background: 'rgba(16, 185, 129, 0.15)',
-                          color: '#34D399',
-                          border: '1px solid rgba(16, 185, 129, 0.4)'
+                          color: activeQuod === 0 ? '#F87171' : '#34D399',
+                          border: activeQuod === 0 ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(16, 185, 129, 0.4)'
                         }}>
-                          SCORE {activeQuod} (BOM)
+                          {activeQuod >= 750 ? `SCORE ${activeQuod} (EXCELENTE)` : activeQuod >= 600 ? `SCORE ${activeQuod} (BOM)` : activeQuod > 0 ? `SCORE ${activeQuod} (REGULAR)` : 'ZERADO / SANEADO (0)'}
                         </span>
                       </div>
 
@@ -5495,6 +6297,23 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                             }}
                           >
                             Gravar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleZeroBureau('quod')}
+                            style={{
+                              background: 'rgba(239, 68, 68, 0.15)',
+                              border: '1px solid rgba(239, 68, 68, 0.4)',
+                              color: '#F87171',
+                              padding: '0.35rem 0.65rem',
+                              borderRadius: '4px',
+                              fontSize: '0.74rem',
+                              fontWeight: 700,
+                              cursor: 'pointer'
+                            }}
+                            title="Zerar pontuação do Quod para 0"
+                          >
+                            Zerar (0)
                           </button>
                         </div>
                       </div>
@@ -6149,7 +6968,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                   <KeyRound size={14} color="var(--gold-primary)" />
                   Senhas &amp; Credenciais de Consulta dos Birôs
                 </h3>
-                <span style={{ fontSize: '0.7rem', color: '#64748B' }}>Acesso Operacional Sigiloso</span>
+                <span style={{ fontSize: '0.7rem', color: '#64748B' }}>Acesso Opcional • Sem Trava Obrigatória</span>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', fontSize: '0.78rem' }}>
@@ -6163,7 +6982,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                   { label: 'PIN CERTIFICADO A1', val: selectedClient.pinCertificadoA1, key: 'pinA1' }
                 ].filter(item => item.val).length === 0 ? (
                   <div style={{ color: '#64748B', fontSize: '0.76rem', fontStyle: 'italic', gridColumn: '1 / -1' }}>
-                    Nenhuma senha de consulta específica registrada para este cliente. Clique em "Editar Cadastro" para cadastrar.
+                    Nenhuma senha registrada para este cliente (as senhas são 100% opcionais e sem trava obrigatória).
                   </div>
                 ) : (
                   [
@@ -6382,10 +7201,10 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
               </div>
               <div>
                 <h3 style={{ fontSize: '1.25rem', color: '#FFFFFF', margin: 0, fontWeight: 700 }}>
-                  Nova Cobrança Segura — Mercado Pago
+                  Nova Cobrança Segura — Mourato & Associados
                 </h3>
                 <p style={{ fontSize: '0.76rem', color: '#94A3B8', margin: '2px 0 0' }}>
-                  Emissão compatível com as regras antifraude e scoring de risco do Mercado Pago.
+                  Emissão institucional com conformidade antifraude e liquidação direta.
                 </p>
               </div>
             </div>
@@ -6443,7 +7262,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                       required
                       value={chargeForm.cliente}
                       onChange={(e) => setChargeForm({ ...chargeForm, cliente: e.target.value })}
-                      placeholder="Ex: Mourato Alimentos Ltda"
+                      placeholder="Ex: Razão Social do Cliente Ltda"
                       list="charge-clients-list"
                       style={{
                         width: '100%',
@@ -6720,7 +7539,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                   color: mpConfig.accessToken ? '#34D399' : '#00B4FF',
                   fontWeight: 600
                 }}>
-                  {mpConfig.accessToken ? '● Conectado à API Oficial Mercado Pago' : '● Modo de Homologação Local (Simulador Antifraude)'}
+                  {mpConfig.accessToken ? '● Conectado ao Gateway Bancário Oficial' : '● Modo de Homologação Ativo'}
                 </span>
               </div>
 
@@ -6838,7 +7657,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
               marginBottom: '0.85rem'
             }}>
               <ShieldCheck size={14} />
-              COBRANÇA MERCADO PAGO HOMOLOGADA
+              COBRANÇA BANCÁRIA HOMOLOGADA
             </div>
 
             <h3 style={{ fontSize: '1.25rem', color: '#FFFFFF', margin: '0 0 0.25rem', fontWeight: 700 }}>
@@ -6849,7 +7668,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
             </div>
 
             <div style={{ fontSize: '1.75rem', color: 'var(--gold-light)', fontWeight: 800, marginBottom: '1.25rem' }}>
-              {Number(activePixModal.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              {formatMonetaryValue(activePixModal.valor)}
             </div>
 
             {/* QR Code Container */}
@@ -6864,7 +7683,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
               {activePixModal.qrCodeBase64 ? (
                 <img 
                   src={`data:image/png;base64,${activePixModal.qrCodeBase64}`} 
-                  alt="QR Code PIX Mercado Pago" 
+                  alt="QR Code PIX Oficial" 
                   style={{ width: '180px', height: '180px', display: 'block' }} 
                 />
               ) : (
@@ -6955,9 +7774,9 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                     `Olá, ${activePixModal.cliente}!\n\n` +
                     `Segue a cobrança da *Mourato & Associados* referente a:\n` +
                     `📌 *${activePixModal.descricao}*\n` +
-                    `💰 *Valor: ${Number(activePixModal.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}*\n\n` +
+                    `💰 *Valor: ${formatMonetaryValue(activePixModal.valor)}*\n\n` +
                     `🔑 *Código PIX (Copia e Cola):*\n${activePixModal.pixPayload}\n\n` +
-                    (activePixModal.ticketUrl && activePixModal.ticketUrl !== '#' ? `🔗 *Link da Fatura Mercado Pago:*\n${activePixModal.ticketUrl}\n\n` : '') +
+                    (activePixModal.ticketUrl && activePixModal.ticketUrl !== '#' ? `🔗 *Link da Fatura Oficial:*\n${activePixModal.ticketUrl}\n\n` : '') +
                     `Agradecemos a confiança.\n*Mourato & Associados — Assessoria Corporativa*`
                   );
                   window.open(`https://wa.me/?text=${textoWhatsApp}`, '_blank');
@@ -7000,7 +7819,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                   }}
                 >
                   <ExternalLink size={12} />
-                  Abrir link direto do Mercado Pago
+                  Abrir link direto de pagamento
                 </a>
               )}
             </div>
@@ -7202,6 +8021,146 @@ Mourato & Associados Ltda
             <p style={{ color: '#CBD5E1', fontSize: '0.76rem', margin: 0, lineHeight: 1.45 }}>
               {bureauToast.message}
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIRMAÇÃO E DISPARO DA AUDIÊNCIA APROVADA (WHATSAPP & E-MAIL) */}
+      {approvalModalData && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 999999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '1.5rem'
+        }}>
+          <div style={{
+            maxWidth: '560px', width: '100%',
+            background: '#0D121D',
+            border: '1px solid rgba(197, 168, 105, 0.5)',
+            borderRadius: 'var(--radius-md, 12px)',
+            boxShadow: '0 25px 60px rgba(0,0,0,0.85)',
+            padding: '2rem',
+            display: 'flex', flexDirection: 'column', gap: '1.25rem'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span style={{
+                  fontSize: '0.72rem', padding: '0.2rem 0.6rem', borderRadius: '4px',
+                  background: 'rgba(16, 185, 129, 0.15)', color: '#34D399', fontWeight: 700,
+                  letterSpacing: '0.05em'
+                }}>
+                  ✓ AUDIÊNCIA APROVADA
+                </span>
+                <h3 style={{ fontSize: '1.35rem', color: '#FFFFFF', marginTop: '0.5rem', marginBottom: '0.2rem' }}>
+                  {approvalModalData.lead.empresa}
+                </h3>
+                <p style={{ fontSize: '0.82rem', color: '#94A3B8', margin: 0 }}>
+                  {approvalModalData.lead.nome} • {approvalModalData.lead.telefone} • {approvalModalData.lead.email}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setApprovalModalData(null)}
+                style={{ background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: '1.35rem', padding: '0.25rem' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: '8px', padding: '1rem',
+              display: 'flex', flexDirection: 'column', gap: '0.5rem'
+            }}>
+              <label style={{ fontSize: '0.72rem', color: 'var(--gold-light, #E2C98A)', fontWeight: 700, textTransform: 'uppercase' }}>
+                Link da Ficha Cadastral Gerado:
+              </label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input
+                  type="text"
+                  readOnly
+                  value={approvalModalData.linkFicha}
+                  style={{
+                    flex: 1, background: '#070A10', border: '1px solid rgba(255,255,255,0.15)',
+                    color: '#CBD5E1', padding: '0.55rem 0.75rem', borderRadius: '6px', fontSize: '0.78rem'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(approvalModalData.linkFicha);
+                    alert('Link oficial copiado para a área de transferência!');
+                  }}
+                  className="btn-secondary-subtle"
+                  style={{ padding: '0.55rem 0.9rem', fontSize: '0.75rem', whiteSpace: 'nowrap' }}
+                >
+                  📋 Copiar
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <a
+                href={approvalModalData.wppUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem',
+                  padding: '0.85rem 1.25rem', background: '#25D366', color: '#0A180E',
+                  fontWeight: 700, fontSize: '0.88rem', borderRadius: '8px', textDecoration: 'none',
+                  boxShadow: '0 4px 12px rgba(37, 211, 102, 0.3)'
+                }}
+              >
+                <span>💬</span> Enviar Link via WhatsApp ({approvalModalData.cleanPhone})
+              </a>
+
+              <a
+                href={approvalModalData.mailtoUrl}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem',
+                  padding: '0.85rem 1.25rem', background: 'var(--gold-primary, #C5A869)', color: '#0D121D',
+                  fontWeight: 700, fontSize: '0.88rem', borderRadius: '8px', textDecoration: 'none',
+                  boxShadow: '0 4px 12px rgba(197, 168, 105, 0.3)'
+                }}
+              >
+                <span>✉️</span> Enviar E-mail Oficial (mourato@mouratoassociados.com.br)
+              </a>
+
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setApprovalModalData(null);
+                    setActiveView('clients_list');
+                  }}
+                  className="btn-primary-gold"
+                  style={{ flex: 1, padding: '0.65rem 1.1rem', fontSize: '0.78rem', justifyContent: 'center', whiteSpace: 'nowrap' }}
+                >
+                  👥 Ver na Lista de Clientes
+                </button>
+                <a
+                  href={approvalModalData.linkFicha}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn-secondary-subtle"
+                  style={{ flex: 1, padding: '0.65rem', fontSize: '0.78rem', justifyContent: 'center', textDecoration: 'none', whiteSpace: 'nowrap' }}
+                >
+                  🔗 Abrir / Testar Ficha
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setApprovalModalData(null)}
+                  className="btn-secondary-subtle"
+                  style={{ padding: '0.65rem 1.25rem', fontSize: '0.78rem' }}
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

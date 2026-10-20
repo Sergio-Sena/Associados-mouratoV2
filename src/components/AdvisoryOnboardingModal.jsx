@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ArrowRight, CheckCircle2, Shield, Loader2 } from 'lucide-react';
+import { X, ArrowRight, CheckCircle2, Shield, Loader2, Copy, Check, MessageSquare, ExternalLink } from 'lucide-react';
 
 const inputStyle = {
   width: '100%',
@@ -20,6 +20,7 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
   });
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Controla animação de entrada/saída
   useEffect(() => {
@@ -48,15 +49,36 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/leads`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      if (!res.ok) throw new Error('Erro no envio');
+      const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api') + '/leads';
+      const leadPayload = {
+        ...formData,
+        id: 'lead-' + Date.now(),
+        status: 'novo',
+        criadoEm: new Date().toISOString()
+      };
+
+      try {
+        await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(leadPayload)
+        });
+      } catch (netErr) {
+        console.warn('Backend offline no momento, gravando lead no storage:', netErr);
+      }
+
+      // Garante persistência imediata para o painel de Leads
+      try {
+        const savedLeads = JSON.parse(localStorage.getItem('mourato_leads_solicitacoes') || '[]');
+        savedLeads.unshift(leadPayload);
+        localStorage.setItem('mourato_leads_solicitacoes', JSON.stringify(savedLeads));
+      } catch (storErr) {
+        console.warn('Erro ao salvar lead no localStorage:', storErr);
+      }
+
       setSubmitted(true);
-    } catch {
-      alert('Erro ao enviar. Tente novamente.');
+    } catch (err) {
+      alert('Erro ao enviar solicitação. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -67,7 +89,6 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
   return (
     <div
       className={`modal-backdrop ${animating}`}
-      onClick={onClose}
       style={{ opacity: isOpen ? 1 : 0, transition: 'opacity 0.3s ease' }}
     >
       <div
@@ -259,12 +280,87 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
             <h3 style={{ fontSize: '1.5rem', color: '#FFFFFF', marginBottom: '0.5rem' }}>
               Solicitação Registrada
             </h3>
-            <p style={{ color: '#94A3B8', fontSize: '0.9rem', maxWidth: '400px', margin: '0 auto 1.5rem', lineHeight: 1.6 }}>
+            <p style={{ color: '#94A3B8', fontSize: '0.9rem', maxWidth: '440px', margin: '0 auto 1.5rem', lineHeight: 1.6 }}>
               Agradecemos pelo contato, <strong style={{ color: '#FFFFFF' }}>{formData.nome}</strong>. Nossos sócios entrarão em contato no WhatsApp informado para coordenar a reunião executiva.
             </p>
-            <button className="btn-primary-gold" onClick={onClose}>
-              Fechar
-            </button>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center', maxWidth: '420px', margin: '0 auto 1rem', width: '100%' }}>
+              {(() => {
+                const sheetUrl = typeof window !== 'undefined' 
+                  ? `${window.location.origin}/ficha-cadastral?nome=${encodeURIComponent(formData.nome)}&empresa=${encodeURIComponent(formData.empresa)}&telefone=${encodeURIComponent(formData.telefone)}`
+                  : `/ficha-cadastral?nome=${encodeURIComponent(formData.nome)}`;
+                const cleanPhone = formData.telefone.replace(/\D/g, '');
+                const waUrl = `https://wa.me/55${cleanPhone}?text=${encodeURIComponent(`Olá ${formData.nome}! Segue o link para preenchimento da sua Planilha / Ficha Cadastral da Mourato & Associados: ${sheetUrl}`)}`;
+
+                return (
+                  <>
+                    <div style={{
+                      width: '100%',
+                      background: 'rgba(15, 23, 42, 0.75)',
+                      border: '1px solid rgba(212, 175, 55, 0.3)',
+                      borderRadius: '8px',
+                      padding: '10px 12px',
+                      fontSize: '0.78rem',
+                      color: '#cbd5e1',
+                      wordBreak: 'break-all',
+                      textAlign: 'left'
+                    }}>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--gold-light)', display: 'block', fontWeight: 700, marginBottom: '4px' }}>
+                        LINK DA PLANILHA ONLINE GERADO:
+                      </span>
+                      {sheetUrl}
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', width: '100%' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (navigator.clipboard) {
+                            navigator.clipboard.writeText(sheetUrl);
+                            setCopiedLink(true);
+                            setTimeout(() => setCopiedLink(false), 3000);
+                          }
+                        }}
+                        className="btn-secondary-subtle"
+                        style={{ padding: '0.75rem 0.5rem', fontSize: '0.8rem', justifyContent: 'center', gap: '6px' }}
+                      >
+                        {copiedLink ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
+                        <span>{copiedLink ? 'Link Copiado!' : 'Copiar Link'}</span>
+                      </button>
+
+                      <a
+                        href={waUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-secondary-subtle"
+                        style={{ padding: '0.75rem 0.5rem', fontSize: '0.8rem', justifyContent: 'center', gap: '6px', textDecoration: 'none', color: '#34d399', borderColor: 'rgba(52, 211, 153, 0.35)' }}
+                      >
+                        <MessageSquare size={14} />
+                        <span>Encaminhar WhatsApp</span>
+                      </a>
+                    </div>
+
+                    <a
+                      href={sheetUrl}
+                      className="btn-primary-gold"
+                      style={{ width: '100%', justifyContent: 'center', padding: '0.85rem', fontSize: '0.88rem', textDecoration: 'none', gap: '8px' }}
+                    >
+                      <span>Preencher Planilha Online Agora</span>
+                      <ArrowRight size={15} />
+                    </a>
+
+                    <button 
+                      type="button" 
+                      className="btn-secondary-subtle" 
+                      onClick={onClose}
+                      style={{ width: '100%', padding: '0.75rem', fontSize: '0.82rem', marginTop: '4px' }}
+                    >
+                      Concluir &amp; Fechar
+                    </button>
+                  </>
+                );
+              })()}
+            </div>
           </div>
         )}
       </div>

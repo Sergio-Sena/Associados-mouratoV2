@@ -665,3 +665,96 @@ p {
   position: relative;
   padding: 2.25rem;
 }
+
+/* ========================================================================== */
+/* VIA DO CLIENTE & IMPRESSÃO CORPORATIVA OFICIAL (WINDOW.PRINT)              */
+/* ========================================================================== */
+@media print {
+  @page {
+    size: A4;
+    margin: 1.5cm;
+  }
+
+  html, body {
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+    font-size: 10.5pt !important;
+    line-height: 1.5 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Ocultar elementos desnecessários na impressão */
+  header, 
+  footer, 
+  nav, 
+  .btn-hamburger, 
+  .header-actions, 
+  .mobile-drawer, 
+  .no-print, 
+  button, 
+  iframe,
+  .modal-backdrop:not(.printing-receipt) {
+    display: none !important;
+  }
+
+  .modal-backdrop.printing-receipt {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+
+  .modal-backdrop.printing-receipt .modal-dialog {
+    max-width: 100% !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .print-receipt-paper {
+    display: block !important;
+    width: 100% !important;
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .print-receipt-paper * {
+    color: #0F172A !important;
+  }
+
+  .print-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin: 12px 0 !important;
+    font-size: 9.5pt !important;
+  }
+
+  .print-table th, 
+  .print-table td {
+    border: 1px solid #CBD5E1 !important;
+    padding: 6px 10px !important;
+    text-align: left !important;
+  }
+
+  .print-table th {
+    background: #F8FAFC !important;
+    font-weight: 700 !important;
+  }
+
+  .print-badge {
+    border: 1px solid #0F172A !important;
+    padding: 2px 6px !important;
+    font-weight: 700 !important;
+    font-size: 8.5pt !important;
+  }
+
+  .page-break {
+    page-break-after: always;
+  }
+}

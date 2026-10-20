@@ -2,7 +2,7 @@ import React from 'react';
 import { ArrowRight, ArrowUpRight } from 'lucide-react';
 import { useInView } from '../hooks/useInView';
 
-export const HeroSection = ({ onNavigate, onOpenContact }) => {
+export const HeroSection = ({ onNavigate, onOpenContact, onOpenOnboarding }) => {
   const [heroRef, heroInView] = useInView({ threshold: 0.05 });
   const [cardsRef, cardsInView] = useInView();
 
@@ -56,11 +56,13 @@ export const HeroSection = ({ onNavigate, onOpenContact }) => {
           <div className="hero-actions">
             <button className="btn-primary-gold" onClick={onOpenContact} style={{ padding: '0.95rem 2rem', fontSize: '0.9rem' }}>
               Solicitar Audiência Privada
-              <ArrowRight size={15} />
-            </button>
-            <button className="btn-secondary-subtle" onClick={() => onNavigate('espectro')} style={{ padding: '0.95rem 2rem', fontSize: '0.9rem' }}>
-              Estrutura das Práticas
               <ArrowUpRight size={15} />
+            </button>
+            <button className="btn-secondary-subtle" onClick={() => onNavigate('espectro')} style={{ padding: '0.95rem 1.6rem', fontSize: '0.9rem' }}>
+              Estrutura das Práticas
+            </button>
+            <button className="btn-secondary-subtle" onClick={() => onNavigate('biros')} style={{ padding: '0.95rem 1.6rem', fontSize: '0.9rem' }}>
+              Birôs de Crédito
             </button>
           </div>
 

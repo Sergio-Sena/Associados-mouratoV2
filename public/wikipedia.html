@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mourato & Associados – Wikipédia, a enciclopédia livre</title>
+  <link rel="icon" type="image/svg+xml" href="/mourato-seal-circle.png" />
+  <meta name="description" content="Artigo enciclopédico sobre Mourato & Associados Ltda.: história, mercado de capitais, engenharia de spread bancário e governança corporativa.">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Lato, Helvetica, Arial;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #202122;
+      background: #FFFFFF;
+    }
+    a { color: #0645ad; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .top-banner {
+      background: #0B132B;
+      color: #FFFFFF;
+      padding: 0.6rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #C5A869;
+    }
+    .top-banner a.btn-back {
+      background: #C5A869;
+      color: #0A0F1D;
+      padding: 0.4rem 1rem;
+      font-weight: bold;
+      border-radius: 4px;
+      text-decoration: none;
+      font-size: 0.82rem;
+    }
+    header.wiki-header {
+      background: #F8F9FA;
+      border-bottom: 1px solid #C8CCD1;
+      padding: 0.6rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .wiki-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+    .wiki-globe {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: #E8EAED;
+      border: 1px solid #C8CCD1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: Georgia, serif;
+      font-size: 1.4rem;
+      font-weight: bold;
+    }
+    .container {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 1.25rem 2rem 4rem;
+    }
+    .tabs-bar {
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid #A2A9B1;
+      padding-bottom: 0.2rem;
+      margin-bottom: 1rem;
+    }
+    .tab {
+      padding: 0.4rem 0.8rem;
+      font-size: 0.85rem;
+      color: #0645ad;
+      cursor: pointer;
+    }
+    .tab.active {
+      font-weight: bold;
+      color: #202122;
+      border-bottom: 3px solid #3366cc;
+    }
+    h1.article-title {
+      font-family: 'Linux Libertine', Georgia, Times, serif;
+      font-size: 2.1rem;
+      font-weight: 400;
+      border-bottom: 1px solid #A2A9B1;
+      padding-bottom: 0.35rem;
+      margin-bottom: 0.2rem;
+    }
+    .article-subtitle {
+      font-size: 0.8rem;
+      color: #54595D;
+      margin-bottom: 1.25rem;
+    }
+    .notice-box {
+      background: #F8F9FA;
+      border: 1px solid #A2A9B1;
+      border-left: 4px solid #3366cc;
+      padding: 0.75rem 1rem;
+      font-size: 0.82rem;
+      margin-bottom: 1.5rem;
+    }
+    .article-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 340px;
+      gap: 2.5rem;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .article-layout { grid-template-columns: 1fr; }
+    }
+    .infobox {
+      background: #F8F9FA;
+      border: 1px solid #A2A9B1;
+      font-size: 0.82rem;
+      width: 100%;
+    }
+    .infobox-header {
+      background: #EAECF0;
+      padding: 0.6rem 0.75rem;
+      text-align: center;
+      font-weight: 700;
+      font-family: Georgia, serif;
+      font-size: 1rem;
+      border-bottom: 1px solid #A2A9B1;
+    }
+    .infobox-logo {
+      padding: 1.25rem;
+      text-align: center;
+      background: #FFFFFF;
+      border-bottom: 1px solid #EAECF0;
+    }
+    .infobox-logo img {
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      object-fit: contain;
+    }
+    .infobox table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .infobox th, .infobox td {
+      padding: 0.5rem 0.65rem;
+      border-bottom: 1px solid #EAECF0;
+      vertical-align: top;
+      text-align: left;
+    }
+    .infobox th { width: 38%; }
+    .toc {
+      background: #F8F9FA;
+      border: 1px solid #A2A9B1;
+      padding: 0.85rem 1.25rem;
+      display: inline-block;
+      min-width: 280px;
+      margin: 0.5rem 0 2rem 0;
+    }
+    .toc-title { font-weight: bold; margin-bottom: 0.5rem; font-size: 0.9rem; }
+    .toc ol { padding-left: 1.25rem; font-size: 0.82rem; line-height: 1.8; }
+    h2.section-heading {
+      font-family: 'Linux Libertine', Georgia, Times, serif;
+      font-size: 1.45rem;
+      font-weight: 400;
+      border-bottom: 1px solid #A2A9B1;
+      padding-bottom: 0.25rem;
+      margin: 1.75rem 0 0.75rem 0;
+    }
+    h3.subsection-heading {
+      font-size: 1.05rem;
+      margin: 1rem 0 0.5rem 0;
+    }
+    p { margin-bottom: 1rem; text-align: justify; }
+    .categories-box {
+      background: #F0F2F5;
+      border: 1px solid #A2A9B1;
+      padding: 0.5rem 0.85rem;
+      font-size: 0.78rem;
+      margin-top: 2rem;
+    }
+    footer.wiki-footer {
+      border-top: 1px solid #A2A9B1;
+      padding-top: 1.25rem;
+      margin-top: 3rem;
+      font-size: 0.75rem;
+      color: #72777D;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Institutional Bar -->
+  <div class="top-banner">
+    <div>
+      <span style="background: #C5A869; color: #0A0F1D; font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 3px; margin-right: 0.5rem;">
+        PROJEÇÃO ENCICLOPÉDICA
+      </span>
+      <span>Simulação de Página Institucional na <strong>Wikipédia em Português</strong></span>
+    </div>
+    <a href="/" class="btn-back">← Voltar ao Portal Oficial</a>
+  </div>
+
+  <!-- Wikipedia Header -->
+  <header class="wiki-header">
+    <div class="wiki-brand">
+      <div class="wiki-globe">W</div>
+      <div>
+        <div style="font-family: Georgia, serif; font-size: 1.35rem; font-weight: 500; line-height: 1.1;">WIKIPÉDIA</div>
+        <div style="font-size: 0.68rem; color: #72777D;">A enciclopédia livre</div>
+      </div>
+    </div>
+    <div style="flex: 1; max-width: 440px; margin: 0 1rem;">
+      <input type="text" readonly value="Mourato & Associados" style="width: 100%; padding: 0.45rem 0.6rem; border: 1px solid #72777D; border-radius: 3px; font-size: 0.85rem;">
+    </div>
+    <div style="font-size: 0.78rem; color: #0645ad;">
+      <span>Não autenticado</span> · <span>Discussão</span> · <span>Contribuições</span> · <strong>Criar uma conta</strong> · <strong>Entrar</strong>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- Tabs Bar -->
+    <div class="tabs-bar">
+      <div>
+        <span class="tab active">Artigo</span>
+        <span class="tab">Discussão</span>
+      </div>
+      <div>
+        <span class="tab active">Ler</span>
+        <span class="tab">Editar</span>
+        <span class="tab">Ver histórico</span>
+        <span class="tab">Ferramentas</span>
+      </div>
+    </div>
+
+    <!-- Title -->
+    <h1 class="article-title">Mourato &amp; Associados</h1>
+    <div class="article-subtitle">Origem: Wikipédia, a enciclopédia livre.</div>
+
+    <!-- Notice -->
+    <div class="notice-box">
+      <strong>Mourato &amp; Associados Ltda.</strong> é uma sociedade brasileira de assessoria financeira, inteligência corporativa e engenharia de crédito, constituída em São Paulo. Não confundir com estabelecimentos de varejo ou perfumaria homônimos descontinuados. Para consulta cadastral oficial, veja <em><a href="#referencias">Registro JUCESP e CNPJ 38.377.738/0001-45</a></em>.
+    </div>
+
+    <!-- Layout: Text + Infobox -->
+    <div class="article-layout">
+
+      <div>
+        <!-- Lead -->
+        <p>
+          <strong>Mourato &amp; Associados</strong> (razão social formal: <em>Mourato e Associados Ltda.</em>) é uma empresa brasileira de assessoria em inteligência financeira, reestruturação societária e desintermediação de spread bancário, sediada na cidade de <a href="https://pt.wikipedia.org/wiki/S%C3%A3o_Paulo">São Paulo</a>, no centro financeiro da República. Fundada em setembro de 2020<sup><a href="#ref-1">[1]</a></sup>, a instituição opera na intersecção entre o <a href="https://pt.wikipedia.org/wiki/Mercado_de_capitais">mercado de capitais</a>, perícia contábil de birôs de crédito e a modelagem estruturada de instrumentos de dívida fiduciária.
+        </p>
+
+        <p>
+          A firma diferencia-se no mercado financeiro nacional por adotar uma tese estrita de <strong>não intermediação de crédito com spread oculto</strong>, atuando sob alinhamento fiduciário com conselhos de administração, empresários e fundadores de empresas médias e de grande porte (<em>Middle Market</em> e <em>Corporate</em>). Entre suas principais verticais destacam-se a compressão técnica de taxas de juros bancárias, auditoria pericial no Sistema de Informações de Crédito do Banco Central (<a href="https://pt.wikipedia.org/wiki/Banco_Central_do_Brasil">SCR Sisbacen</a>), antecipação estruturada via fundos de investimento (<a href="https://pt.wikipedia.org/wiki/Fundo_de_investimento_em_direitos_credit%C3%B3rios">FIDCs</a>) e reorganização de holdings patrimoniais<sup><a href="#ref-2">[2]</a></sup>.
+        </p>
+
+        <!-- TOC -->
+        <div class="toc">
+          <div class="toc-title">Sumário</div>
+          <ol>
+            <li><a href="#historia">1 História e Fundação</a>
+              <ol>
+                <li><a href="#origens">1.1 Constituição e Posicionamento (2020)</a></li>
+                <li><a href="#transicao">1.2 Expansão para Mercado de Capitais</a></li>
+              </ol>
+            </li>
+            <li><a href="#areas-atuacao">2 Áreas de Atuação e Serviços Técnicos</a>
+              <ol>
+                <li><a href="#spread-bancario">2.1 Engenharia e Redução de Spread Bancário</a></li>
+                <li><a href="#mercado-capitais">2.2 Emissões Estruturadas (CRI, CRA, Debêntures, FIDCs)</a></li>
+                <li><a href="#biros-credito">2.3 Inteligência e Perícia em Birôs (SCR, Serasa, Quod)</a></li>
+                <li><a href="#consultoria-societaria">2.4 Reorganização Societária e Blindagem de Quotas</a></li>
+              </ol>
+            </li>
+            <li><a href="#modelo-negocio">3 Modelo Operacional e Alinhamento Fiduciário</a></li>
+            <li><a href="#governanca">4 Governança, Compliance e Sigilo Bancário</a></li>
+            <li><a href="#plataforma">5 Plataforma Digital e Automação Pericial</a></li>
+            <li><a href="#ver-tambem">6 Ver também</a></li>
+            <li><a href="#referencias">7 Referências</a></li>
+            <li><a href="#ligacoes-externas">8 Ligações externas</a></li>
+          </ol>
+        </div>
+
+        <!-- Section 1 -->
+        <h2 id="historia" class="section-heading">1 História e Fundação</h2>
+        <h3 id="origens" class="subsection-heading">1.1 Constituição e Posicionamento (2020)</h3>
+        <p>
+          A Mourato &amp; Associados Ltda. foi formalmente registrada na Junta Comercial do Estado de São Paulo (<a href="https://pt.wikipedia.org/wiki/Junta_Comercial_do_Estado_de_S%C3%A3o_Paulo">JUCESP</a>) em 8 de setembro de 2020 sob o NIRE 35270804594 e o CNPJ 38.377.738/0001-45<sup><a href="#ref-1">[1]</a></sup>. Estabeleceu sua sede corporativa na Avenida São Luís, 187, no bairro da República, região histórica de escritórios de advocacia financeira e consultorias independentes de São Paulo.
+        </p>
+
+        <h3 id="transicao" class="subsection-heading">1.2 Expansão para Mercado de Capitais</h3>
+        <p>
+          A partir de 2022, impulsionada pelo ciclo de elevação da taxa Selic e pelo encarecimento do crédito bancário tradicional, a empresa estruturou sua divisão de Mercado de Capitais e Desintermediação. A estratégia concentrou-se em substituir linhas de capital de giro de bancos de varejo (que praticavam spreads superiores a 18% ao ano) por emissões diretas de Certificados de Recebíveis Imobiliários (<a href="https://pt.wikipedia.org/wiki/Certificado_de_Receb%C3%ADveis_Imobili%C3%A1rios">CRI</a>), Certificados de Recebíveis do Agronegócio (<a href="https://pt.wikipedia.org/wiki/Certificado_de_Receb%C3%ADveis_do_Agroneg%C3%B3cio">CRA</a>) e cotas sênior de FIDCs.
+        </p>
+
+        <!-- Section 2 -->
+        <h2 id="areas-atuacao" class="section-heading">2 Áreas de Atuação e Serviços Técnicos</h2>
+        <h3 id="spread-bancario" class="subsection-heading">2.1 Engenharia e Redução de Spread Bancário</h3>
+        <p>
+          O modelo pericial da Mourato &amp; Associados analisa a anatomia do <a href="https://pt.wikipedia.org/wiki/Spread_banc%C3%A1rio">spread bancário</a> imposto pelas instituições financeiras, dividindo o custo efetivo total em custo de captação, provisões contra perdas, custos administrativos e margem líquida da instituição tomadora, promovendo a compressão técnica negociada com as mesas de atacado.
+        </p>
+
+        <h3 id="mercado-capitais" class="subsection-heading">2.2 Emissões Estruturadas (CRI, CRA, Debêntures, FIDCs)</h3>
+        <p>
+          A companhia auxilia empresas na captação direta junto a investidores institucionais e fundos de crédito privado, sem a retenção de reciprocidades bancárias compulsórias praticadas pelos bancos comerciais convencionais<sup><a href="#ref-3">[3]</a></sup>.
+        </p>
+
+        <h3 id="biros-credito" class="subsection-heading">2.3 Inteligência e Perícia em Birôs (SCR, Serasa, Quod)</h3>
+        <p>
+          A auditoria da empresa atua na retificação e saneamento de registros no Sistema de Informações de Crédito do Banco Central (SCR Sisbacen), identificando divergências entre o saldo devedor real e os valores reportados pelas instituições nas faixas de prejuízo contábil (Resolução CMN nº 4.966/2021). A atuação estende-se aos birôs privados Serasa Experian, Quod e Boa Vista SCPC.
+        </p>
+
+        <h3 id="consultoria-societaria" class="subsection-heading">2.4 Reorganização Societária e Blindagem de Quotas</h3>
+        <p>
+          A divisão consultiva estrutura holdings puras e patrimoniais, acordos de sócios, governança pré-sucessória e adequação aos <em>covenants</em> de contratos financeiros, garantindo a solidez dos balanços patrimoniais.
+        </p>
+
+        <!-- Section 3 -->
+        <h2 id="modelo-negocio" class="section-heading">3 Modelo Operacional e Alinhamento Fiduciário</h2>
+        <p>
+          Diferente de correspondentes bancários remunerados por comissões de produtos das instituições financeiras, a Mourato &amp; Associados opera sob modelo de honorários de estruturação (<em>retainer</em> e <em>success fee</em>), eliminando o conflito de interesses na contratação de instrumentos de crédito.
+        </p>
+
+        <!-- Section 4 -->
+        <h2 id="governanca" class="section-heading">4 Governança, Compliance e Sigilo Bancário</h2>
+        <p>
+          Todas as tratativas são resguardadas por Acordos de Não Divulgação (NDA) em estrita conformidade com a <a href="https://pt.wikipedia.org/wiki/Lei_Geral_de_Prote%C3%A7%C3%A3o_de_Dados">Lei Geral de Proteção de Dados (Lei nº 13.709/2018)</a> e a Lei Complementar nº 105/2001 (Sigilo das Operações Financeiras). A empresa <strong>não realiza custódia de recursos de terceiros</strong> e não mantém contas de depósito, operando estritamente no âmbito da consultoria técnica e assessoria contábil-econômica.
+        </p>
+
+        <!-- Section 5 -->
+        <h2 id="plataforma" class="section-heading">5 Plataforma Digital e Automação Pericial</h2>
+        <p>
+          A instituição disponibiliza uma esteira tecnológica proprietária integrada com simuladores de amortização fiduciária, geração de dossiês periciais automatizados e validação instantânea de elegibilidade cadastral de pessoas físicas e jurídicas.
+        </p>
+
+        <!-- Section 6 -->
+        <h2 id="ver-tambem" class="section-heading">6 Ver também</h2>
+        <ul style="padding-left: 1.5rem; line-height: 1.8;">
+          <li><a href="https://pt.wikipedia.org/wiki/Sistema_Financeiro_Nacional">Sistema Financeiro Nacional (Brasil)</a></li>
+          <li><a href="https://pt.wikipedia.org/wiki/Desintermedia%C3%A7%C3%A3o_financeira">Desintermediação financeira</a></li>
+          <li><a href="https://pt.wikipedia.org/wiki/Comiss%C3%A3o_de_Valores_Mobili%C3%A1rios">Comissão de Valores Mobiliários (CVM)</a></li>
+          <li><a href="https://pt.wikipedia.org/wiki/Cr%C3%A9dito_privado">Crédito privado no Brasil</a></li>
+        </ul>
+
+        <!-- Section 7 -->
+        <h2 id="referencias" class="section-heading">7 Referências</h2>
+        <ol style="padding-left: 1.5rem; font-size: 0.82rem; color: #54595D; line-height: 1.6;">
+          <li id="ref-1">Receita Federal do Brasil &amp; Junta Comercial do Estado de São Paulo (JUCESP). <em>Comprovante de Inscrição e Situação Cadastral: MOURATO E ASSOCIADOS LTDA. CNPJ: 38.377.738/0001-45</em>. Consultado em 19 de outubro de 2026.</li>
+          <li id="ref-2">Banco Central do Brasil. <em>Sistema de Informações de Crédito (SCR) – Resoluções CMN e Circular Bacen sobre registro de operações financeiras</em>. Brasília, DF.</li>
+          <li id="ref-3">Comissão de Valores Mobiliários (CVM). <em>Resolução CVM nº 175: Marco Regulatório dos Fundos de Investimento (FIDCs e Crédito Estruturado)</em>. Rio de Janeiro.</li>
+        </ol>
+
+        <!-- Section 8 -->
+        <h2 id="ligacoes-externas" class="section-heading">8 Ligações externas</h2>
+        <ul style="padding-left: 1.5rem; line-height: 1.8;">
+          <li><a href="/">Sítio oficial de Mourato &amp; Associados</a></li>
+        </ul>
+
+        <div class="categories-box">
+          <strong><a href="#categorias">Categorias</a>:</strong>
+          <a href="#cat1">Empresas de consultoria financeira do Brasil</a> ·
+          <a href="#cat2">Empresas fundadas em 2020</a> ·
+          <a href="#cat3">Mercado de capitais do Brasil</a> ·
+          <a href="#cat4">Empresas de São Paulo (cidade)</a> ·
+          <a href="#cat5">Reorganização societária e finanças corporativas</a>
+        </div>
+
+      </div>
+
+      <!-- Infobox -->
+      <aside class="infobox">
+        <div class="infobox-header">Mourato &amp; Associados Ltda.</div>
+        <div class="infobox-logo">
+          <img src="/mourato-seal-circle.png" alt="Brasão Oficial Mourato & Associados">
+          <div style="font-size: 0.72rem; color: #72777D; margin-top: 0.65rem;">
+            Marca e insígnia institucional da sociedade.
+          </div>
+        </div>
+        <table>
+          <tbody>
+            <tr>
+              <th>Tipo</th>
+              <td>Sociedade Empresária Limitada</td>
+            </tr>
+            <tr>
+              <th>Gênero</th>
+              <td>Consultoria Financeira, Mercado de Capitais e Perícia de Crédito</td>
+            </tr>
+            <tr>
+              <th>Fundação</th>
+              <td>8 de setembro de 2020 (6 anos)</td>
+            </tr>
+            <tr>
+              <th>Sede</th>
+              <td>
+                Avenida São Luís, 187, República<br>
+                São Paulo — SP, Brasil<br>
+                <span style="font-size: 0.72rem; color: #72777D;">CEP: 01046-001</span>
+              </td>
+            </tr>
+            <tr>
+              <th>Área servida</th>
+              <td>Brasil (Atuação Nacional)</td>
+            </tr>
+            <tr>
+              <th>Produtos e Serviços</th>
+              <td>
+                • Compressão de Spread Bancário<br>
+                • Emissão de CRI, CRA, Debêntures<br>
+                • Antecipação via FIDC de Atacado<br>
+                • Auditoria SCR Sisbacen e Birôs<br>
+                • Holdings e Reestruturação Societária
+              </td>
+            </tr>
+            <tr>
+              <th>CNPJ</th>
+              <td style="font-family: monospace; font-size: 0.8rem;">38.377.738/0001-45</td>
+            </tr>
+            <tr>
+              <th>NIRE (JUCESP)</th>
+              <td style="font-family: monospace; font-size: 0.8rem;">35270804594</td>
+            </tr>
+            <tr>
+              <th>Slogan</th>
+              <td style="font-style: italic; color: #B45309;">"Qualidade · Confiança · Excelência"</td>
+            </tr>
+            <tr>
+              <th>Sítio oficial</th>
+              <td><a href="/">mouratoassociados.com.br</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </aside>
+
+    </div>
+
+    <!-- Footer -->
+    <footer class="wiki-footer">
+      <p style="margin-bottom: 0.5rem;">Esta página foi editada pela última vez às 17:15 de 19 de outubro de 2026 (UTC).</p>
+      <p>Este texto é disponibilizado nos termos da licença Atribuição-CompartilhaIgual 4.0 Internacional (CC BY-SA 4.0) da Creative Commons; pode estar sujeito a condições adicionais.</p>
+    </footer>
+
+  </div>
+
+</body>
+</html>

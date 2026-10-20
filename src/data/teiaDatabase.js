@@ -1,6 +1,6 @@
 /**
  * Base Oficial da Teia de Aranha - Mourato & Associados
- * Gerado automaticamente por scripts/sync_from_teia.mjs em 2026-10-10T19:29:19.277Z
+ * Gerado automaticamente por scripts/sync_from_teia.mjs em 2026-10-16T19:23:39.023Z
  * Origem: C:\Projetos\Empreas\data
  */
 
@@ -11,12 +11,12 @@ export const TEIA_INITIAL_CLIENTS = [
     "nomeRazao": "MOURATO E ASSOCIADOS LTDA",
     "documento": "38.377.738/0001-45",
     "documentoTipo": "CNPJ",
-    "natureza": "Sociedade Empresária Limitada Unipessoal (ME)",
+    "natureza": "206-2 - Sociedade Empresária Limitada Unipessoal (ME)",
     "nire": "35270804594",
     "situacao": "ATIVA",
     "dataAbertura": "08/09/2020",
-    "socioVinculado": "JOSE JAILSON MOURATO DA SILVA",
-    "responsavel": "JOSE JAILSON MOURATO DA SILVA (CPF 317.769.598-92)",
+    "socioVinculado": "JOSÉ JAILSON MOURATO DA SILVA",
+    "responsavel": "JOSÉ JAILSON MOURATO DA SILVA (CPF 317.769.598-92)",
     "contato": "(11) 98765-4321",
     "email": "mourato.importacao@gmail.com",
     "endereco": "Av. São Luís, 187, Sala 69 - República, São Paulo - SP",
@@ -70,16 +70,51 @@ export const TEIA_INITIAL_CLIENTS = [
     "bacenScr": "Rating A1 (Prime Rate Corporativo - R$ 0,00 Vencidos/Prejuízos)",
     "govNivel": "Ouro",
     "govProtocolo": "e-CNPJ SyngularID A1 Ativo",
-    "senhaSerasa": "Mourato@2026",
-    "senhaBacen": "Bacen#Mourato92",
-    "senhaGovBr": "GovBr$2026Mourato",
-    "senhaQuod": "Quod#Corp2026",
-    "senhaBoaVista": "BoaVista@Mourato",
-    "senhaMestraConsultas": "eCAC*Mourato2026",
-    "pinCertificadoA1": "9876",
     "limiteAprovado": "R$ 1.450.000,00 (Potencial Pronampe/FGO)",
     "observacoesSigilosas": "Empresa homologada com Rating A1 no Registrato PJ Bacen. Balanço Patrimonial estruturado pelo CRC Nilson Oliveira. Certificados e CND Federal e Previdenciária 100% negativas.",
     "dataCadastro": "2026-09-08"
+  },
+  {
+    "id": "cli-pf-angela",
+    "tipo": "PF",
+    "nomeRazao": "ANGELA VITORIA DE PAULA MAGALHAES",
+    "documento": "069.624.492-67",
+    "documentoTipo": "CPF",
+    "profissao": "Profissional / Sócio",
+    "empresaVinculada": "Vínculo Estratégico Mourato & Associados",
+    "responsavel": "Titular",
+    "contato": "(11) 98765-4321",
+    "email": "",
+    "endereco": "São Paulo - SP",
+    "cep": "01000-000",
+    "rendaPatrimonio": {
+      "proLabore": "R$ 15.000,00",
+      "bens": "Ativos e quotas de capital",
+      "veiculos": ""
+    },
+    "contasBancarias": [
+      {
+        "id": 1,
+        "banco": "Itaú",
+        "bancoOutro": "",
+        "agencia": "0001",
+        "conta": "Conta Corrente",
+        "senhaAcesso": "",
+        "statusConta": "Aberta e Operando"
+      }
+    ],
+    "serasaScore": "Regular",
+    "serasaStatus": "Sem Apontamentos",
+    "boaVistaScore": "Regular",
+    "boaVistaStatus": "Sem Restrições",
+    "quodScore": "Positivo",
+    "quodStatus": "Positivo / Sem Restrição",
+    "bacenScr": "Rating A",
+    "govNivel": "Prata",
+    "govProtocolo": "Validação Gov.br Ativa",
+    "limiteAprovado": "R$ 350.000,00",
+    "observacoesSigilosas": "Perfil Prime de Crédito. Zero atrasos, zero apontamentos de prejuízo e zero restrições. Limites contratados de R$ 17.582,76 e utilização de apenas 20,97%.",
+    "dataCadastro": "2026-10-14"
   },
   {
     "id": "cli-pf-erivaldo",
@@ -110,18 +145,18 @@ export const TEIA_INITIAL_CLIENTS = [
         "statusConta": "Aberta e Operando"
       }
     ],
-    "serasaScore": "[object Object]",
+    "serasaScore": "Regular",
     "serasaStatus": "Sem Apontamentos",
     "boaVistaScore": "Regular",
     "boaVistaStatus": "Sem Restrições",
-    "quodScore": "[object Object]",
+    "quodScore": "Positivo",
     "quodStatus": "Positivo / Sem Restrição",
     "bacenScr": "Rating A",
     "govNivel": "Prata",
     "govProtocolo": "Validação Gov.br Ativa",
     "limiteAprovado": "R$ 350.000,00",
     "observacoesSigilosas": "Sócio da Comercial Nespe Construtora. Scores elevados acima de 700 em todos os birôs. Proposta BNDES MPME 2436377 cancelada por taxa abusiva da ISF Crédito.",
-    "dataCadastro": "2026-10-09"
+    "dataCadastro": "2026-10-14"
   },
   {
     "id": "cli-pf-helia",
@@ -152,18 +187,18 @@ export const TEIA_INITIAL_CLIENTS = [
         "statusConta": "Aberta e Operando"
       }
     ],
-    "serasaScore": "[object Object]",
+    "serasaScore": "Regular",
     "serasaStatus": "Sem Apontamentos",
     "boaVistaScore": "Regular",
     "boaVistaStatus": "Sem Restrições",
-    "quodScore": "[object Object]",
+    "quodScore": "Positivo",
     "quodStatus": "Positivo / Sem Restrição",
     "bacenScr": "Rating A",
     "govNivel": "Prata",
     "govProtocolo": "Validação Gov.br Ativa",
     "limiteAprovado": "R$ 350.000,00",
     "observacoesSigilosas": "Notificação de exclusão de débito Sabesp gerada.",
-    "dataCadastro": "2026-10-09"
+    "dataCadastro": "2026-10-14"
   },
   {
     "id": "cli-pf-mourato",
@@ -175,7 +210,7 @@ export const TEIA_INITIAL_CLIENTS = [
     "empresaVinculada": "MOURATO E ASSOCIADOS LTDA (CNPJ 38.377.738/0001-45) | JOSE JAILSON MOURATO DA SILVA (HOUSTON) (CNPJ 18.037.669/0001-13)",
     "responsavel": "Titular",
     "contato": "(11) 97899-0034",
-    "email": "mouratoimportacao@gmail.com",
+    "email": "mourato.importacao@gmail.com",
     "endereco": "Av. São Luís, 187, Sala 69 - República - São Paulo - SP",
     "cep": "01045-001",
     "rendaPatrimonio": {
@@ -214,7 +249,7 @@ export const TEIA_INITIAL_CLIENTS = [
     "govProtocolo": "e-CPF A1 (Senha: 123456) ICP-Brasil AC SyngularID Multipla (Validade: 31/07/2027)",
     "limiteAprovado": "R$ 1.450.000,00",
     "observacoesSigilosas": "22 anos de relacionamento bancário ilibado. Rating A1 Registrato, CND Federal Negativa válida, zero prejuízo no SCR. Validação Gov.br SEI-SP ativa.",
-    "dataCadastro": "2026-10-09"
+    "dataCadastro": "2026-10-14"
   },
   {
     "id": "cli-pf-luiz",
@@ -256,7 +291,7 @@ export const TEIA_INITIAL_CLIENTS = [
     "govProtocolo": "Validação Gov.br Ativa",
     "limiteAprovado": "R$ 350.000,00",
     "observacoesSigilosas": "Score Quod 709, Boa Vista 680, Serasa 620. Certificado e-CPF A1 ativo.",
-    "dataCadastro": "2026-10-09"
+    "dataCadastro": "2026-10-14"
   },
   {
     "id": "cli-pf-nilson",
@@ -265,11 +300,11 @@ export const TEIA_INITIAL_CLIENTS = [
     "documento": "086.986.408-42",
     "documentoTipo": "CPF",
     "profissao": "Contador",
-    "empresaVinculada": "Y7 Service Ltda / Perícias Contábeis Mourato",
+    "empresaVinculada": "Y7 SERVICE LTDA (CNPJ PENDENTE_HOMOLOGACAO)",
     "responsavel": "Titular",
     "contato": "(11) 98246-6092",
     "email": "nilson.contador@yahoo.com",
-    "endereco": "Rua da Caminhadeira, 91, Casa - Vila Nova Mazzei - São Paulo - SP",
+    "endereco": "Rua da Caminhadeira, nº 91, Vila Nova Mazzei, São Paulo - SP",
     "cep": "02313-030",
     "rendaPatrimonio": {
       "proLabore": "R$ 15.000,00",
@@ -296,18 +331,18 @@ export const TEIA_INITIAL_CLIENTS = [
         "statusConta": "Aberta e Operando"
       }
     ],
-    "serasaScore": "[object Object]",
+    "serasaScore": "Regular",
     "serasaStatus": "Apontamento Negociado (Prescritos em Purga)",
     "boaVistaScore": "Regular",
     "boaVistaStatus": "Sem Restrições",
-    "quodScore": "[object Object]",
+    "quodScore": "Positivo",
     "quodStatus": "Positivo / Sem Restrição",
     "bacenScr": "Rating A",
     "govNivel": "Prata",
     "govProtocolo": "Validação Gov.br Ativa",
     "limiteAprovado": "R$ 350.000,00",
     "observacoesSigilosas": "Contador com superior completo, casa própria avaliada em R$ 550k. Cadastro positivo ativo com saldos em saneamento e apontamentos prescritos em purga.",
-    "dataCadastro": "2026-10-09"
+    "dataCadastro": "2026-10-14"
   },
   {
     "id": "cli-pf-sergio",
@@ -338,18 +373,18 @@ export const TEIA_INITIAL_CLIENTS = [
         "statusConta": "Aberta e Operando"
       }
     ],
-    "serasaScore": "[object Object]",
+    "serasaScore": "802",
     "serasaStatus": "Sem Apontamentos",
     "boaVistaScore": "717",
     "boaVistaStatus": "Sem Restrições",
-    "quodScore": "[object Object]",
+    "quodScore": "Positivo",
     "quodStatus": "Positivo / Sem Restrição",
     "bacenScr": "Rating A1",
     "govNivel": "Prata",
     "govProtocolo": "Validação Gov.br Ativa",
     "limiteAprovado": "R$ 950.000,00",
     "observacoesSigilosas": "Sócio e Administrador da SS Technologies Ltda (100% participação, R$ 100k capital). Scores de excelência: Serasa 802 e Boa Vista 717.",
-    "dataCadastro": "2026-10-09"
+    "dataCadastro": "2026-10-14"
   },
   {
     "id": "cli-pf-silvanei",
@@ -391,7 +426,7 @@ export const TEIA_INITIAL_CLIENTS = [
     "govProtocolo": "e-CPF A1 AC SyngularID Multipla (Validade: 29/06/2027)",
     "limiteAprovado": "R$ 350.000,00",
     "observacoesSigilosas": "Certificado Digital e-CPF A1 instalado e ativo até 29/06/2027.",
-    "dataCadastro": "2026-10-09"
+    "dataCadastro": "2026-10-14"
   }
 ];
 
