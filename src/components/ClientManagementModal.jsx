@@ -200,17 +200,16 @@ const convertLeadToClientRecord = (lead, linkFicha = '') => {
 const isClientAlreadyInList = (clientList, lead) => {
   if (!lead || !Array.isArray(clientList)) return false;
   const leadEmail = (lead.email || '').toLowerCase().trim();
-  const leadPhone = (lead.telefone || '').replace(/\D/g, '');
   const leadEmpresa = (lead.empresa || '').toLowerCase().trim();
   const leadNome = (lead.nome || '').toLowerCase().trim();
   const leadId = String(lead.id || '');
+  const leadDoc = (lead.documento || lead.cnpj || lead.cpf || '').replace(/\D/g, '');
 
   return clientList.some(c => {
     if (c.id === `cli-lead-${leadId}` || c.leadOriginId === leadId) return true;
-    if (leadEmail && (c.email || '').toLowerCase().trim() === leadEmail) return true;
+    if (leadDoc && leadDoc.length >= 11 && (c.documento || '').replace(/\D/g, '') === leadDoc) return true;
     if (leadEmpresa && (c.nomeRazao || '').toLowerCase().trim() === leadEmpresa) return true;
-    if (leadNome && (c.nomeRazao || '').toLowerCase().trim() === leadNome) return true;
-    if (leadPhone && leadPhone.length >= 8 && (c.contato || '').replace(/\D/g, '').includes(leadPhone)) return true;
+    if (leadEmail && (c.email || '').toLowerCase().trim() === leadEmail && leadEmail !== 'mourato@mouratoassociados.com.br' && leadEmail !== 'mourato.importacao@gmail.com') return true;
     return false;
   });
 };
