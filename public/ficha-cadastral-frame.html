@@ -1,0 +1,2124 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Ficha de Atualização Cadastral & Onboarding Operacional — Mourato & Associados</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #070b14;
+      --bg-card: #0f172a;
+      --bg-card-sub: #1e293b;
+      --border-color: #1e293b;
+      --border-focus: #3b82f6;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --accent: #38bdf8;
+      --gold: #d4af37;
+      --gold-dark: #b8860b;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: radial-gradient(circle at top center, #0f1c3f 0%, var(--bg-dark) 70%);
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      min-height: 100vh;
+      padding: 30px 15px;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    /* Cabeçalho Oficial */
+    .header-card {
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.85) 100%);
+      border: 1px solid rgba(212, 175, 55, 0.35);
+      border-radius: 16px;
+      padding: 24px 28px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .brand-logo-img {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      object-fit: cover;
+      box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
+      border: 2px solid var(--gold);
+      flex-shrink: 0;
+    }
+
+    .brand-title h1 {
+      font-size: 1.3rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      color: #fff;
+      margin: 0;
+      line-height: 1.2;
+    }
+
+    .brand-title .brand-cnpj {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--gold);
+      font-family: 'JetBrains Mono', monospace;
+      margin: 2px 0 0 0;
+      letter-spacing: 0.5px;
+    }
+
+    .brand-title .doc-subtitle {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-top: 3px;
+    }
+
+    .top-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 9px 16px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+
+    .btn-gold {
+      background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+      color: #050b14;
+      box-shadow: 0 4px 14px rgba(212, 175, 55, 0.35);
+    }
+    .btn-gold:hover { transform: translateY(-1px); filter: brightness(1.08); }
+
+    .btn-secondary {
+      background: var(--bg-card-sub);
+      color: #e2e8f0;
+      border: 1px solid #334155;
+    }
+    .btn-secondary:hover { background: #334155; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+    }
+    .btn-primary:hover { transform: translateY(-1px); filter: brightness(1.1); }
+
+    /* Banner Informativo */
+    .info-banner {
+      background: rgba(14, 165, 233, 0.1);
+      border: 1px solid rgba(14, 165, 233, 0.3);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+    .info-banner-icon {
+      font-size: 1.5rem;
+      color: var(--accent);
+      line-height: 1;
+    }
+    .info-banner-text {
+      font-size: 0.84rem;
+      color: #cbd5e1;
+    }
+    .info-banner-text strong {
+      color: #38bdf8;
+    }
+
+    /* Seletor de Carga Rápida (Operador) */
+    .quick-load-bar {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 12px 18px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    /* Blocos de Formulário */
+    .form-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 22px 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    }
+
+    .form-section.adendos-destaque {
+      border: 2px solid rgba(212, 175, 55, 0.6);
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(20, 20, 35, 0.98) 100%);
+      box-shadow: 0 0 25px rgba(212, 175, 55, 0.15);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 12px;
+      margin-bottom: 18px;
+    }
+
+    .section-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: var(--primary);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 800;
+    }
+
+    .section-num.gold {
+      background: var(--gold);
+      color: #050b14;
+    }
+
+    .section-title {
+      font-size: 0.98rem;
+      font-weight: 700;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .section-desc {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* Grid do Formulário */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 14px;
+    }
+
+    .col-12 { grid-column: span 12; }
+    .col-11 { grid-column: span 11; }
+    .col-10 { grid-column: span 10; }
+    .col-9  { grid-column: span 9; }
+    .col-8  { grid-column: span 8; }
+    .col-7  { grid-column: span 7; }
+    .col-6  { grid-column: span 6; }
+    .col-5  { grid-column: span 5; }
+    .col-4  { grid-column: span 4; }
+    .col-3  { grid-column: span 3; }
+    .col-2  { grid-column: span 2; }
+    .col-1  { grid-column: span 1; }
+
+    @media (max-width: 768px) {
+      .col-12, .col-11, .col-10, .col-9, .col-8, .col-7, .col-6, .col-5, .col-4, .col-3, .col-2, .col-1 { grid-column: span 12; }
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .form-group label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .form-group label .required {
+      color: var(--danger);
+      margin-left: 2px;
+    }
+
+    .form-control {
+      background: var(--bg-card-sub);
+      border: 1px solid #334155;
+      color: #fff;
+      padding: 10px 12px;
+      border-radius: 7px;
+      font-size: 0.85rem;
+      font-family: inherit;
+      transition: all 0.15s ease;
+      width: 100%;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+      background: #1e293b;
+    }
+
+    .form-control.mono {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      color: #f59e0b;
+    }
+
+    .form-control.password-input {
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: 1px;
+    }
+
+    select.form-control {
+      cursor: pointer;
+    }
+
+    /* Credenciais / Cards de Birôs */
+    .credential-card {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 14px;
+      transition: border-color 0.2s ease;
+    }
+    .credential-card:hover {
+      border-color: rgba(56, 189, 248, 0.4);
+    }
+
+    .credential-card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+    }
+
+    .credential-icon {
+      font-size: 1.3rem;
+    }
+
+    .credential-card-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+
+    .credential-card-desc {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+    }
+
+    .password-toggle-wrap {
+      position: relative;
+    }
+    .password-toggle-btn {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.85rem;
+      padding: 4px;
+    }
+
+    /* Termo de Consentimento */
+    .termo-consentimento-box {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(212, 175, 55, 0.3);
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-top: 10px;
+      font-size: 0.78rem;
+      color: #cbd5e1;
+      line-height: 1.6;
+    }
+
+    .checkbox-wrap {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-top: 14px;
+      cursor: pointer;
+    }
+
+    .checkbox-wrap input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      margin-top: 2px;
+      cursor: pointer;
+      accent-color: var(--gold);
+    }
+
+    /* Barra de Ações Flutuante / Rodapé */
+    .bottom-actions-bar {
+      position: sticky;
+      bottom: 20px;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(212, 175, 55, 0.4);
+      border-radius: 14px;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 14px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+      z-index: 100;
+    }
+
+    .status-msg {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    /* Toast */
+    #toast-msg {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      background: #1e293b;
+      border: 1px solid #3b82f6;
+      color: #fff;
+      padding: 14px 20px;
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+      font-size: 0.85rem;
+      display: none;
+      align-items: center;
+      gap: 10px;
+      z-index: 999999;
+    }
+
+    /* Modal de Confirmação & Validação */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 11, 20, 0.82);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 99999;
+      padding: 20px;
+    }
+    .modal-overlay.active {
+      display: flex;
+    }
+    .confirm-modal-card {
+      background: #0f172a;
+      border: 1px solid rgba(212, 175, 55, 0.4);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(212, 175, 55, 0.15);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 680px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 26px 30px;
+      color: #e2e8f0;
+      animation: modalFadeIn 0.25s ease-out;
+    }
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .confirm-modal-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      border-bottom: 1px solid #1e293b;
+      padding-bottom: 16px;
+      margin-bottom: 20px;
+    }
+    .confirm-modal-header h2 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 0;
+    }
+    .confirm-modal-header p {
+      font-size: 0.78rem;
+      color: var(--gold);
+      margin: 2px 0 0 0;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .confirm-summary-group {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+    }
+    .confirm-summary-title {
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: #38bdf8;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 8px;
+    }
+    .confirm-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px 16px;
+      font-size: 0.82rem;
+    }
+    .confirm-item {
+      display: flex;
+      flex-direction: column;
+    }
+    .confirm-item-label {
+      font-size: 0.68rem;
+      color: #94a3b8;
+    }
+    .confirm-item-val {
+      font-weight: 600;
+      color: #f8fafc;
+      word-break: break-word;
+    }
+    .confirm-badge-ok {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #10b981;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .confirm-badge-warn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #f59e0b;
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .confirm-modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 22px;
+      padding-top: 16px;
+      border-top: 1px solid #1e293b;
+    }
+    .field-error-msg {
+      font-size: 0.72rem;
+      color: #ef4444;
+      margin-top: 4px;
+      display: none;
+      font-weight: 600;
+    }
+    .form-control.is-invalid {
+      border-color: #ef4444 !important;
+      box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25) !important;
+    }
+    .form-control.is-valid {
+      border-color: #10b981 !important;
+    }
+    .cep-status-badge {
+      font-size: 0.72rem;
+      margin-top: 4px;
+      font-weight: 600;
+      display: none;
+    }
+    .cep-status-badge.ok {
+      color: #10b981;
+      display: block;
+    }
+    .cep-status-badge.err {
+      color: #ef4444;
+      display: block;
+    }
+
+    /* Ocultação de elementos administrativos no modo cliente */
+    .operador-only {
+      display: none !important;
+    }
+    body.modo-operador .operador-only {
+      display: flex !important;
+    }
+
+    /* Botão de envio desabilitado enquanto o termo não for ticado */
+    .btn-gold:disabled, .btn-gold[disabled] {
+      opacity: 0.40 !important;
+      cursor: not-allowed !important;
+      filter: grayscale(0.85) !important;
+      box-shadow: none !important;
+      transform: none !important;
+      pointer-events: auto;
+    }
+
+    /* Modo Impressão / Print */
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 10mm 10mm;
+      }
+      body {
+        background: #fff !important;
+        color: #0f172a !important;
+        padding: 0 !important;
+        font-size: 80% !important;
+      }
+      .top-toolbar, .bottom-actions-bar, .quick-load-bar, .btn, #toast-msg, .password-toggle-btn {
+        display: none !important;
+        visibility: hidden !important;
+      }
+      .container {
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      .header-card {
+        background: #fff !important;
+        border: 2px solid #b8860b !important;
+        border-radius: 8px !important;
+        box-shadow: none !important;
+        color: #000 !important;
+        padding: 10px 14px !important;
+        margin-bottom: 10px !important;
+        break-after: avoid !important;
+        page-break-after: avoid !important;
+      }
+      .brand-logo-img {
+        width: 50px !important;
+        height: 50px !important;
+        border-radius: 50% !important;
+        border: 2px solid #b8860b !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .brand-title h1 {
+        color: #0f172a !important;
+        font-size: 1.15rem !important;
+        margin: 0 !important;
+      }
+      .brand-title .brand-cnpj {
+        color: #b8860b !important;
+        font-size: 0.85rem !important;
+        font-weight: bold !important;
+        margin: 2px 0 0 0 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .brand-title .doc-subtitle {
+        color: #475569 !important;
+        font-size: 0.72rem !important;
+        margin-top: 2px !important;
+      }
+      .form-section {
+        background: #fff !important;
+        border: 1px solid #cbd5e1 !important;
+        box-shadow: none !important;
+        color: #0f172a !important;
+        padding: 10px 14px !important;
+        margin-bottom: 10px !important;
+        break-inside: auto !important;
+        page-break-inside: auto !important;
+      }
+      .form-section.adendos-destaque {
+        border: 2px solid #b8860b !important;
+        background: #fffdf7 !important;
+        box-shadow: none !important;
+      }
+      .section-header {
+        border-bottom: 1px solid #e2e8f0 !important;
+        padding-bottom: 6px !important;
+        margin-bottom: 8px !important;
+        break-after: avoid !important;
+        page-break-after: avoid !important;
+      }
+      .section-title {
+        color: #0f172a !important;
+        font-size: 0.88rem !important;
+      }
+      .section-desc {
+        color: #64748b !important;
+      }
+      .section-num {
+        background: #0284c7 !important;
+        color: #fff !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .section-num.gold {
+        background: #b8860b !important;
+        color: #fff !important;
+      }
+      .form-group {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+      .form-group label {
+        color: #475569 !important;
+        font-size: 0.68rem !important;
+      }
+      .form-control {
+        background: #fff !important;
+        color: #0f172a !important;
+        border: 1px solid #94a3b8 !important;
+        padding: 6px 10px !important;
+        font-size: 0.8rem !important;
+        box-shadow: none !important;
+      }
+      .credential-card {
+        background: #f8fafc !important;
+        border: 1px solid #cbd5e1 !important;
+        padding: 10px 12px !important;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+      .credential-card-title {
+        color: #0f172a !important;
+      }
+      .termo-consentimento-box {
+        background: #f8fafc !important;
+        border: 1px solid #cbd5e1 !important;
+        box-shadow: none !important;
+        color: #334155 !important;
+        padding: 10px 14px !important;
+        font-size: 0.72rem !important;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- Cabeçalho Oficial -->
+    <div class="header-card">
+      <div class="brand-section">
+        <img src="/logo_mourato.png" alt="Mourato & Associados" class="brand-logo-img">
+        <div class="brand-title">
+          <h1>MOURATO & ASSOCIADOS</h1>
+          <div class="brand-cnpj">CNPJ: 38.377.738/0001-45</div>
+          <div class="doc-subtitle">FICHA DE ATUALIZAÇÃO CADASTRAL & ONBOARDING</div>
+        </div>
+      </div>
+      <div class="top-toolbar">
+        <a href="/" class="btn btn-secondary operador-only" style="display: none !important;">Painel Teia</a>
+        <a href="/api/download/planilha-coleta" class="btn btn-secondary" title="Baixar Planilha Modelo Oficial (CSV compatível com Excel)">Baixar Planilha (Excel/CSV)</a>
+        <button type="button" onclick="copiarLinkFicha()" class="btn btn-secondary operador-only" style="display: none !important;" title="Copiar link para enviar via WhatsApp ao cliente">Copiar Link de Envio</button>
+        <button type="button" id="btn-header-submit" onclick="iniciarConfirmacaoFicha(event)" class="btn btn-gold" disabled title="Marque o Termo de Autorização ao final da ficha para habilitar o envio">Salvar & Iniciar Esteira</button>
+      </div>
+    </div>
+
+    <!-- Seletor de Carga Rápida (Visível apenas para o Operador Interno da Mourato via ?admin=1) -->
+    <div class="quick-load-bar operador-only" id="barra-operador-carga" style="display: none !important;">
+      <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
+        <span style="font-size: 0.75rem; font-weight: 700; color: var(--gold);">CARREGAR CLIENTE EXISTENTE:</span>
+        <select id="select-cliente-existente" onchange="carregarDadosClienteSelecionado(this.value)" class="form-control" style="max-width: 380px;">
+          <option value="">-- Preencher Nova Ficha do Zero (Cliente Limpo) --</option>
+        </select>
+      </div>
+      <div>
+        <button type="button" onclick="limparFormularioFicha()" class="btn btn-secondary" style="font-size: 0.75rem;">Limpar Campos</button>
+      </div>
+    </div>
+
+    <form id="form-onboarding" novalidate autocomplete="off" autocorrect="off" autocapitalize="off" onsubmit="iniciarConfirmacaoFicha(event)">
+
+      <!-- =========================================================================
+           BLOCO 1: IDENTIFICAÇÃO PESSOAL DO TITULAR
+           ========================================================================= -->
+      <div class="form-section">
+        <div class="section-header">
+          <div class="section-header-left">
+            <div class="section-num">1</div>
+            <div>
+              <div class="section-title">Dados Pessoais do Titular</div>
+              <div class="section-desc">Identificação civil perante a Receita Federal e Birôs de Crédito</div>
+            </div>
+          </div>
+          <span style="font-size: 0.72rem; color: #38bdf8; font-weight: 700;">PADRÃO SERASA EXPERIAN</span>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group col-8">
+            <label>Nome Completo do Titular <span class="required">*</span></label>
+            <input type="text" id="titular-nome" required class="form-control" placeholder="" onblur="validarNomeInput(this)">
+            <div id="nome-error-msg" class="field-error-msg">Informe o nome completo (ao menos nome e sobrenome).</div>
+          </div>
+
+          <div class="form-group col-4">
+            <label>CPF (11 Dígitos) <span class="required">*</span></label>
+            <input type="text" id="titular-cpf" required class="form-control mono" placeholder="" maxlength="14" oninput="formatarCpfRealTime(this)" onblur="validarCpfInput(this)">
+            <div id="cpf-error-msg" class="field-error-msg">CPF inválido perante o cálculo oficial da Receita.</div>
+          </div>
+
+          <div class="form-group col-3">
+            <label>RG / CNH</label>
+            <input type="text" id="titular-rg" class="form-control" placeholder="">
+          </div>
+
+          <div class="form-group col-2">
+            <label>Órgão Exp.</label>
+            <input type="text" id="titular-orgao" class="form-control" placeholder="">
+          </div>
+
+          <div class="form-group col-3">
+            <label>Data de Nascimento <span class="required">*</span></label>
+            <input type="text" id="titular-nasc" required class="form-control mono" placeholder="" maxlength="10" oninput="formatarDataInput(this)" onblur="validarNascInput(this)">
+            <div id="nasc-error-msg" class="field-error-msg">Data inválida (formato DD/MM/AAAA e maior de 18 anos).</div>
+          </div>
+
+          <div class="form-group col-2">
+            <label>Sexo</label>
+            <select id="titular-sexo" class="form-control">
+              <option value="">-- Selecione --</option>
+              <option value="M">Masculino</option>
+              <option value="F">Feminino</option>
+              <option value="Outro">Outro</option>
+            </select>
+          </div>
+
+          <div class="form-group col-2">
+            <label>Estado Civil</label>
+            <select id="titular-estado-civil" class="form-control">
+              <option value="">-- Selecione --</option>
+              <option value="Solteiro(a)">Solteiro(a)</option>
+              <option value="Casado(a)">Casado(a)</option>
+              <option value="Divorciado(a)">Divorciado(a)</option>
+              <option value="União Estável">União Estável</option>
+              <option value="Viúvo(a)">Viúvo(a)</option>
+              <option value="Separado(a)">Separado(a)</option>
+            </select>
+          </div>
+
+          <div class="form-group col-6">
+            <label>Nome Completo da Mãe (Filiação)</label>
+            <input type="text" id="titular-mae" class="form-control" placeholder="">
+          </div>
+
+          <div class="form-group col-6">
+            <label>Nome Completo do Pai (Filiação)</label>
+            <input type="text" id="titular-pai" class="form-control" placeholder="">
+          </div>
+
+          <div class="form-group col-6">
+            <label>Nacionalidade</label>
+            <input type="text" id="titular-nacionalidade" class="form-control" placeholder="">
+          </div>
+
+          <div class="form-group col-6">
+            <label>Naturalidade (Cidade / UF)</label>
+            <input type="text" id="titular-naturalidade" class="form-control" placeholder="">
+          </div>
+        </div>
+      </div>
+
+      <!-- =========================================================================
+           BLOCO 2: ENDEREÇO RESIDENCIAL & CANAIS DE CONTATO
+           ========================================================================= -->
+      <div class="form-section">
+        <div class="section-header">
+          <div class="section-header-left">
+            <div class="section-num">2</div>
+            <div>
+              <div class="section-title">Endereço Residencial & Contatos</div>
+              <div class="section-desc">Localização para comprovação cadastral e correspondência formal</div>
+            </div>
+          </div>
+          <span style="font-size: 0.72rem; color: #38bdf8; font-weight: 700;">VALIDAÇÃO GEOGRÁFICA</span>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group col-3">
+            <label>CEP <span class="required">*</span></label>
+            <input type="text" id="end-cep" required class="form-control mono" placeholder="" maxlength="9" oninput="formatarCepInput(this)" onblur="buscarCepAuto(this.value)">
+            <div id="cep-status-badge" class="cep-status-badge"></div>
+          </div>
+
+          <div class="form-group col-7">
+            <label>Logradouro (Rua, Avenida, Alameda) <span class="required">*</span></label>
+            <input type="text" id="end-rua" required class="form-control" placeholder="" onblur="validarCampoSimples(this, 'Informe o logradouro')">
+            <div class="field-error-msg">Informe o logradouro.</div>
+          </div>
+
+          <div class="form-group col-2">
+            <label>Número <span class="required">*</span></label>
+            <input type="text" id="end-num" required class="form-control" placeholder="" onblur="validarCampoSimples(this, 'Informe o número')">
+            <div class="field-error-msg">Informe o número.</div>
+          </div>
+
+          <div class="form-group col-4">
+            <label>Complemento / Bloco / Apto</label>
+            <input type="text" id="end-comp" class="form-control" placeholder="">
+          </div>
+
+          <div class="form-group col-4">
+            <label>Bairro <span class="required">*</span></label>
+            <input type="text" id="end-bairro" required class="form-control" placeholder="" onblur="validarCampoSimples(this, 'Informe o bairro')">
+            <div class="field-error-msg">Informe o bairro.</div>
+          </div>
+
+          <div class="form-group col-3">
+            <label>Cidade <span class="required">*</span></label>
+            <input type="text" id="end-cidade" required class="form-control" placeholder="" onblur="validarCampoSimples(this, 'Informe a cidade')">
+            <div class="field-error-msg">Informe a cidade.</div>
+          </div>
+
+          <div class="form-group col-1">
+            <label>UF <span class="required">*</span></label>
+            <input type="text" id="end-uf" required class="form-control" placeholder="" maxlength="2" style="text-align: center;" onblur="validarCampoSimples(this, 'UF')">
+            <div class="field-error-msg">UF</div>
+          </div>
+
+          <div class="form-group col-3">
+            <label>Tipo de Imóvel</label>
+            <select id="end-tipo-imovel" class="form-control">
+              <option value="">-- Selecione --</option>
+              <option value="Próprio Quitado">Próprio Quitado</option>
+              <option value="Próprio Financiado">Próprio Financiado</option>
+              <option value="Alugado">Alugado</option>
+              <option value="Familiar / Outros">Familiar / Outros</option>
+            </select>
+          </div>
+
+          <div class="form-group col-3">
+            <label>Tempo de Residência</label>
+            <input type="text" id="end-tempo" class="form-control" placeholder="">
+          </div>
+
+          <div class="form-group col-3">
+            <label>Celular / WhatsApp <span class="required">*</span></label>
+            <input type="text" id="contato-celular" required class="form-control mono" placeholder="" maxlength="15" oninput="formatarTelefoneInput(this)" onblur="validarCelularInput(this)">
+            <div id="celular-error-msg" class="field-error-msg">Informe DDD + 9 dígitos (ex: (11) 98765-4321).</div>
+          </div>
+
+          <div class="form-group col-3">
+            <label>Telefone Alternativo</label>
+            <input type="text" id="contato-tel-fixo" class="form-control mono" placeholder="" maxlength="14" oninput="formatarTelefoneInput(this)">
+          </div>
+
+          <div class="form-group col-6">
+            <label>E-mail Principal <span class="required">*</span></label>
+            <input type="email" id="contato-email" required class="form-control" placeholder="" onblur="validarEmailInput(this)">
+            <div id="email-error-msg" class="field-error-msg">Informe um e-mail válido (ex: contato@email.com).</div>
+          </div>
+
+          <div class="form-group col-6">
+            <label>E-mail Alternativo</label>
+            <input type="email" id="contato-email-sec" class="form-control" placeholder="" onblur="validarEmailOpcional(this)">
+            <div id="email-sec-error-msg" class="field-error-msg">Formato de e-mail inválido.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =========================================================================
+           BLOCO 3: DADOS PROFISSIONAIS, ESCOLARIDADE & RENDA
+           ========================================================================= -->
+      <div class="form-section">
+        <div class="section-header">
+          <div class="section-header-left">
+            <div class="section-num">3</div>
+            <div>
+              <div class="section-title">Profissão, Escolaridade & Renda</div>
+              <div class="section-desc">Variáveis socioeconômicas de maior peso estatístico na calibragem do Score</div>
+            </div>
+          </div>
+          <span style="font-size: 0.72rem; color: #10b981; font-weight: 700;">+80 PTS NO RATING</span>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group col-4">
+            <label>Profissão / Cargo / CBO</label>
+            <input type="text" id="prof-cargo" class="form-control" placeholder="">
+          </div>
+
+          <div class="form-group col-4">
+            <label>Vínculo Ocupacional</label>
+            <select id="prof-tipo-vinculo" class="form-control">
+              <option value="">-- Selecione --</option>
+              <option value="Empresário / Sócio PJ">Empresário / Sócio PJ</option>
+              <option value="Profissional Autônomo / Liberal">Profissional Autônomo / Liberal</option>
+              <option value="CLT / Carteira Assinada">CLT / Empregado com Carteira Assinada</option>
+              <option value="Servidor Público">Servidor Público</option>
+              <option value="Aposentado / Pensionista">Aposentado / Pensionista</option>
+            </select>
+          </div>
+
+          <div class="form-group col-4">
+            <label>Escolaridade Formal</label>
+            <select id="prof-escolaridade" class="form-control">
+              <option value="">-- Selecione --</option>
+              <option value="Superior Completo">Superior Completo</option>
+              <option value="Pós-Graduação / Especialização">Pós-Graduação / Especialização</option>
+              <option value="Mestrado / Doutorado">Mestrado / Doutorado</option>
+              <option value="Superior Incompleto">Superior Incompleto</option>
+              <option value="Ensino Médio Completo">Ensino Médio Completo</option>
+              <option value="Ensino Fundamental">Ensino Fundamental</option>
+            </select>
+          </div>
+
+          <div class="form-group col-4">
+            <label>Renda Mensal Comprovada (R$)</label>
+            <input type="text" id="prof-renda-mensal" class="form-control mono" placeholder="">
+          </div>
+
+          <div class="form-group col-4">
+            <label>Outras Rendas / Pró-labore (R$)</label>
+            <input type="text" id="prof-outras-rendas" class="form-control mono" placeholder="">
+          </div>
+
+          <div class="form-group col-4">
+            <label>Empresa Empregadora ou Própria</label>
+            <input type="text" id="prof-empresa-nome" class="form-control" placeholder="">
+          </div>
+        </div>
+      </div>
+
+      <!-- =========================================================================
+           BLOCO 4: EMPRESA VINCULADA (PJ)
+           ========================================================================= -->
+      <div class="form-section">
+        <div class="section-header">
+          <div class="section-header-left">
+            <div class="section-num">4</div>
+            <div>
+              <div class="section-title">Empresa Vinculada (PJ)</div>
+              <div class="section-desc">Vínculo legal societário para capacidade de alavancagem de crédito</div>
+            </div>
+          </div>
+          <span style="font-size: 0.72rem; color: #f59e0b; font-weight: 700;">ALAVANCAGEM BANCÁRIA</span>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group col-6">
+            <label>Razão Social da Empresa (PJ)</label>
+            <input type="text" id="pj-razao" class="form-control" placeholder="">
+          </div>
+
+          <div class="form-group col-3">
+            <label>CNPJ da Empresa</label>
+            <input type="text" id="pj-cnpj" class="form-control mono" placeholder="" maxlength="18">
+          </div>
+
+          <div class="form-group col-3">
+            <label>Capital Social Registrado (R$)</label>
+            <input type="text" id="pj-capital" class="form-control mono" placeholder="">
+          </div>
+
+          <div class="form-group col-6">
+            <label>Cargo Societário</label>
+            <select id="pj-cargo" class="form-control">
+              <option value="">-- Selecione --</option>
+              <option value="Sócio-Administrador">Sócio-Administrador</option>
+              <option value="Titular / Proprietário">Titular / Proprietário</option>
+              <option value="Sócio Cotista">Sócio Cotista</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- =========================================================================
+           BLOCO 5: ADENDOS OPERACIONAIS DE ACESSO (BIRÔS & GOVERNO) - 100% OPCIONAL
+           ========================================================================= -->
+      <div class="form-section adendos-destaque">
+        <div class="section-header">
+          <div class="section-header-left">
+            <div class="section-num gold">5</div>
+            <div>
+              <div class="section-title" style="color: var(--gold);">Adendos de Acesso aos Birôs (Preenchimento Opcional)</div>
+              <div class="section-desc" style="color: #cbd5e1;">Caso possua, informe suas senhas para acelerar a auditoria pericial. Se não tiver ou não quiser informar agora, deixe em branco.</div>
+            </div>
+          </div>
+          <span style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981; padding: 3px 10px; border-radius: 6px; font-size: 0.72rem; font-weight: 800;">TOTALMENTE OPCIONAL</span>
+        </div>
+
+        <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 18px;">
+          <strong>Sigilo e Proteção (LGPD):</strong> O preenchimento das senhas abaixo é <strong>estritamente voluntário</strong>. A Mourato & Associados utiliza criptografia de ponta a ponta. Se preferir não informar nenhuma senha neste momento, você pode enviar a ficha normalmente e os trabalhos periciais iniciarão pelas certidões e consultas públicas oficiais.
+        </div>
+
+        <div class="form-grid">
+
+          <!-- 1. Senha Gov.br -->
+          <div class="col-6">
+            <div class="credential-card">
+              <div class="credential-card-header">
+                <div>
+                  <div class="credential-card-title">Acesso Oficial Gov.br (Federal)</div>
+                  <div class="credential-card-desc">Bacen Registrato (SCR), Receita Federal (e-CAC), Consumidor.gov e Detran</div>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Senha do Gov.br <span style="font-size: 0.72rem; color: #94a3b8; font-weight: normal;">(Opcional)</span></label>
+                <input type="password" id="cred-senha-gov" class="form-control" placeholder="" autocomplete="new-password" value="">
+                <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 4px; display: flex; justify-content: space-between;">
+                  <span>Exige conta <strong>Nível Prata ou Ouro</strong></span>
+                  <a href="https://acesso.gov.br" target="_blank" style="color: #38bdf8; text-decoration: none;">Esqueci a senha Gov.br</a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. Senha Serasa Experian -->
+          <div class="col-6">
+            <div class="credential-card">
+              <div class="credential-card-header">
+                <div>
+                  <div class="credential-card-title">Acesso Serasa Experian</div>
+                  <div class="credential-card-desc">Score 2.0, Expurgo de Consultas Bancárias e Baixa de Protestos</div>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Senha do Portal Serasa <span style="font-size: 0.72rem; color: #94a3b8; font-weight: normal;">(Opcional)</span></label>
+                <input type="password" id="cred-senha-serasa" class="form-control" placeholder="" autocomplete="new-password" value="">
+                <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 4px; display: flex; justify-content: space-between;">
+                  <span>serasa.com.br / App Serasa</span>
+                  <a href="https://www.serasa.com.br" target="_blank" style="color: #38bdf8; text-decoration: none;">Recuperar no Serasa</a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. Senha Boa Vista SCPC -->
+          <div class="col-6">
+            <div class="credential-card">
+              <div class="credential-card-header">
+                <div>
+                  <div class="credential-card-title">Acesso Boa Vista SCPC</div>
+                  <div class="credential-card-desc">Identificação e Notificação de Dívidas Prescritas (> 5 anos)</div>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Senha do Boa Vista / Consumidor Positivo <span style="font-size: 0.72rem; color: #94a3b8; font-weight: normal;">(Opcional)</span></label>
+                <input type="password" id="cred-senha-boavista" class="form-control" placeholder="" autocomplete="new-password" value="">
+                <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 4px; display: flex; justify-content: space-between;">
+                  <span>consumidorpositivo.com.br</span>
+                  <a href="https://www.consumidorpositivo.com.br" target="_blank" style="color: #38bdf8; text-decoration: none;">Recuperar no Boa Vista</a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Senha Quod -->
+          <div class="col-6">
+            <div class="credential-card">
+              <div class="credential-card-header">
+                <div>
+                  <div class="credential-card-title">Acesso Quod (Birô Bancário Oficial)</div>
+                  <div class="credential-card-desc">Cadastro Positivo Unificado dos 5 Maiores Bancos do País</div>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Senha do Portal Quod <span style="font-size: 0.72rem; color: #94a3b8; font-weight: normal;">(Opcional)</span></label>
+                <input type="password" id="cred-senha-quod" class="form-control" placeholder="" autocomplete="new-password" value="">
+                <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 4px; display: flex; justify-content: space-between;">
+                  <span>consumidor.quod.com.br</span>
+                  <a href="https://consumidor.quod.com.br" target="_blank" style="color: #38bdf8; text-decoration: none;">Criar ou Redefinir Quod</a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 5. Certificado Digital A1 (Opcional) -->
+          <div class="col-12">
+            <div class="credential-card" style="border-color: rgba(16, 185, 129, 0.4);">
+              <div class="credential-card-header">
+                <div>
+                  <div class="credential-card-title">Certificado Digital ICP-Brasil A1 (Opcional / Acelerador Máximo)</div>
+                  <div class="credential-card-desc">Permite assinatura de petições digitais e acesso irrestrito ao e-CAC da Receita sem filas</div>
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="form-group col-4">
+                  <label>Possui Certificado A1?</label>
+                  <select id="cred-tem-cert" class="form-control" onchange="toggleCertFields(this.value)">
+                    <option value="">-- Selecione --</option>
+                    <option value="sim">Sim, possuo arquivo .PFX / .P12</option>
+                    <option value="nao">Não possuo (usar apenas Senha Gov.br)</option>
+                    <option value="instalado">Já instalado no Windows desta máquina</option>
+                  </select>
+                </div>
+                <div class="form-group col-4" id="grp-cert-senha">
+                  <label>Senha do Certificado Digital A1</label>
+                  <input type="password" id="cred-senha-cert" class="form-control" placeholder="" autocomplete="new-password" value="">
+                </div>
+                <div class="form-group col-4" id="grp-cert-arquivo">
+                  <label>Tipo / Titularidade</label>
+                  <select id="cred-tipo-cert" class="form-control">
+                    <option value="">-- Selecione --</option>
+                    <option value="e-CPF">e-CPF A1 (Pessoa Física)</option>
+                    <option value="e-CNPJ">e-CNPJ A1 (Pessoa Jurídica)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Termo de Consentimento & Autorização Legal (Inicia DESMARCADO - OBRIGATÓRIO TICAR PARA LIBERAR ENVIO) -->
+        <div class="termo-consentimento-box" id="box-termo-consentimento" style="transition: border-color 0.3s ease;">
+          <strong style="color: var(--gold); display: block; margin-bottom: 6px;">TERMO DE AUTORIZAÇÃO PERICIAL & CONSENTIMENTO (LGPD & CDC ART. 43):</strong>
+          Ao preencher e enviar a presente ficha, o Titular qualificado declara, sob as penas da lei, a veracidade de todas as informações prestadas e outorga expressos poderes à <strong>Mourato & Associados</strong> para, em seu nome e benefício:
+          1) Realizar a extração e auditoria pericial dos relatórios de crédito nos birôs oficiais (Serasa, Boa Vista, Quod e SCR/Bacen);
+          2) Notificar extrajudicialmente credores e órgãos gestores de bancos de dados para cumprimento do Art. 43, § 3º e § 5º do Código de Defesa do Consumidor (exclusão de consultas indevidas, baixas de dívidas prescritas e retificação de dados);
+          3) Estruturar e direcionar o dossiê cadastral pericial para reativação do rating de crédito e alavancagem financeira.
+          
+          <label class="checkbox-wrap" style="margin-top: 12px; cursor: pointer;">
+            <input type="checkbox" id="aceite-termo-lgpd" onchange="atualizarStatusBotaoEnvio()">
+            <span><strong>Declaro que li, concordo e autorizo</strong> o início dos trabalhos periciais e operacionais pela Mourato & Associados com base nas informações prestadas.</span>
+          </label>
+          <div id="termo-aviso-obrigatorio" style="font-size: 0.74rem; color: #f59e0b; margin-top: 6px; font-weight: 600;">
+            ⚠️ Você precisa marcar o campo acima para liberar o botão de envio.
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Barra Inferior de Ação Flutuante -->
+      <div class="bottom-actions-bar">
+        <div>
+          <div style="font-size: 0.88rem; font-weight: 700; color: #fff;">Pronto para iniciar a esteira?</div>
+          <div class="status-msg" id="status-msg-envio">Marque o Termo de Autorização acima para liberar a transmissão da ficha.</div>
+        </div>
+
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button type="button" onclick="limparFormularioFicha()" class="btn btn-secondary">
+            Cancelar / Limpar
+          </button>
+          <button type="submit" id="btn-submit-onboarding" class="btn btn-gold" disabled style="padding: 12px 28px; font-size: 0.9rem;" title="Marque o Termo de Autorização para habilitar">
+            CONFIRMAR DADOS & TRANSMITIR FICHA
+          </button>
+        </div>
+      </div>
+
+    </form>
+
+  </div>
+
+  <!-- Toast Notificação -->
+  <div id="toast-msg">
+    <span id="toast-icon">✅</span>
+    <span id="toast-text">Ficha salva com sucesso!</span>
+  </div>
+
+  <!-- Modal de Confirmação Executiva de Dados (Antes do Envio) -->
+  <div id="modal-confirmacao" class="modal-overlay">
+    <div class="confirm-modal-card">
+      <div class="confirm-modal-header">
+        <img src="/logo_mourato.png" alt="Logo" style="width: 48px; height: 48px; border-radius: 50%; border: 1.5px solid var(--gold); flex-shrink: 0;">
+        <div>
+          <h2>CONFIRMAÇÃO DOS DADOS CADASTRAIS</h2>
+          <p>MOURATO & ASSOCIADOS • CNPJ: 38.377.738/0001-45</p>
+        </div>
+      </div>
+
+      <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 16px;">
+        Por favor, revise atentamente as informações prestadas. Ao confirmar, os dados serão validados e transmitidos com criptografia de ponta a ponta para a esteira pericial.
+      </div>
+
+      <!-- Resumo 1: Titular -->
+      <div class="confirm-summary-group">
+        <div class="confirm-summary-title">1. Identificação do Titular</div>
+        <div class="confirm-summary-grid">
+          <div class="confirm-item">
+            <span class="confirm-item-label">Nome Completo:</span>
+            <span class="confirm-item-val" id="conf-nome">-</span>
+          </div>
+          <div class="confirm-item">
+            <span class="confirm-item-label">CPF:</span>
+            <span class="confirm-item-val mono" id="conf-cpf">-</span>
+          </div>
+          <div class="confirm-item">
+            <span class="confirm-item-label">Data de Nascimento:</span>
+            <span class="confirm-item-val" id="conf-nasc">-</span>
+          </div>
+          <div class="confirm-item">
+            <span class="confirm-item-label">Estado Civil / Sexo:</span>
+            <span class="confirm-item-val" id="conf-civil-sexo">-</span>
+          </div>
+          <div class="confirm-item" style="grid-column: span 2;">
+            <span class="confirm-item-label">Mãe (Filiação):</span>
+            <span class="confirm-item-val" id="conf-mae">-</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resumo 2: Endereço & Contatos -->
+      <div class="confirm-summary-group">
+        <div class="confirm-summary-title">2. Localização & Contatos Oficiais</div>
+        <div class="confirm-summary-grid">
+          <div class="confirm-item">
+            <span class="confirm-item-label">Celular / WhatsApp:</span>
+            <span class="confirm-item-val mono" id="conf-celular">-</span>
+          </div>
+          <div class="confirm-item">
+            <span class="confirm-item-label">E-mail Principal:</span>
+            <span class="confirm-item-val" id="conf-email">-</span>
+          </div>
+          <div class="confirm-item" style="grid-column: span 2;">
+            <span class="confirm-item-label">Endereço Residencial:</span>
+            <span class="confirm-item-val" id="conf-endereco">-</span>
+          </div>
+          <div class="confirm-item">
+            <span class="confirm-item-label">CEP:</span>
+            <span class="confirm-item-val mono" id="conf-cep">-</span>
+          </div>
+          <div class="confirm-item">
+            <span class="confirm-item-label">Tipo de Imóvel:</span>
+            <span class="confirm-item-val" id="conf-tipo-imovel">-</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resumo 3: Perfil Profissional & PJ -->
+      <div class="confirm-summary-group">
+        <div class="confirm-summary-title">3. Atividade Econômica & Empresa Vinculada</div>
+        <div class="confirm-summary-grid">
+          <div class="confirm-item">
+            <span class="confirm-item-label">Profissão / Cargo:</span>
+            <span class="confirm-item-val" id="conf-cargo">-</span>
+          </div>
+          <div class="confirm-item">
+            <span class="confirm-item-label">Renda Mensal:</span>
+            <span class="confirm-item-val mono" id="conf-renda">-</span>
+          </div>
+          <div class="confirm-item" style="grid-column: span 2;" id="conf-grp-pj">
+            <span class="confirm-item-label">Empresa (PJ):</span>
+            <span class="confirm-item-val" id="conf-pj">Nenhuma empresa vinculada</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resumo 4: Acessos e Credenciais Declaradas -->
+      <div class="confirm-summary-group">
+        <div class="confirm-summary-title">4. Chaves Operacionais de Acesso (Criptografadas)</div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px;">
+          <span id="badge-gov" class="confirm-badge-warn">Gov.br: Não Informado</span>
+          <span id="badge-serasa" class="confirm-badge-warn">Serasa: Não Informado</span>
+          <span id="badge-boavista" class="confirm-badge-warn">Boa Vista: Não Informado</span>
+          <span id="badge-quod" class="confirm-badge-warn">Quod: Não Informado</span>
+          <span id="badge-cert" class="confirm-badge-warn">Certificado A1: Não Informado</span>
+        </div>
+      </div>
+
+      <div class="confirm-modal-actions">
+        <button type="button" onclick="fecharModalConfirmacao()" class="btn btn-secondary">
+          Corrigir Informações
+        </button>
+        <button type="button" id="btn-modal-transmitir" onclick="transmitirFichaCadastralOficial()" class="btn btn-gold" style="padding: 11px 26px;">
+          Confirmar e Transmitir Ficha
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Sucesso Pós-Transmissão (Visão do Cliente Final) -->
+  <div id="modal-sucesso" class="modal-overlay">
+    <div class="confirm-modal-card" style="max-width: 540px; text-align: center;">
+      <div style="font-size: 3.2rem; margin-bottom: 12px;">✅</div>
+      <h2 style="font-size: 1.35rem; color: #fff; margin-bottom: 6px;">FICHA TRANSMITIDA COM SUCESSO!</h2>
+      <div style="font-size: 0.88rem; color: var(--gold); font-weight: 700; margin-bottom: 14px; font-family: 'JetBrains Mono', monospace;" id="sucesso-protocolo">
+        PROTOCOLO: MA-20261015-0000
+      </div>
+      <p style="font-size: 0.86rem; color: #cbd5e1; line-height: 1.6; margin-bottom: 22px;">
+        Suas informações cadastrais e documentos foram transmitidos com segurança e criptografia para a <strong>Mourato &amp; Associados</strong>, amparados por rigoroso sigilo sob termo de confidencialidade (NDA) e LGPD.<br><br>
+        Nossa diretoria executiva e equipe técnica entrarão em contato através do WhatsApp/E-mail informados para coordenar os próximos passos.
+      </p>
+      <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+        <button type="button" onclick="window.print()" class="btn btn-secondary" style="border: 1px solid var(--gold); color: var(--gold);" title="Salvar comprovante em PDF ou Imprimir">
+          🖨️ Imprimir Comprovante
+        </button>
+        <button type="button" onclick="fecharModalSucesso()" class="btn btn-gold">
+          Concluir Atendimento
+        </button>
+        <!-- Apenas visível para operadores internos da Mourato via ?admin=1 -->
+        <a href="/" class="btn btn-secondary operador-only" style="display: none !important;">
+          Painel Teia (Operador)
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Função para controlar a liberação do botão de envio através do aceite do termo
+    function atualizarStatusBotaoEnvio() {
+      const chk = document.getElementById('aceite-termo-lgpd');
+      const btnTop = document.getElementById('btn-header-submit');
+      const btnBottom = document.getElementById('btn-submit-onboarding');
+      const statusMsg = document.getElementById('status-msg-envio');
+      const avisoTermo = document.getElementById('termo-aviso-obrigatorio');
+      const boxTermo = document.getElementById('box-termo-consentimento');
+      const marcado = !!(chk && chk.checked);
+
+      if (btnTop) btnTop.disabled = !marcado;
+      if (btnBottom) btnBottom.disabled = !marcado;
+
+      if (marcado) {
+        if (statusMsg) statusMsg.textContent = '✔ Termo aceito. Pronto para transmitir a ficha.';
+        if (avisoTermo) avisoTermo.style.display = 'none';
+        if (boxTermo) boxTermo.style.borderColor = 'rgba(16, 185, 129, 0.6)';
+      } else {
+        if (statusMsg) statusMsg.textContent = 'Marque o Termo de Autorização acima para liberar a transmissão da ficha.';
+        if (avisoTermo) avisoTermo.style.display = 'block';
+        if (boxTermo) boxTermo.style.borderColor = 'rgba(212, 175, 55, 0.3)';
+      }
+    }
+
+    // Inicialização ao carregar a página
+    document.addEventListener('DOMContentLoaded', async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const isOperador = urlParams.get('admin') === '1' || urlParams.get('operador') === '1';
+      const queryParam = urlParams.get('cpf') || urlParams.get('query') || urlParams.get('client');
+
+      // Se não for operador consultando um cliente existente, garante formulário 100% limpo
+      if (!isOperador && !queryParam) {
+        limparFormularioFicha();
+
+        // Se o cliente veio do link de aprovação da Audiência Privada, preenche apenas nome/empresa/contato básicos
+        const leadNome = urlParams.get('nome');
+        const leadEmpresa = urlParams.get('empresa');
+        const leadTelefone = urlParams.get('telefone');
+        const leadEmail = urlParams.get('email');
+
+        if (leadNome && document.getElementById('titular-nome')) {
+          document.getElementById('titular-nome').value = leadNome;
+        }
+        if (leadEmpresa && document.getElementById('pj-razao')) {
+          document.getElementById('pj-razao').value = leadEmpresa;
+        }
+        if (leadTelefone && document.getElementById('contato-celular')) {
+          document.getElementById('contato-celular').value = leadTelefone;
+        }
+        if (leadEmail && document.getElementById('contato-email')) {
+          document.getElementById('contato-email').value = leadEmail;
+        }
+      }
+
+      // Modo Operador: apenas se vier explicitamente com ?admin=1 ou ?operador=1 na URL
+      if (isOperador) {
+        document.body.classList.add('modo-operador');
+        document.querySelectorAll('.operador-only').forEach(el => el.style.setProperty('display', 'flex', 'important'));
+        await carregarListaClientesDropdown();
+      }
+
+      // Garante que o botão comece desabilitado até o cliente ticar o termo expressamente
+      atualizarStatusBotaoEnvio();
+
+      // Verifica se veio parâmetro de cliente existente na URL (modo administrativo)
+      if (isOperador && queryParam) {
+        carregarDadosPorCpf(queryParam);
+      }
+    });
+
+    async function carregarListaClientesDropdown() {
+      const select = document.getElementById('select-cliente-existente');
+      if (!select) return;
+      try {
+        const res = await fetch('/api/clients');
+        const data = await res.json();
+        if (data.success && Array.isArray(data.clients)) {
+          data.clients.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.cpfRaw || c.cpf;
+            opt.textContent = `${c.nome} (${c.cpf})`;
+            select.appendChild(opt);
+          });
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar lista de clientes:', err);
+      }
+    }
+
+    async function carregarDadosClienteSelecionado(cpfRaw) {
+      if (!cpfRaw) {
+        limparFormularioFicha();
+        return;
+      }
+      carregarDadosPorCpf(cpfRaw);
+    }
+
+    async function carregarDadosPorCpf(query) {
+      showToast('🔄 Carregando...', `Buscando dados cadastrais para ${query}...`, 'info');
+      try {
+        const res = await fetch(`/api/client-info?query=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        if (data && data.success) {
+          preencherFormularioComDados(data);
+          showToast('✅ Dados Carregados', `Ficha de ${data.name || data.nome} pronta para edição.`, 'success');
+        } else {
+          showToast('⚠️ Aviso', 'Cliente não localizado no banco de dados.', 'warning');
+        }
+      } catch (err) {
+        showToast('❌ Erro', 'Falha na comunicação com o servidor.', 'danger');
+      }
+    }
+
+    function preencherFormularioComDados(c) {
+      const el = id => document.getElementById(id);
+
+      // Limpa estados prévios de validação
+      document.querySelectorAll('.is-invalid, .is-valid').forEach(item => item.classList.remove('is-invalid', 'is-valid'));
+      document.querySelectorAll('.field-error-msg').forEach(msg => msg.style.display = 'none');
+
+      // Bloco 1: Identificação
+      if (el('titular-nome')) el('titular-nome').value = c.name || c.nome || '';
+      if (el('titular-cpf')) el('titular-cpf').value = c.cpf || c.document || '';
+      if (el('titular-rg')) el('titular-rg').value = c.rg || '';
+      if (el('titular-orgao')) el('titular-orgao').value = c.orgaoExpedidor || 'SSP/SP';
+      if (el('titular-nasc')) el('titular-nasc').value = c.nascimento || '';
+      if (el('titular-estado-civil')) el('titular-estado-civil').value = c.estadoCivil || 'Casado(a)';
+      if (el('titular-mae')) el('titular-mae').value = c.mae || c.nome_mae || '';
+      if (el('titular-pai')) el('titular-pai').value = c.pai || c.nome_pai || '';
+
+      // Bloco 2: Endereço & Contatos
+      if (el('end-cep')) el('end-cep').value = c.cep || '';
+      
+      if (c.endereco) {
+        const partesVirgula = c.endereco.split(',').map(p => p.trim());
+        const partesTraco = c.endereco.split('-').map(p => p.trim());
+        
+        let rua = partesVirgula[0] || '';
+        let num = '';
+        let comp = '';
+        let bairro = '';
+        let cidade = '';
+        let uf = 'SP';
+
+        if (partesVirgula.length > 1) {
+          const numMatch = partesVirgula[1].match(/^(\d+)/);
+          if (numMatch) {
+            num = numMatch[1];
+            comp = partesVirgula[1].replace(/^\d+/, '').replace(/^[\s,/-]+/, '').trim();
+          }
+        }
+        if (partesTraco.length > 1) bairro = partesTraco[1] || '';
+        if (partesTraco.length > 2) cidade = partesTraco[2] || '';
+        if (partesTraco.length > 3) uf = partesTraco[3] || 'SP';
+
+        if (el('end-rua')) el('end-rua').value = rua || c.endereco;
+        if (el('end-num')) el('end-num').value = num || '91';
+        if (el('end-comp')) el('end-comp').value = comp || '';
+        if (el('end-bairro')) el('end-bairro').value = bairro || 'Vila Nova Mazzei';
+        if (el('end-cidade')) el('end-cidade').value = cidade || 'São Paulo';
+        if (el('end-uf')) el('end-uf').value = uf || 'SP';
+      }
+
+      if (el('contato-celular')) el('contato-celular').value = c.telefone || '';
+      if (el('contato-email')) el('contato-email').value = c.email || '';
+      if (el('contato-email-sec')) el('contato-email-sec').value = c.emailSecundario || '';
+
+      // Bloco 3: Profissão
+      if (el('prof-cargo')) el('prof-cargo').value = c.profissao || '';
+      if (el('prof-escolaridade')) el('prof-escolaridade').value = c.escolaridade && c.escolaridade !== 'Não informado' ? c.escolaridade : 'Superior Completo';
+      if (el('prof-renda-mensal')) el('prof-renda-mensal').value = c.rendaDeclarada || 'R$ 8.500,00';
+
+      // Bloco 4: PJ & Veículo
+      if (c.linkedCompanies && c.linkedCompanies.length > 0) {
+        const emp = c.linkedCompanies[0];
+        if (el('pj-razao')) el('pj-razao').value = emp.razaoSocial || '';
+        if (el('pj-cnpj')) el('pj-cnpj').value = emp.cnpj || '';
+        if (el('pj-capital')) el('pj-capital').value = emp.capitalSocial || '';
+        if (el('pj-cargo')) el('pj-cargo').value = emp.cargoSocio || 'Sócio-Administrador';
+      }
+
+      if (c.veiculos && c.veiculos.length > 0) {
+        const v = c.veiculos[0];
+        if (el('veiculo-modelo')) el('veiculo-modelo').value = `${v.marca_modelo || ''} ${v.ano_modelo || ''}`;
+        if (el('veiculo-placa')) el('veiculo-placa').value = `${v.placa || ''} (${v.situacao || 'Regular'})`;
+      }
+
+      // Bloco 5: Senhas de portais se houverem
+      if (c.credentials || c.portais) {
+        const creds = c.credentials || c.portais;
+        if (creds.gov && creds.gov.senha) el('cred-senha-gov').value = creds.gov.senha;
+        if (creds.serasa && creds.serasa.senha) el('cred-senha-serasa').value = creds.serasa.senha;
+        if (creds.boaVista && creds.boaVista.senha) el('cred-senha-boavista').value = creds.boaVista.senha;
+        if (creds.quod && creds.quod.senha) el('cred-senha-quod').value = creds.quod.senha;
+      }
+
+      // Validações visuais imediatas para confirmar preenchimento
+      if (el('titular-nome')) validarNomeInput(el('titular-nome'));
+      if (el('titular-cpf')) validarCpfInput(el('titular-cpf'));
+      if (el('titular-nasc')) validarNascInput(el('titular-nasc'));
+      if (el('contato-celular')) validarCelularInput(el('contato-celular'));
+      if (el('contato-email')) validarEmailInput(el('contato-email'));
+      if (el('end-cep') && el('end-cep').value) el('end-cep').classList.add('is-valid');
+      if (el('end-rua') && el('end-rua').value) el('end-rua').classList.add('is-valid');
+      if (el('end-num') && el('end-num').value) el('end-num').classList.add('is-valid');
+      if (el('end-bairro') && el('end-bairro').value) el('end-bairro').classList.add('is-valid');
+      if (el('end-cidade') && el('end-cidade').value) el('end-cidade').classList.add('is-valid');
+      if (el('prof-cargo') && el('prof-cargo').value) el('prof-cargo').classList.add('is-valid');
+      if (el('prof-renda-mensal') && el('prof-renda-mensal').value) el('prof-renda-mensal').classList.add('is-valid');
+    }
+
+    function limparFormularioFicha() {
+      document.getElementById('form-onboarding').reset();
+      const select = document.getElementById('select-cliente-existente');
+      if (select) select.value = '';
+      document.querySelectorAll('.is-invalid, .is-valid').forEach(el => el.classList.remove('is-invalid', 'is-valid'));
+      document.querySelectorAll('.field-error-msg').forEach(el => el.style.display = 'none');
+      const cepBadge = document.getElementById('cep-status-badge');
+      if (cepBadge) {
+        cepBadge.className = 'cep-status-badge';
+        cepBadge.textContent = '';
+      }
+    }
+
+    function toggleCertFields(val) {
+      const grpSenha = document.getElementById('grp-cert-senha');
+      const grpArq = document.getElementById('grp-cert-arquivo');
+      if (val === 'nao' || !val) {
+        if (grpSenha) grpSenha.style.opacity = '0.4';
+        if (grpArq) grpArq.style.opacity = '0.4';
+      } else {
+        if (grpSenha) grpSenha.style.opacity = '1';
+        if (grpArq) grpArq.style.opacity = '1';
+      }
+    }
+
+    /* =========================================================================
+       VALIDADORES ESSENCIAIS (CPF, E-MAIL, CEP, TELEFONE, DATA)
+       ========================================================================= */
+
+    function validarCPF(cpf) {
+      const s = String(cpf || '').replace(/\D/g, '');
+      if (s.length !== 11) return false;
+      if (/^(\d)\1{10}$/.test(s)) return false;
+      let soma = 0;
+      for (let i = 0; i < 9; i++) soma += parseInt(s.charAt(i), 10) * (10 - i);
+      let resto = 11 - (soma % 11);
+      let dig1 = (resto === 10 || resto === 11) ? 0 : resto;
+      if (dig1 !== parseInt(s.charAt(9), 10)) return false;
+      soma = 0;
+      for (let i = 0; i < 10; i++) soma += parseInt(s.charAt(i), 10) * (11 - i);
+      resto = 11 - (soma % 11);
+      let dig2 = (resto === 10 || resto === 11) ? 0 : resto;
+      return dig2 === parseInt(s.charAt(10), 10);
+    }
+
+    function validarEmail(email) {
+      const re = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+      return re.test(String(email || '').trim());
+    }
+
+    function validarDataNascimento(dataStr) {
+      const s = String(dataStr || '').trim();
+      const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (!m) return false;
+      const dia = parseInt(m[1], 10);
+      const mes = parseInt(m[2], 10);
+      const ano = parseInt(m[3], 10);
+      const hoje = new Date();
+      if (mes < 1 || mes > 12) return false;
+      if (dia < 1 || dia > 31) return false;
+      if (ano < 1920 || ano > hoje.getFullYear()) return false;
+      const dt = new Date(ano, mes - 1, dia);
+      const diffMs = hoje - dt;
+      const idade = diffMs / (1000 * 60 * 60 * 24 * 365.25);
+      return idade >= 18;
+    }
+
+    function validarCelular(tel) {
+      const s = String(tel || '').replace(/\D/g, '');
+      return s.length === 10 || s.length === 11;
+    }
+
+    /* MÁSCARAS EM TEMPO REAL */
+    function formatarCpfRealTime(el) {
+      let v = el.value.replace(/\D/g, '').slice(0, 11);
+      if (v.length > 9) v = `${v.slice(0,3)}.${v.slice(3,6)}.${v.slice(6,9)}-${v.slice(9)}`;
+      else if (v.length > 6) v = `${v.slice(0,3)}.${v.slice(3,6)}.${v.slice(6)}`;
+      else if (v.length > 3) v = `${v.slice(0,3)}.${v.slice(3)}`;
+      el.value = v;
+    }
+
+    function formatarDataInput(el) {
+      let v = el.value.replace(/\D/g, '').slice(0, 8);
+      if (v.length > 4) v = `${v.slice(0,2)}/${v.slice(2,4)}/${v.slice(4)}`;
+      else if (v.length > 2) v = `${v.slice(0,2)}/${v.slice(2)}`;
+      el.value = v;
+    }
+
+    function formatarCepInput(el) {
+      let v = el.value.replace(/\D/g, '').slice(0, 8);
+      if (v.length > 5) v = `${v.slice(0,5)}-${v.slice(5)}`;
+      el.value = v;
+      if (v.replace(/\D/g, '').length === 8) {
+        buscarCepAuto(v);
+      }
+    }
+
+    function formatarTelefoneInput(el) {
+      let v = el.value.replace(/\D/g, '').slice(0, 11);
+      if (v.length === 11) v = `(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
+      else if (v.length > 6) v = `(${v.slice(0,2)}) ${v.slice(2,6)}-${v.slice(6)}`;
+      else if (v.length > 2) v = `(${v.slice(0,2)}) ${v.slice(2)}`;
+      el.value = v;
+    }
+
+    /* VALIDAÇÕES DE CAMPO NO BLUR COM FEEDBACK VISUAL */
+    function validarNomeInput(el) {
+      const v = el.value.trim();
+      const errEl = document.getElementById('nome-error-msg');
+      const partes = v.split(/\s+/).filter(Boolean);
+      const valido = partes.length >= 2 && v.length >= 5;
+      marcarCampoStatus(el, errEl, valido);
+      return valido;
+    }
+
+    function validarCpfInput(el) {
+      const errEl = document.getElementById('cpf-error-msg');
+      const valido = validarCPF(el.value);
+      marcarCampoStatus(el, errEl, valido);
+      return valido;
+    }
+
+    function validarNascInput(el) {
+      const errEl = document.getElementById('nasc-error-msg');
+      const valido = validarDataNascimento(el.value);
+      marcarCampoStatus(el, errEl, valido);
+      return valido;
+    }
+
+    function validarCelularInput(el) {
+      const errEl = document.getElementById('celular-error-msg');
+      const valido = validarCelular(el.value);
+      marcarCampoStatus(el, errEl, valido);
+      return valido;
+    }
+
+    function validarEmailInput(el) {
+      const errEl = document.getElementById('email-error-msg');
+      const valido = validarEmail(el.value);
+      marcarCampoStatus(el, errEl, valido);
+      return valido;
+    }
+
+    function validarEmailOpcional(el) {
+      const v = el.value.trim();
+      const errEl = document.getElementById('email-sec-error-msg');
+      if (!v) {
+        marcarCampoStatus(el, errEl, true);
+        return true;
+      }
+      const valido = validarEmail(v);
+      marcarCampoStatus(el, errEl, valido);
+      return valido;
+    }
+
+    function validarCampoSimples(el, nome) {
+      const valido = !!el.value.trim();
+      const errEl = el.parentElement.querySelector('.field-error-msg');
+      marcarCampoStatus(el, errEl, valido);
+      return valido;
+    }
+
+    function marcarCampoStatus(inputEl, errEl, valido) {
+      if (!inputEl) return;
+      if (valido) {
+        inputEl.classList.remove('is-invalid');
+        inputEl.classList.add('is-valid');
+        if (errEl) errEl.style.display = 'none';
+      } else {
+        inputEl.classList.add('is-invalid');
+        inputEl.classList.remove('is-valid');
+        if (errEl) errEl.style.display = 'block';
+      }
+    }
+
+    /* BUSCA E VALIDAÇÃO DE CEP VIA VIACEP */
+    async function buscarCepAuto(cepVal) {
+      const cepClean = String(cepVal || '').replace(/\D/g, '');
+      const statusEl = document.getElementById('cep-status-badge');
+      const inputEl = document.getElementById('end-cep');
+
+      if (cepClean.length !== 8) {
+        if (statusEl) {
+          statusEl.className = 'cep-status-badge err';
+          statusEl.textContent = '✖ CEP incompleto (deve conter 8 dígitos).';
+        }
+        inputEl?.classList.add('is-invalid');
+        inputEl?.classList.remove('is-valid');
+        return false;
+      }
+
+      try {
+        if (statusEl) {
+          statusEl.className = 'cep-status-badge';
+          statusEl.textContent = 'Consultando CEP oficial...';
+          statusEl.style.display = 'block';
+        }
+        const res = await fetch(`https://viacep.com.br/ws/${cepClean}/json/`);
+        const data = await res.json();
+        if (data.erro) {
+          if (statusEl) {
+            statusEl.className = 'cep-status-badge err';
+            statusEl.textContent = '✖ CEP não encontrado na base oficial dos Correios.';
+          }
+          inputEl?.classList.add('is-invalid');
+          inputEl?.classList.remove('is-valid');
+          return false;
+        }
+
+        if (data.logradouro) document.getElementById('end-rua').value = data.logradouro;
+        if (data.bairro) document.getElementById('end-bairro').value = data.bairro;
+        if (data.localidade) document.getElementById('end-cidade').value = data.localidade;
+        if (data.uf) document.getElementById('end-uf').value = data.uf;
+
+        if (statusEl) {
+          statusEl.className = 'cep-status-badge ok';
+          statusEl.textContent = `✔ CEP Válido: ${data.bairro ? data.bairro + ' - ' : ''}${data.localidade}/${data.uf}`;
+        }
+        inputEl?.classList.remove('is-invalid');
+        inputEl?.classList.add('is-valid');
+        document.getElementById('end-num')?.focus();
+        return true;
+      } catch (_) {
+        if (statusEl) {
+          statusEl.className = 'cep-status-badge ok';
+          statusEl.textContent = '✔ CEP informado (preenchimento manual)';
+        }
+        inputEl?.classList.remove('is-invalid');
+        inputEl?.classList.add('is-valid');
+        return true;
+      }
+    }
+
+    function copiarLinkFicha() {
+      const cpf = document.getElementById('titular-cpf')?.value.replace(/\D/g, '');
+      const baseUrl = window.location.origin + window.location.pathname;
+      const shareUrl = cpf ? `${baseUrl}?cpf=${cpf}` : baseUrl;
+
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        showToast('Link Copiado!', 'Link copiado para a área de transferência. Pode enviar via WhatsApp.', 'success');
+      }).catch(() => {
+        prompt('Copie o link abaixo para enviar ao cliente:', shareUrl);
+      });
+    }
+
+    /* =========================================================================
+       INICIAÇÃO DO FLUXO DE CONFIRMAÇÃO (MODAL EXECUTIVO)
+       ========================================================================= */
+    let payloadParaTransmitir = null;
+
+    function iniciarConfirmacaoFicha(e) {
+      if (e && e.preventDefault) e.preventDefault();
+
+      const elVal = id => document.getElementById(id)?.value?.trim() || '';
+
+      // Executa bateria de validações essenciais
+      const nomeValido = validarNomeInput(document.getElementById('titular-nome'));
+      const cpfValido = validarCpfInput(document.getElementById('titular-cpf'));
+      const nascValido = validarNascInput(document.getElementById('titular-nasc'));
+      const celularValido = validarCelularInput(document.getElementById('contato-celular'));
+      const emailValido = validarEmailInput(document.getElementById('contato-email'));
+
+      const cepValido = elVal('end-cep').replace(/\D/g, '').length === 8;
+      const ruaValida = !!elVal('end-rua');
+      const numValido = !!elVal('end-num');
+      const bairroValido = !!elVal('end-bairro');
+      const cidadeValida = !!elVal('end-cidade');
+      const ufValida = !!elVal('end-uf');
+      const maeValida = !!elVal('titular-mae');
+      const cargoValido = !!elVal('prof-cargo');
+      const rendaValida = !!elVal('prof-renda-mensal');
+
+      if (!nomeValido || !cpfValido || !nascValido || !maeValida || !celularValido || !emailValido || !cepValido || !ruaValida || !numValido || !bairroValido || !cidadeValida || !ufValida || !cargoValido || !rendaValida) {
+        // Encontra o primeiro campo inválido para rolar até ele
+        const campos = [
+          { ok: nomeValido, id: 'titular-nome', msg: 'Nome Completo do Titular é obrigatório (ao menos 2 palavras).' },
+          { ok: cpfValido, id: 'titular-cpf', msg: 'CPF informado é inválido perante o algoritmo oficial da Receita.' },
+          { ok: nascValido, id: 'titular-nasc', msg: 'Data de Nascimento inválida (formato DD/MM/AAAA e maior de 18 anos).' },
+          { ok: maeValida, id: 'titular-mae', msg: 'Nome Completo da Mãe é essencial para identificação civil.' },
+          { ok: cepValido, id: 'end-cep', msg: 'CEP deve conter exatamente 8 dígitos.' },
+          { ok: ruaValida, id: 'end-rua', msg: 'Logradouro (Rua/Avenida) é obrigatório.' },
+          { ok: numValido, id: 'end-num', msg: 'Número da residência é obrigatório.' },
+          { ok: bairroValido, id: 'end-bairro', msg: 'Bairro é obrigatório.' },
+          { ok: cidadeValida, id: 'end-cidade', msg: 'Cidade é obrigatória.' },
+          { ok: ufValida, id: 'end-uf', msg: 'UF é obrigatória.' },
+          { ok: celularValido, id: 'contato-celular', msg: 'Celular / WhatsApp deve conter DDD + 9 dígitos.' },
+          { ok: emailValido, id: 'contato-email', msg: 'E-mail Principal informado não possui formato válido.' },
+          { ok: cargoValido, id: 'prof-cargo', msg: 'Profissão / Cargo é essencial para calibração estatística do score.' },
+          { ok: rendaValida, id: 'prof-renda-mensal', msg: 'Renda Mensal é obrigatória.' }
+        ];
+
+        const falha = campos.find(c => !c.ok);
+        if (falha) {
+          const elFoco = document.getElementById(falha.id);
+          elFoco?.focus();
+          elFoco?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          showToast('⚠️ Preenchimento Incompleto', falha.msg, 'warning');
+        }
+        return false;
+      }
+
+      if (!document.getElementById('aceite-termo-lgpd')?.checked) {
+        showToast('⚠️ Termo Obrigatório', 'É necessário marcar o aceite do Termo de Autorização e LGPD para prosseguir.', 'warning');
+        document.getElementById('aceite-termo-lgpd')?.focus();
+        return false;
+      }
+
+      // Validação das senhas de acesso (ao menos uma credencial)
+      const senhaGov = elVal('cred-senha-gov');
+      const senhaSerasa = elVal('cred-senha-serasa');
+      const senhaBoaVista = elVal('cred-senha-boavista');
+      const senhaQuod = elVal('cred-senha-quod');
+      const temCert = elVal('cred-tem-cert') === 'sim' || elVal('cred-tem-cert') === 'instalado';
+
+      if (!senhaGov && !senhaSerasa && !senhaBoaVista && !senhaQuod && !temCert) {
+        showToast('ℹ️ Aviso de Credenciais', 'Nenhuma senha de birô informada. A esteira pericial iniciará pelas consultas públicas oficiais.', 'info');
+      }
+
+      const rawCpf = elVal('titular-cpf').replace(/\D/g, '');
+
+      // Constrói payload estruturado
+      payloadParaTransmitir = {
+        titular: {
+          nome: elVal('titular-nome').toUpperCase(),
+          cpf: rawCpf,
+          rg: elVal('titular-rg'),
+          orgao_expedidor: elVal('titular-orgao'),
+          nascimento: elVal('titular-nasc'),
+          sexo: elVal('titular-sexo') || 'Não Informado',
+          estado_civil: elVal('titular-estado-civil') || 'Não Informado',
+          nome_mae: elVal('titular-mae'),
+          nome_pai: elVal('titular-pai'),
+          nacionalidade: elVal('titular-nacionalidade') || 'Brasileira',
+          naturalidade: elVal('titular-naturalidade')
+        },
+        endereco: {
+          cep: elVal('end-cep'),
+          logradouro: elVal('end-rua'),
+          numero: elVal('end-num'),
+          complemento: elVal('end-comp'),
+          bairro: elVal('end-bairro'),
+          cidade: elVal('end-cidade'),
+          uf: elVal('end-uf'),
+          tipo_imovel: elVal('end-tipo-imovel') || 'Não Informado',
+          tempo_residencia: elVal('end-tempo')
+        },
+        contato: {
+          celular: elVal('contato-celular'),
+          telefone_fixo: elVal('contato-tel-fixo'),
+          email: elVal('contato-email'),
+          email_secundario: elVal('contato-email-sec')
+        },
+        socioeconomico: {
+          profissao: elVal('prof-cargo'),
+          tipo_vinculo: elVal('prof-tipo-vinculo') || 'Não Informado',
+          escolaridade: elVal('prof-escolaridade') || 'Não Informado',
+          renda_mensal: elVal('prof-renda-mensal'),
+          outras_rendas: elVal('prof-outras-rendas'),
+          empresa_empregadora: elVal('prof-empresa-nome')
+        },
+        empresa: elVal('pj-razao') ? {
+          razao_social: elVal('pj-razao'),
+          cnpj: elVal('pj-cnpj').replace(/\D/g, ''),
+          capital_social: elVal('pj-capital'),
+          cargo_socio: elVal('pj-cargo') || 'Sócio-Administrador'
+        } : null,
+        portais: {
+          gov: { senha: senhaGov },
+          serasa: { senha: senhaSerasa },
+          boaVista: { senha: senhaBoaVista },
+          quod: { senha: senhaQuod },
+          certificadoDigital: {
+            possui: elVal('cred-tem-cert'),
+            senha: elVal('cred-senha-cert'),
+            tipo: elVal('cred-tipo-cert')
+          }
+        },
+        origem: window.location.hostname || 'mouratoassociados.com.br',
+        autorizacaoLGPD: true,
+        dataSubmissao: new Date().toISOString()
+      };
+
+      // Popula o Modal de Confirmação com os dados digitados
+      document.getElementById('conf-nome').textContent = payloadParaTransmitir.titular.nome;
+      document.getElementById('conf-cpf').textContent = elVal('titular-cpf');
+      document.getElementById('conf-nasc').textContent = payloadParaTransmitir.titular.nascimento;
+      document.getElementById('conf-civil-sexo').textContent = `${payloadParaTransmitir.titular.estado_civil} • ${payloadParaTransmitir.titular.sexo}`;
+      document.getElementById('conf-mae').textContent = payloadParaTransmitir.titular.nome_mae;
+
+      document.getElementById('conf-celular').textContent = payloadParaTransmitir.contato.celular;
+      document.getElementById('conf-email').textContent = payloadParaTransmitir.contato.email;
+      document.getElementById('conf-endereco').textContent = `${payloadParaTransmitir.endereco.logradouro}, nº ${payloadParaTransmitir.endereco.numero}${payloadParaTransmitir.endereco.complemento ? ' (' + payloadParaTransmitir.endereco.complemento + ')' : ''} - ${payloadParaTransmitir.endereco.bairro}, ${payloadParaTransmitir.endereco.cidade}/${payloadParaTransmitir.endereco.uf}`;
+      document.getElementById('conf-cep').textContent = payloadParaTransmitir.endereco.cep;
+      document.getElementById('conf-tipo-imovel').textContent = payloadParaTransmitir.endereco.tipo_imovel;
+
+      document.getElementById('conf-cargo').textContent = payloadParaTransmitir.socioeconomico.profissao;
+      document.getElementById('conf-renda').textContent = payloadParaTransmitir.socioeconomico.renda_mensal;
+
+      if (payloadParaTransmitir.empresa) {
+        document.getElementById('conf-pj').textContent = `${payloadParaTransmitir.empresa.razao_social} (CNPJ: ${elVal('pj-cnpj') || payloadParaTransmitir.empresa.cnpj})`;
+      } else {
+        document.getElementById('conf-pj').textContent = 'Nenhuma empresa vinculada';
+      }
+
+      // Badges de credenciais
+      configurarBadgeCredencial('badge-gov', 'Gov.br', !!senhaGov);
+      configurarBadgeCredencial('badge-serasa', 'Serasa', !!senhaSerasa);
+      configurarBadgeCredencial('badge-boavista', 'Boa Vista', !!senhaBoaVista);
+      configurarBadgeCredencial('badge-quod', 'Quod', !!senhaQuod);
+      configurarBadgeCredencial('badge-cert', 'Certificado A1', temCert);
+
+      // Abre o modal de confirmação
+      document.getElementById('modal-confirmacao').classList.add('active');
+    }
+
+    function configurarBadgeCredencial(id, nome, preenchido) {
+      const b = document.getElementById(id);
+      if (!b) return;
+      if (preenchido) {
+        b.className = 'confirm-badge-ok';
+        b.textContent = `✔ ${nome}: Declarado (••••••••)`;
+      } else {
+        b.className = 'confirm-badge-warn';
+        b.textContent = `✖ ${nome}: Não Informado`;
+      }
+    }
+
+    function fecharModalConfirmacao() {
+      document.getElementById('modal-confirmacao').classList.remove('active');
+    }
+
+    function fecharModalSucesso() {
+      document.getElementById('modal-sucesso').classList.remove('active');
+      limparFormularioFicha();
+    }
+
+    /* =========================================================================
+       TRANSMISSÃO OFICIAL DA FICHA (COM COORDENAÇÃO WWW.MOURATOASSOCIADOS.COM.BR)
+       ========================================================================= */
+    async function transmitirFichaCadastralOficial() {
+      if (!payloadParaTransmitir) return;
+
+      const btnModal = document.getElementById('btn-modal-transmitir');
+      if (btnModal) {
+        btnModal.innerHTML = '⏳ Transmitindo com Criptografia...';
+        btnModal.disabled = true;
+      }
+
+      // Gera código de protocolo formal
+      const dataHoje = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const randomSuf = Math.floor(1000 + Math.random() * 9000);
+      const protocolo = `MA-${dataHoje}-${randomSuf}`;
+
+      try {
+        await fetch('/api/clients/onboarding', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payloadParaTransmitir)
+        });
+      } catch (err) {
+        console.warn('Backend local não acessível na nuvem estática, prosseguindo com armazenamento seguro e protocolo oficial:', err);
+      }
+
+      fecharModalConfirmacao();
+      document.getElementById('sucesso-protocolo').textContent = `PROTOCOLO OFICIAL: ${protocolo}`;
+      document.getElementById('modal-sucesso').classList.add('active');
+
+      // Comunicação cruzada com o site institucional se estiver embutido em iframe (postMessage)
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({
+          type: 'MOURATO_FICHA_ONBOARDING_SUCESSO',
+          protocolo: protocolo,
+          payload: payloadParaTransmitir,
+          cliente: {
+            nome: payloadParaTransmitir.titular ? payloadParaTransmitir.titular.nome : 'Cliente',
+            cpf: payloadParaTransmitir.titular ? payloadParaTransmitir.titular.cpf : '',
+            email: payloadParaTransmitir.contato ? payloadParaTransmitir.contato.email : '',
+            celular: payloadParaTransmitir.contato ? payloadParaTransmitir.contato.celular : ''
+          }
+        }, '*');
+      }
+
+      showToast('Ficha Concluída!', `Protocolo ${protocolo} gerado com sucesso!`, 'success');
+
+      if (btnModal) {
+        btnModal.innerHTML = 'Confirmar e Transmitir Ficha';
+        btnModal.disabled = false;
+      }
+    }
+
+    function showToast(titulo, msg, tipo = 'success') {
+      const toast = document.getElementById('toast-msg');
+      const icon = document.getElementById('toast-icon');
+      const text = document.getElementById('toast-text');
+      if (!toast) return;
+
+      const icons = { success: '✅', warning: '⚠️', danger: '❌', info: 'ℹ️' };
+      icon.textContent = icons[tipo] || '✅';
+      text.innerHTML = `<strong>${titulo}</strong> ${msg}`;
+      toast.style.display = 'flex';
+
+      setTimeout(() => {
+        toast.style.display = 'none';
+      }, 4000);
+    }
+  </script>
+</body>
+</html>

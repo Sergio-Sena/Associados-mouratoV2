@@ -16,7 +16,7 @@ const getEnvTeiaUrl = () => {
 
 export const TEIA_BASE_URL = getEnvTeiaUrl();
 export const TEIA_ONBOARDING_ENDPOINT = `${TEIA_BASE_URL}/api/clients/onboarding`;
-export const TEIA_IFRAME_URL = `${TEIA_BASE_URL}/ficha-cadastral`;
+export const TEIA_IFRAME_URL = '/ficha-cadastral-frame.html';
 
 /**
  * Validação de CPF pelo algoritmo oficial da Receita Federal (Módulo 11)
