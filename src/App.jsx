@@ -22,15 +22,18 @@ export function App() {
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [clientModalInitialView, setClientModalInitialView] = useState('leads');
 
-  const path = typeof window !== 'undefined' ? window.location.pathname.toLowerCase() : '';
+  const rawPath = typeof window !== 'undefined' ? window.location.pathname.toLowerCase() : '';
+  const cleanPath = rawPath.replace(/\/+$/, '') || '/';
   const search = typeof window !== 'undefined' ? window.location.search.toLowerCase() : '';
   const hash = typeof window !== 'undefined' ? window.location.hash.toLowerCase() : '';
 
   const isWikipediaRoute = 
-    path === '/wikipedia' || 
-    path === '/wiki' || 
-    path === '/wikipedia.html' || 
-    path === '/sobre/wikipedia' ||
+    cleanPath === '/wikipedia' || 
+    cleanPath === '/wiki' || 
+    cleanPath === '/wikipedia.html' || 
+    cleanPath === '/sobre/wikipedia' ||
+    cleanPath.startsWith('/wikipedia') ||
+    cleanPath.startsWith('/wiki') ||
     search.includes('view=wikipedia') || 
     search.includes('wiki=true') ||
     hash === '#wikipedia' ||
@@ -39,9 +42,14 @@ export function App() {
   const [isWikiOpen, setIsWikiOpen] = useState(isWikipediaRoute);
 
   const isDirectFichaRoute = 
-    path === '/ficha-cadastral' || 
-    path === '/onboarding' || 
-    path === '/cadastro' ||
+    cleanPath === '/ficha-cadastral' || 
+    cleanPath.startsWith('/ficha-cadastral') ||
+    cleanPath === '/ficha' ||
+    cleanPath.startsWith('/ficha/') ||
+    cleanPath === '/onboarding' || 
+    cleanPath.startsWith('/onboarding') ||
+    cleanPath === '/cadastro' ||
+    cleanPath.startsWith('/cadastro') ||
     search.includes('standalone=true') ||
     search.includes('confirmar=true') ||
     search.includes('confirmacao=true') ||
