@@ -26,11 +26,37 @@ import {
   TEIA_IFRAME_URL
 } from '../services/onboardingService';
 
+const getQueryParams = () => {
+  if (typeof window === 'undefined') return {};
+  const p = new URLSearchParams(window.location.search);
+  return {
+    nome: p.get('nome') || '',
+    empresa: p.get('empresa') || '',
+    telefone: p.get('telefone') || '',
+    email: p.get('email') || ''
+  };
+};
+
+const checkDuplicate = (email, telefone) => {
+  try {
+    const clients = JSON.parse(localStorage.getItem('mourato_clients_records_v2') || '[]');
+    const cleanPhone = (telefone || '').replace(/\D/g, '');
+    const cleanEmail = (email || '').toLowerCase().trim();
+    return clients.some(c => {
+      const cPhone = (c.contato || '').replace(/\D/g, '');
+      const cEmail = (c.email || '').toLowerCase().trim();
+      return (cleanEmail && cEmail === cleanEmail) || (cleanPhone.length >= 10 && cPhone === cleanPhone);
+    });
+  } catch { return false; }
+};
+
 export const FichaCadastralStandalone = ({ isFullPage = false, onClose = null }) => {
-  const [anexos, setAnexos] = useState([]); // [{ id, tipo: 'quod' | 'bacen' | 'serasa' | 'outro', nome, tamanho, base64 }]
+  const [anexos, setAnexos] = useState([]);
   const [submissionSuccess, setSubmissionSuccess] = useState(null);
   const [copiedProtocolo, setCopiedProtocolo] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const leadParams = getQueryParams();
+  const isDuplicate = checkDuplicate(leadParams.email, leadParams.telefone);
 
   // Escuta o evento oficial emitido pela Ficha ao concluir a submissão no iframe
   useEffect(() => {
@@ -146,7 +172,7 @@ export const FichaCadastralStandalone = ({ isFullPage = false, onClose = null })
     const msg = encodeURIComponent(
       `Olá, Diretoria da Mourato & Associados. Acabo de preencher a Ficha Cadastral no portal oficial com meus extratos do Quod e Bacen.\n\n*Protocolo Oficial:* ${protocolo}\n*Titular:* ${cliente}\n\nSolicito confirmação do início da esteira pericial.`
     );
-    window.open(`https://wa.me/5511987654321?text=${msg}`, '_blank');
+    window.open(`https://wa.me/5511978990034?text=${msg}`, '_blank');
   };
 
   const directLinkUrl = typeof window !== 'undefined' 
@@ -437,6 +463,29 @@ export const FichaCadastralStandalone = ({ isFullPage = false, onClose = null })
           /* ================================================================ */
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
+            {/* BLOQUEIO DE CADASTRO DUPLICADO */}
+            {isDuplicate && (
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.08)',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                borderRadius: '10px',
+                padding: '1.25rem 1.5rem',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.75rem'
+              }}>
+                <ShieldCheck size={20} color="#EF4444" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div>
+                  <div style={{ color: '#FCA5A5', fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.25rem' }}>
+                    Cadastro já existente
+                  </div>
+                  <p style={{ color: '#94A3B8', fontSize: '0.82rem', margin: 0 }}>
+                    Identificamos um cadastro com este e-mail ou WhatsApp em nossa base. Entre em contato com a diretoria pelo (11) 97899-0034.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* TERMINAL PRINCIPAL: IFRAME DA ESTEIRA (OPÇÃO RECOMENDADA) */}
             <div style={{ position: 'relative' }}>
               <div style={{
@@ -461,7 +510,14 @@ export const FichaCadastralStandalone = ({ isFullPage = false, onClose = null })
 
               <iframe
                 id="iframe-ficha-mourato"
-                src={TEIA_IFRAME_URL}
+                src={(() => {
+                  const url = new URL(TEIA_IFRAME_URL, window.location.origin);
+                  if (leadParams.nome) url.searchParams.set('nome', leadParams.nome);
+                  if (leadParams.empresa) url.searchParams.set('empresa', leadParams.empresa);
+                  if (leadParams.telefone) url.searchParams.set('telefone', leadParams.telefone);
+                  if (leadParams.email) url.searchParams.set('email', leadParams.email);
+                  return url.toString();
+                })()}
                 title="Ficha Cadastral Mourato & Associados"
                 style={{
                   width: '100%',

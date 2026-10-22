@@ -2315,10 +2315,10 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                         </div>
                         <span style={{
                           fontSize: '0.68rem', padding: '0.15rem 0.5rem', borderRadius: '9999px', fontWeight: 700,
-                          background: lead.status === 'novo' ? 'rgba(197,168,105,0.2)' : 'rgba(16,185,129,0.15)',
-                          color: lead.status === 'novo' ? 'var(--gold-light)' : '#34D399'
+                          background: lead.status === 'duplicado' ? 'rgba(239,68,68,0.15)' : lead.status === 'novo' ? 'rgba(197,168,105,0.2)' : 'rgba(16,185,129,0.15)',
+                          color: lead.status === 'duplicado' ? '#FCA5A5' : lead.status === 'novo' ? 'var(--gold-light)' : '#34D399'
                         }}>
-                          {lead.status === 'novo' ? 'NOVO' : 'APROVADO'}
+                          {lead.status === 'duplicado' ? '⚠ DUPLICADO' : lead.status === 'novo' ? 'NOVO' : 'APROVADO'}
                         </span>
                       </div>
 

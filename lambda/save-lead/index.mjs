@@ -1,4 +1,4 @@
-import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, PutItemCommand, ScanCommand } from '@aws-sdk/client-dynamodb';
 import { randomUUID } from 'crypto';
 
 const db = new DynamoDBClient({ region: 'us-east-1' });
@@ -26,14 +26,46 @@ export const handler = async (event) => {
       };
     }
 
+    // Verifica duplicidade por email ou telefone
+    const existing = await db.send(new ScanCommand({
+      TableName: 'mourato-leads',
+      FilterExpression: 'email = :e OR telefone = :t',
+      ExpressionAttributeValues: {
+        ':e': { S: email.toLowerCase().trim() },
+        ':t': { S: telefone.replace(/\D/g, '') }
+      }
+    }));
+
+    if (existing.Count > 0) {
+      await db.send(new PutItemCommand({
+        TableName: 'mourato-leads',
+        Item: {
+          id:       { S: randomUUID() },
+          empresa:  { S: empresa },
+          nome:     { S: nome },
+          email:    { S: email.toLowerCase().trim() },
+          telefone: { S: telefone.replace(/\D/g, '') },
+          pratica:  { S: pratica || 'hibrido' },
+          contexto: { S: contexto || '' },
+          status:   { S: 'duplicado' },
+          criadoEm: { S: new Date().toISOString() }
+        }
+      }));
+      return {
+        statusCode: 409,
+        headers: CORS,
+        body: JSON.stringify({ error: 'Solicitação já registrada. Aguarde nosso contato.' })
+      };
+    }
+
     await db.send(new PutItemCommand({
       TableName: 'mourato-leads',
       Item: {
         id:       { S: randomUUID() },
         empresa:  { S: empresa },
         nome:     { S: nome },
-        email:    { S: email },
-        telefone: { S: telefone },
+        email:    { S: email.toLowerCase().trim() },
+        telefone: { S: telefone.replace(/\D/g, '') },
         pratica:  { S: pratica || 'hibrido' },
         contexto: { S: contexto || '' },
         status:   { S: 'novo' },

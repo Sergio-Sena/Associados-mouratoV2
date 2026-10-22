@@ -21,6 +21,7 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [errors, setErrors] = useState({});
 
   // Controla animação de entrada/saída
   useEffect(() => {
@@ -40,13 +41,15 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
   if (!visible && !isOpen) return null;
 
   const phoneValid = (v) => v.replace(/\D/g, '').length >= 10;
+  const emailValid = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!phoneValid(formData.telefone)) {
-      alert('Informe um WhatsApp válido com DDD (mínimo 10 dígitos).');
-      return;
-    }
+    const newErrors = {};
+    if (!phoneValid(formData.telefone)) newErrors.telefone = 'WhatsApp inválido — informe DDD + número (mín. 10 dígitos).';
+    if (!emailValid(formData.email)) newErrors.email = 'E-mail inválido.';
+    if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
+    setErrors({});
     setLoading(true);
     try {
       const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api') + '/leads';
@@ -57,15 +60,17 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
         criadoEm: new Date().toISOString()
       };
 
-      try {
-        await fetch(apiUrl, {
+      const res = await fetch(apiUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(leadPayload)
         });
-      } catch (netErr) {
-        console.warn('Backend offline no momento, gravando lead no storage:', netErr);
-      }
+        if (res.status === 409) {
+          const data = await res.json();
+          setErrors({ submit: data.error });
+          setLoading(false);
+          return;
+        }
 
       // Garante persistência imediata para o painel de Leads
       try {
@@ -197,12 +202,13 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
                   </label>
                   <input
                     required type="tel" value={formData.telefone}
-                    onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
+                    onChange={(e) => { setFormData({ ...formData, telefone: e.target.value }); setErrors(p => ({ ...p, telefone: '' })); }}
                     placeholder="(11) 90000-0000"
-                    style={inputStyle}
-                    onFocus={(e) => e.target.style.borderColor = 'var(--gold-border-focus)'}
-                    onBlur={(e) => e.target.style.borderColor = 'var(--border-subtle)'}
+                    style={{ ...inputStyle, borderColor: errors.telefone ? '#EF4444' : 'var(--border-subtle)' }}
+                    onFocus={(e) => e.target.style.borderColor = errors.telefone ? '#EF4444' : 'var(--gold-border-focus)'}
+                    onBlur={(e) => e.target.style.borderColor = errors.telefone ? '#EF4444' : 'var(--border-subtle)'}
                   />
+                  {errors.telefone && <span style={{ fontSize: '0.72rem', color: '#EF4444', marginTop: '0.2rem', display: 'block' }}>{errors.telefone}</span>}
                 </div>
               </div>
 
@@ -213,12 +219,13 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
                 </label>
                 <input
                   required type="email" value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) => { setFormData({ ...formData, email: e.target.value }); setErrors(p => ({ ...p, email: '' })); }}
                   placeholder="diretoria@empresa.com.br"
-                  style={inputStyle}
-                  onFocus={(e) => e.target.style.borderColor = 'var(--gold-border-focus)'}
-                  onBlur={(e) => e.target.style.borderColor = 'var(--border-subtle)'}
+                  style={{ ...inputStyle, borderColor: errors.email ? '#EF4444' : 'var(--border-subtle)' }}
+                  onFocus={(e) => e.target.style.borderColor = errors.email ? '#EF4444' : 'var(--gold-border-focus)'}
+                  onBlur={(e) => e.target.style.borderColor = errors.email ? '#EF4444' : 'var(--border-subtle)'}
                 />
+                {errors.email && <span style={{ fontSize: '0.72rem', color: '#EF4444', marginTop: '0.2rem', display: 'block' }}>{errors.email}</span>}
               </div>
 
               {/* Contexto */}
@@ -264,6 +271,12 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
                 <Shield size={12} color="var(--gold-primary)" />
                 <span>Tratamento confidencial amparado por NDA.</span>
               </div>
+
+              {errors.submit && (
+                <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.35)', borderRadius: '8px', padding: '0.75rem 1rem', fontSize: '0.82rem', color: '#FCA5A5', textAlign: 'center' }}>
+                  {errors.submit}
+                </div>
+              )}
             </form>
           </div>
         ) : (

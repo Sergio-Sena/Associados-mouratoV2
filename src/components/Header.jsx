@@ -78,15 +78,6 @@ export const Header = ({ onNavigate, onOpenContact, onOpenLogin, onOpenOnboardin
           </nav>
 
           <div className="header-actions">
-            <button 
-              className="btn-secondary-subtle btn-sm" 
-              onClick={onOpenWiki}
-              title="Ver visão enciclopédica na Wikipédia"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', borderColor: 'rgba(255,255,255,0.12)' }}
-            >
-              <span style={{ fontFamily: 'Georgia, serif', fontWeight: 'bold' }}>W</span>
-              <span>Wiki</span>
-            </button>
             <button className="btn-secondary-subtle btn-sm" onClick={onOpenLogin}>
               Login
             </button>
@@ -126,9 +117,6 @@ export const Header = ({ onNavigate, onOpenContact, onOpenLogin, onOpenOnboardin
               </button>
             ))}
             <div className="mobile-drawer-actions">
-              <button className="btn-secondary-subtle" onClick={() => { onOpenWiki && onOpenWiki(); setMobileOpen(false); }}>
-                Perfil na Wikipédia (Wiki)
-              </button>
               <button className="btn-secondary-subtle" onClick={() => { onOpenLogin(); setMobileOpen(false); }}>
                 Login
               </button>
