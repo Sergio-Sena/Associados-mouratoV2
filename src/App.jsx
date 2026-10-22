@@ -24,6 +24,7 @@ export function App() {
 
   const rawPath = typeof window !== 'undefined' ? window.location.pathname.toLowerCase() : '';
   const cleanPath = rawPath.replace(/\/+$/, '') || '/';
+  const path = cleanPath;
   const search = typeof window !== 'undefined' ? window.location.search.toLowerCase() : '';
   const hash = typeof window !== 'undefined' ? window.location.hash.toLowerCase() : '';
 
