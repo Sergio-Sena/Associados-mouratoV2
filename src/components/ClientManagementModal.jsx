@@ -226,13 +226,19 @@ const isClientAlreadyInList = (clientList, lead) => {
   const deletedIds = getDeletedClientIds();
   const leadId = String(lead.id || '');
   const leadDoc = (lead.documento || lead.cnpj || lead.cpf || '').replace(/\D/g, '');
+  const leadEmail = (lead.email || '').toLowerCase().trim();
+  const leadPhone = (lead.telefone || '').replace(/\D/g, '');
 
-  // Trava de Exclusão Definitiva: Se este registro ou documento foi excluído pelo usuário, não re-adicionar
-  if (deletedIds.has(leadId) || deletedIds.has(`cli-lead-${leadId}`) || (leadDoc && deletedIds.has(leadDoc))) {
+  // Trava de Exclusão Definitiva: Se este registro, documento, email ou telefone foi excluído pelo usuário, não re-adicionar
+  if (
+    (leadId && (deletedIds.has(leadId) || deletedIds.has(`cli-lead-${leadId}`))) ||
+    (leadDoc && deletedIds.has(leadDoc)) ||
+    (leadEmail && leadEmail !== 'mourato@mouratoassociados.com.br' && leadEmail !== 'mourato.importacao@gmail.com' && deletedIds.has(leadEmail)) ||
+    (leadPhone && leadPhone !== '11978990034' && deletedIds.has(leadPhone))
+  ) {
     return true;
   }
 
-  const leadEmail = (lead.email || '').toLowerCase().trim();
   const leadEmpresa = (lead.empresa || '').toLowerCase().trim();
 
   return clientList.some(c => {
@@ -408,7 +414,26 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
     }
   }, [isOpen, initialView]);
 
-  // 1. Clients Database State (Carregamento Inteligente: Base Teia + LocalStorage com respeito a exclusões)
+  // Helper interno de checagem contra exclusões definitivas
+  const isRecordDeleted = (rec, deletedIds) => {
+    if (!rec || !deletedIds || deletedIds.size === 0) return false;
+    const idStr = String(rec.id || '');
+    const originId = String(rec.leadOriginId || '');
+    const docClean = (rec.documento || rec.cnpj || rec.cpf || '').replace(/\D/g, '');
+    const emailClean = (rec.email || '').toLowerCase().trim();
+    const phoneClean = (rec.contato || rec.telefone || '').replace(/\D/g, '');
+    const nomeClean = (rec.nomeRazao || rec.nome || rec.empresa || '').trim().toUpperCase();
+
+    if (idStr && (deletedIds.has(idStr) || deletedIds.has(`cli-lead-${idStr}`))) return true;
+    if (originId && (deletedIds.has(originId) || deletedIds.has(`cli-lead-${originId}`))) return true;
+    if (docClean && deletedIds.has(docClean)) return true;
+    if (emailClean && emailClean !== 'mourato@mouratoassociados.com.br' && emailClean !== 'mourato.importacao@gmail.com' && deletedIds.has(emailClean)) return true;
+    if (phoneClean && phoneClean !== '11978990034' && deletedIds.has(phoneClean)) return true;
+    if (nomeClean && deletedIds.has(nomeClean)) return true;
+    return false;
+  };
+
+  // 1. Clients Database State (Carregamento Inteligente: Base Teia + LocalStorage com respeito estrito a exclusões)
   const [clients, setClients] = useState(() => {
     try {
       const deletedIds = getDeletedClientIds();
@@ -416,10 +441,10 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          return parsed.filter(c => !deletedIds.has(c.id) && !deletedIds.has((c.documento || '').replace(/\D/g, '')));
+          return parsed.filter(c => !isRecordDeleted(c, deletedIds));
         }
       }
-      return TEIA_INITIAL_CLIENTS.filter(t => !deletedIds.has(t.id) && !deletedIds.has((t.documento || '').replace(/\D/g, '')));
+      return TEIA_INITIAL_CLIENTS.filter(t => !isRecordDeleted(t, deletedIds));
     } catch (e) {
       console.error('Erro ao recuperar clientes do storage:', e);
       return TEIA_INITIAL_CLIENTS;
@@ -435,7 +460,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed)) {
-            const filtered = parsed.filter(c => !deletedIds.has(c.id) && !deletedIds.has((c.documento || '').replace(/\D/g, '')));
+            const filtered = parsed.filter(c => !isRecordDeleted(c, deletedIds));
             setClients(filtered);
           }
         }
@@ -459,7 +484,11 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
           const approvedSet = getApprovedLeadsSet();
+          const deletedIds = getDeletedClientIds();
           return parsed.filter(l => {
+            // Trava de exclusão: se foi deletado, NUNCA sobe para a aba Leads
+            if (isRecordDeleted(l, deletedIds)) return false;
+
             const email = (l.email || '').toLowerCase().trim();
             const phone = (l.telefone || '').replace(/\D/g, '');
             const isApproved = 
@@ -515,11 +544,15 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
       } catch (err) {}
     }
 
-    // 4. Segrega: Leads Aprovados saem de Leads e entram em Clientes
+    // 4. Segrega: Leads Aprovados saem de Leads e entram em Clientes (com trava anti-respawn)
     const pendingLeads = [];
     const approvedLeadsToMigrate = [];
+    const deletedIds = getDeletedClientIds();
 
     (items || []).forEach(lead => {
+      // Trava de exclusão: se foi deletado, NUNCA sobe para a aba Leads e NUNCA migra para Clientes
+      if (isRecordDeleted(lead, deletedIds)) return;
+
       const email = (lead.email || '').toLowerCase().trim();
       const phone = (lead.telefone || '').replace(/\D/g, '');
       const isApproved = 
@@ -581,10 +614,17 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
     setLeads(updated);
     try {
       localStorage.setItem('mourato_leads_solicitacoes', JSON.stringify(updated));
-      unmarkLeadAsApprovedLocally(id, targetLead);
       const deleted = getDeletedClientIds();
       deleted.add(String(id));
       deleted.add(`cli-lead-${id}`);
+      if (targetLead) {
+        const email = (targetLead.email || '').toLowerCase().trim();
+        const phone = (targetLead.telefone || '').replace(/\D/g, '');
+        const doc = (targetLead.documento || targetLead.cnpj || targetLead.cpf || '').replace(/\D/g, '');
+        if (email && email !== 'mourato@mouratoassociados.com.br' && email !== 'mourato.importacao@gmail.com') deleted.add(email);
+        if (phone && phone !== '11978990034') deleted.add(phone);
+        if (doc) deleted.add(doc);
+      }
       localStorage.setItem(STORAGE_DELETED_CLIENTS_KEY, JSON.stringify(Array.from(deleted)));
     } catch (e) {}
     showToast('🗑️ Lead Removido', 'A solicitação foi excluída com sucesso.');
@@ -1140,6 +1180,34 @@ Website: https://www.mouratoassociados.com.br`;
     try {
       localStorage.setItem('mourato_bureau_scores_real_v1', JSON.stringify(updated));
     } catch (_) {}
+
+    // Sincroniza em tempo real com o registro do cliente na lista de clientes
+    setClients(prevClients => {
+      const updatedList = prevClients.map(c => {
+        if (c.id === activeClient.id) {
+          const upd = { ...c };
+          if (bureauKey === 'serasa') {
+            upd.serasaScore = `${val} (Auditado)`;
+            upd.serasaStatus = val >= 750 ? 'Excelente / Sem Apontamentos' : val >= 600 ? 'Bom / Regularizado' : val > 0 ? 'Regular' : 'Zerado / Saneado';
+          } else if (bureauKey === 'boavista') {
+            upd.boaVistaScore = `${val} (Boa Vista SCPC)`;
+            upd.boaVistaStatus = val > 0 ? 'Sem Restrições' : 'Zerado';
+          } else if (bureauKey === 'quod') {
+            upd.quodScore = String(val);
+            upd.quodStatus = val > 0 ? 'Positivo / Sem Restrição' : 'Zerado';
+          } else if (bureauKey === 'bacen') {
+            upd.bacenScr = String(val);
+          }
+          return upd;
+        }
+        return c;
+      });
+      try {
+        localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(updatedList));
+      } catch (_) {}
+      return updatedList;
+    });
+
     setBureauSyncClock(new Date().toLocaleTimeString('pt-BR'));
     setBureauInputScores(prev => ({ ...prev, [bureauKey]: '' }));
     showToast('✅ Score Gravado com Sucesso!', `Pontuação do ${bureauKey.toUpperCase()} atualizada para ${val} no dossiê de ${activeClient.nomeRazao}.`);
@@ -1164,6 +1232,33 @@ Website: https://www.mouratoassociados.com.br`;
     try {
       localStorage.setItem('mourato_bureau_scores_real_v1', JSON.stringify(updated));
     } catch (_) {}
+
+    setClients(prevClients => {
+      const updatedList = prevClients.map(c => {
+        if (c.id === activeClient.id) {
+          const upd = { ...c };
+          if (bureauKey === 'serasa') {
+            upd.serasaScore = '0 (Zerado / Saneado)';
+            upd.serasaStatus = 'Sem Apontamentos / Saneado';
+          } else if (bureauKey === 'boavista') {
+            upd.boaVistaScore = '0';
+            upd.boaVistaStatus = 'Sem Restrições / Saneado';
+          } else if (bureauKey === 'quod') {
+            upd.quodScore = '0';
+            upd.quodStatus = 'Positivo / Zero Atrasos';
+          } else if (bureauKey === 'bacen') {
+            upd.bacenScr = '0 (Não Auditado)';
+          }
+          return upd;
+        }
+        return c;
+      });
+      try {
+        localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(updatedList));
+      } catch (_) {}
+      return updatedList;
+    });
+
     setBureauSyncClock(new Date().toLocaleTimeString('pt-BR'));
     showToast('🧹 Birô Zerado com Sucesso', `${bureauKey.toUpperCase()} foi zerado (score 0 e nada consta) no cadastro de ${activeClient.nomeRazao}.`);
   };
@@ -1194,6 +1289,29 @@ Website: https://www.mouratoassociados.com.br`;
     try {
       localStorage.setItem('mourato_bureau_scores_real_v1', JSON.stringify(updated));
     } catch (_) {}
+
+    setClients(prevClients => {
+      const updatedList = prevClients.map(c => {
+        if (c.id === activeClient.id) {
+          return {
+            ...c,
+            serasaScore: '0 (Zerado / Saneado)',
+            serasaStatus: 'Sem Apontamentos / Saneado',
+            boaVistaScore: '0',
+            boaVistaStatus: 'Sem Restrições / Saneado',
+            quodScore: '0',
+            quodStatus: 'Positivo / Zero Atrasos',
+            bacenScr: '0 (Não Auditado)'
+          };
+        }
+        return c;
+      });
+      try {
+        localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(updatedList));
+      } catch (_) {}
+      return updatedList;
+    });
+
     setBureauSyncClock(new Date().toLocaleTimeString('pt-BR'));
     showToast('✨ Todos os Birôs Zerados', `Os birôs de "${activeClient.nomeRazao}" foram zerados (score 0 e zero restrições).`);
   };
@@ -1454,7 +1572,7 @@ Website: https://www.mouratoassociados.com.br`;
     }));
   };
 
-  // Save Client Handler (Suporta Adicionar Novo e Editar Existente)
+  // Save Client Handler (Suporta Adicionar Novo e Editar Existente com persistência definitiva)
   const handleSaveClient = (e) => {
     e.preventDefault();
     if (!newClient.nomeRazao.trim()) {
@@ -1476,6 +1594,12 @@ Website: https://www.mouratoassociados.com.br`;
         return c;
       });
       setClients(updatedClients);
+      try {
+        localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(updatedClients));
+        window.dispatchEvent(new CustomEvent('mourato_client_saved'));
+      } catch (err) {
+        console.error('Erro ao salvar alteração no localStorage:', err);
+      }
       showToast('✅ Cliente Atualizado!', `As alterações de "${newClient.nomeRazao}" foram gravadas com sucesso.`);
       setEditingClientId(null);
     } else {
@@ -1485,7 +1609,14 @@ Website: https://www.mouratoassociados.com.br`;
         id: `cli-${newClient.tipo.toLowerCase()}-${Date.now()}`,
         dataCadastro: new Date().toISOString().split('T')[0]
       };
-      setClients([created, ...clients]);
+      const updatedList = [created, ...clients];
+      setClients(updatedList);
+      try {
+        localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(updatedList));
+        window.dispatchEvent(new CustomEvent('mourato_client_saved'));
+      } catch (err) {
+        console.error('Erro ao salvar novo cliente no localStorage:', err);
+      }
       showToast('🎉 Cliente Cadastrado!', `"${newClient.nomeRazao}" foi adicionado com sucesso ao painel.`);
     }
 
@@ -1554,7 +1685,7 @@ Website: https://www.mouratoassociados.com.br`;
     setShowFormPasswords({});
   };
 
-  // Delete Client Handler (Exclusão Segura com confirmação e persistência anti-respawn)
+  // Delete Client Handler (Exclusão Definitiva: Sem efeito rebote e sem respawn para a aba Leads)
   const handleDeleteClient = (id) => {
     const target = clients.find(c => c.id === id);
     const targetName = target ? target.nomeRazao : 'este cliente';
@@ -1573,11 +1704,66 @@ Website: https://www.mouratoassociados.com.br`;
           const docClean = target.documento.replace(/\D/g, '');
           if (docClean) deleted.add(docClean);
         }
+        if (target?.email) {
+          const emailClean = target.email.toLowerCase().trim();
+          if (emailClean && emailClean !== 'mourato@mouratoassociados.com.br' && emailClean !== 'mourato.importacao@gmail.com') {
+            deleted.add(emailClean);
+          }
+        }
+        if (target?.contato) {
+          const phoneClean = target.contato.replace(/\D/g, '');
+          if (phoneClean && phoneClean !== '11978990034') {
+            deleted.add(phoneClean);
+          }
+        }
+        if (target?.nomeRazao) {
+          deleted.add(target.nomeRazao.trim().toUpperCase());
+        }
+
         localStorage.setItem(STORAGE_DELETED_CLIENTS_KEY, JSON.stringify(Array.from(deleted)));
         localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(remaining));
 
-        // Se o cliente foi gerado a partir de um lead, remove a trava de aprovação para não re-sincronizar
-        unmarkLeadAsApprovedLocally(target?.leadOriginId || id, target);
+        // Purga o lead da lista persistida para garantir que NUNCA suba para a aba Leads
+        const targetOriginId = String(target?.leadOriginId || '');
+        const targetDoc = (target?.documento || '').replace(/\D/g, '');
+        const targetEmail = (target?.email || '').toLowerCase().trim();
+        const targetPhone = (target?.contato || '').replace(/\D/g, '');
+
+        try {
+          const storedLeads = JSON.parse(localStorage.getItem('mourato_leads_solicitacoes') || '[]');
+          const filteredLeads = storedLeads.filter(l => {
+            const lId = String(l.id || '');
+            const lDoc = (l.documento || l.cnpj || l.cpf || '').replace(/\D/g, '');
+            const lEmail = (l.email || '').toLowerCase().trim();
+            const lPhone = (l.telefone || '').replace(/\D/g, '');
+            if (lId === id || (targetOriginId && lId === targetOriginId)) return false;
+            if (targetDoc && lDoc && lDoc === targetDoc) return false;
+            if (targetEmail && lEmail && lEmail === targetEmail && targetEmail !== 'mourato@mouratoassociados.com.br') return false;
+            if (targetPhone && lPhone && lPhone === targetPhone && targetPhone !== '11978990034') return false;
+            return true;
+          });
+          localStorage.setItem('mourato_leads_solicitacoes', JSON.stringify(filteredLeads));
+          setLeads(prev => prev.filter(l => {
+            const lId = String(l.id || '');
+            const lDoc = (l.documento || l.cnpj || l.cpf || '').replace(/\D/g, '');
+            const lEmail = (l.email || '').toLowerCase().trim();
+            const lPhone = (l.telefone || '').replace(/\D/g, '');
+            if (lId === id || (targetOriginId && lId === targetOriginId)) return false;
+            if (targetDoc && lDoc && lDoc === targetDoc) return false;
+            if (targetEmail && lEmail && lEmail === targetEmail && targetEmail !== 'mourato@mouratoassociados.com.br') return false;
+            if (targetPhone && lPhone && lPhone === targetPhone && targetPhone !== '11978990034') return false;
+            return true;
+          }));
+        } catch (_) {}
+
+        // Notifica o backend local se online
+        try {
+          if (targetOriginId) {
+            fetch(`http://localhost:3000/api/leads/${targetOriginId}`, { method: 'DELETE' }).catch(() => {});
+          }
+          fetch(`http://localhost:3000/api/leads/${id}`, { method: 'DELETE' }).catch(() => {});
+        } catch (_) {}
+
       } catch (err) {
         console.error('Erro ao gravar exclusão:', err);
       }
@@ -1589,7 +1775,7 @@ Website: https://www.mouratoassociados.com.br`;
         setSelectedBureauClientId(remaining[0]?.id || 'cli-pj-mourato');
       }
 
-      showToast('🗑️ Cadastro Excluído', `"${targetName}" foi removido com sucesso.`);
+      showToast('🗑️ Cadastro Excluído', `"${targetName}" foi removido definitivamente do sistema.`);
     }
   };
 
@@ -1615,7 +1801,7 @@ Website: https://www.mouratoassociados.com.br`;
         const deletedIds = getDeletedClientIds();
         localStorage.removeItem('mourato_clients_records_v1');
         localStorage.removeItem('mourato_clients_records');
-        const baseLimpa = TEIA_INITIAL_CLIENTS.filter(t => !deletedIds.has(t.id) && !deletedIds.has((t.documento || '').replace(/\D/g, '')));
+        const baseLimpa = TEIA_INITIAL_CLIENTS.filter(t => !isRecordDeleted(t, deletedIds));
         localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(baseLimpa));
         setClients(baseLimpa);
         fetchLeads();
