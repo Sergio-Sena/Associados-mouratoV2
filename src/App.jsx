@@ -148,7 +148,7 @@ export function App() {
   // ROTA DEDICADA DIRETA: Link oficial para o cliente no celular ou computador (/ficha-cadastral)
   if (isDirectFichaRoute) {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', padding: '2.5rem 1rem 4rem', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', padding: 'clamp(1rem, 2.5vw, 2.5rem) clamp(0.5rem, 2vw, 1rem) 3rem', display: 'flex', flexDirection: 'column' }}>
         <div style={{ maxWidth: '1080px', width: '100%', margin: '0 auto' }}>
           <FichaCadastralStandalone 
             isFullPage={true} 

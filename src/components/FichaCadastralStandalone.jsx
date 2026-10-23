@@ -272,7 +272,7 @@ export const FichaCadastralStandalone = ({ isFullPage = false, onClose = null })
       background: 'radial-gradient(ellipse at 50% 0%, rgba(197, 168, 105, 0.08) 0%, #0A0D14 70%)',
       border: '1px solid var(--gold-border)',
       borderRadius: isFullPage ? '16px' : 'var(--radius-md)',
-      padding: isFullPage ? '2.5rem 2rem' : '1.8rem',
+      padding: isFullPage ? 'clamp(1rem, 3vw, 2.25rem) clamp(0.75rem, 3vw, 1.85rem)' : '1.8rem',
       boxShadow: '0 25px 60px rgba(0, 0, 0, 0.85), 0 0 35px rgba(197, 168, 105, 0.15)',
       position: 'relative'
     }}>
