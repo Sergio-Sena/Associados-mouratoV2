@@ -603,23 +603,48 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
     const baseUrl = window.location.origin || 'https://www.mouratoassociados.com.br';
     const linkFicha = `${baseUrl}/ficha-cadastral?nome=${encodeURIComponent(targetLead.nome || '')}&empresa=${encodeURIComponent(targetLead.empresa || '')}&telefone=${encodeURIComponent(targetLead.telefone || '')}&email=${encodeURIComponent(targetLead.email || '')}&origem=audiencia_aprovada`;
 
-    // 3. Monta o texto oficial para WhatsApp
-    const wppMsg = `Olá, *${targetLead.nome || 'Cliente'}* (${targetLead.empresa || 'Empresa'})!\n\nSua solicitação de assessoria na *Mourato & Associados* foi *APROVADA* com sucesso pela diretoria pericial.\n\nPara darmos início imediato à sua auditoria de crédito e calibragem de rating junto aos birôs oficiais (Banco Central SCR, Serasa, Boa Vista e Quod), por favor preencha sua Ficha Cadastral Oficial no link seguro abaixo:\n\n🔗 *Acesse sua Ficha:* ${linkFicha}\n\n_Mourato & Associados Ltda — CNPJ: 38.377.738/0001-45_\nAtendimento Oficial: (11) 97899-0034 | mourato@mouratoassociados.com.br`;
+    // 3. Monta o texto oficial para WhatsApp com a Planilha / Ficha Cadastral Oficial
+    const wppMsg = `Olá, *${targetLead.nome || 'Cliente'}* (${targetLead.empresa || 'Empresa'})!\n\nSua solicitação de assessoria na *Mourato & Associados* foi *APROVADA* com sucesso pela diretoria pericial.\n\nPara darmos início imediato à sua auditoria de crédito e calibragem de rating junto aos birôs oficiais (Banco Central SCR, Serasa, Boa Vista e Quod), por favor acesse sua Planilha Cadastral Oficial no link seguro abaixo:\n\n📊 *Acesse sua Planilha / Ficha Cadastral:* ${linkFicha}\n\n_Mourato & Associados Ltda — CNPJ: 38.377.738/0001-45_\nAtendimento Oficial WhatsApp: (11) 97899-0034 | mourato@mouratoassociados.com.br`;
 
-    // Telefone limpo (garante formato internacional 5511...)
-    let rawDigits = (targetLead.telefone || '11978990034').replace(/\D/g, '');
-    let cleanPhone = rawDigits;
-    if (rawDigits.length === 10 || rawDigits.length === 11) {
-      cleanPhone = '55' + rawDigits;
-    } else if (cleanPhone.length < 10) {
-      cleanPhone = '5511978990034';
+    // Telefone do CLIENTE destinatário (NUNCA usar o telefone corporativo da Mourato como destinatário)
+    let rawDigits = (targetLead.telefone || '').replace(/\D/g, '');
+    let cleanPhone = '';
+    if (rawDigits && rawDigits !== '11978990034' && rawDigits !== '5511978990034') {
+      if (rawDigits.length === 10 || rawDigits.length === 11) {
+        cleanPhone = '55' + rawDigits;
+      } else if (rawDigits.startsWith('55') && rawDigits.length >= 12) {
+        cleanPhone = rawDigits;
+      } else if (rawDigits.length >= 8) {
+        cleanPhone = '55' + rawDigits;
+      }
     }
-    const wppUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(wppMsg)}`;
 
-    // 4. Monta o e-mail oficial (mailto) com cópia para mourato@mouratoassociados.com.br
-    const emailSubject = `[Mourato & Associados] Solicitação Aprovada — Link da sua Ficha Cadastral`;
-    const emailBody = `Prezado(a) ${targetLead.nome} (${targetLead.empresa}),\n\nÉ com satisfação que informamos que sua solicitação de assessoria corporativa foi APROVADA por nossa Diretoria.\n\nPara procedermos com a abertura de prontuário e auditoria pericial de crédito perante o Banco Central do Brasil (SCR) e birôs oficiais, solicitamos o preenchimento da sua Ficha Cadastral no link oficial abaixo:\n\n${linkFicha}\n\n(O fornecimento de senhas de birôs é estritamente opcional e todas as informações estão sob sigilo pericial e LGPD).\n\nAtenciosamente,\n\nJosé Jailson Mourato da Silva\nMourato & Associados — Governança e Inteligência Financeira\nAv. São Luís, 187, Sala 69 A - República, São Paulo/SP\nTelefone: (11) 97899-0034 | E-mail: mourato@mouratoassociados.com.br\nwww.mouratoassociados.com.br`;
-    const mailtoUrl = `mailto:${targetLead.email || 'mourato@mouratoassociados.com.br'}?cc=mourato@mouratoassociados.com.br&subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+    // 1. WhatsApp Desktop / App Nativo (Abre direto no aplicativo do WhatsApp Business no computador/celular)
+    const wppAppUrl = cleanPhone 
+      ? `whatsapp://send?phone=${cleanPhone}&text=${encodeURIComponent(wppMsg)}`
+      : `whatsapp://send?text=${encodeURIComponent(wppMsg)}`;
+
+    // 2. WhatsApp Web (Abre direto na conversa com o número no navegador)
+    const wppWebUrl = cleanPhone 
+      ? `https://web.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(wppMsg)}`
+      : `https://web.whatsapp.com/send?text=${encodeURIComponent(wppMsg)}`;
+
+    // 3. Universal Web Fallback
+    const wppUrl = cleanPhone 
+      ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(wppMsg)}`
+      : `https://api.whatsapp.com/send?text=${encodeURIComponent(wppMsg)}`;
+
+    // 4. Monta o e-mail oficial para Google Workspace (Gmail Web) com remetente mourato@mouratoassociados.com.br
+    const emailSubject = `[Mourato & Associados] Solicitação Aprovada — Link da sua Planilha / Ficha Cadastral`;
+    const emailBody = `Prezado(a) ${targetLead.nome || 'Cliente'} (${targetLead.empresa || 'Empresa'}),\n\nÉ com satisfação que informamos que sua solicitação de assessoria corporativa foi APROVADA por nossa Diretoria.\n\nPara procedermos com a abertura de prontuário e auditoria pericial de crédito perante o Banco Central do Brasil (SCR) e birôs oficiais, solicitamos o preenchimento da sua Planilha Cadastral Oficial no link abaixo:\n\n📊 *Acesse sua Planilha / Ficha Cadastral:*\n${linkFicha}\n\n(O fornecimento de senhas de birôs é estritamente opcional e todas as informações estão sob sigilo pericial, Termo de Confidencialidade e LGPD).\n\nAtenciosamente,\n\nJosé Jailson Mourato da Silva\nMourato & Associados — Governança e Inteligência Financeira\nAv. São Luís, 187, Sala 69 A - República, São Paulo/SP\nTelefone / WhatsApp: (11) 97899-0034 | E-mail: mourato@mouratoassociados.com.br\nwww.mouratoassociados.com.br`;
+
+    const destEmail = (targetLead.email && targetLead.email.trim() && targetLead.email.trim().toLowerCase() !== 'mourato@mouratoassociados.com.br')
+      ? targetLead.email.trim()
+      : (targetLead.email || '');
+
+    // URL direta do Google Workspace (Gmail Web Compose) com remetente oficial mourato@mouratoassociados.com.br
+    const googleWorkspaceUrl = `https://mail.google.com/mail/?view=cm&fs=1&authuser=mourato@mouratoassociados.com.br&to=${encodeURIComponent(destEmail)}&su=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+    const mailtoUrl = `mailto:${destEmail || 'mourato@mouratoassociados.com.br'}?cc=mourato@mouratoassociados.com.br&subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
 
     // 5. Converte o Lead e Adiciona a Clientes (Sai de Leads e entra em Clientes)
     const newClientRecord = convertLeadToClientRecord(targetLead, linkFicha);
@@ -646,8 +671,12 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
       lead: targetLead,
       linkFicha,
       wppUrl,
+      wppAppUrl,
+      wppWebUrl,
       wppMsg,
       cleanPhone,
+      googleWorkspaceUrl,
+      destEmail,
       mailtoUrl,
       emailSubject,
       emailBody,
@@ -695,10 +724,17 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
       }
     }
 
-    // 11. Abre automaticamente o WhatsApp Web
+    // 11. Abre automaticamente o WhatsApp Web e o Google Workspace direto na tela de envio oficial
     try {
-      window.open(wppUrl, '_blank');
+      const autoUrl = cleanPhone ? wppWebUrl : wppUrl;
+      window.open(autoUrl, '_blank');
     } catch (_) {}
+
+    if (destEmail) {
+      try {
+        window.open(googleWorkspaceUrl, '_blank');
+      } catch (_) {}
+    }
   };
 
   const abrirDisparoEmailWorkspace = (lead) => {
@@ -8468,31 +8504,70 @@ Mourato & Associados Ltda
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+              <div style={{
+                fontSize: '0.74rem', color: '#94A3B8', background: 'rgba(0,0,0,0.3)',
+                padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.06)',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.35rem'
+              }}>
+                <span>📱 <strong>Cliente Destinatário:</strong> {approvalModalData.cleanPhone ? `+${approvalModalData.cleanPhone}` : '(Selecione o contato no WhatsApp)'}</span>
+                <span style={{ color: 'var(--gold-light, #E2C98A)' }}>Remetente: (11) 97899-0034</span>
+              </div>
+
+              {/* Botão 1: Abrir direto no WhatsApp Business (Aplicativo Desktop / Windows) */}
               <a
-                href={approvalModalData.wppUrl}
+                href={approvalModalData.wppAppUrl || approvalModalData.wppUrl}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem',
+                  padding: '0.8rem 1.25rem', background: '#25D366', color: '#0A180E',
+                  fontWeight: 700, fontSize: '0.86rem', borderRadius: '8px', textDecoration: 'none',
+                  boxShadow: '0 4px 12px rgba(37, 211, 102, 0.3)'
+                }}
+              >
+                <span>💬</span> Abrir no WhatsApp Business (Aplicativo Desktop)
+              </a>
+
+              {/* Botão 2: Abrir no WhatsApp Web (Navegador) */}
+              <a
+                href={approvalModalData.wppWebUrl || approvalModalData.wppUrl}
                 target="_blank"
                 rel="noreferrer"
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem',
-                  padding: '0.85rem 1.25rem', background: '#25D366', color: '#0A180E',
-                  fontWeight: 700, fontSize: '0.88rem', borderRadius: '8px', textDecoration: 'none',
-                  boxShadow: '0 4px 12px rgba(37, 211, 102, 0.3)'
+                  padding: '0.75rem 1.25rem', background: 'rgba(37, 211, 102, 0.15)', color: '#4ADE80',
+                  border: '1px solid rgba(37, 211, 102, 0.4)',
+                  fontWeight: 600, fontSize: '0.82rem', borderRadius: '8px', textDecoration: 'none'
                 }}
               >
-                <span>💬</span> Enviar Link via WhatsApp ({approvalModalData.cleanPhone})
+                <span>🌐</span> Abrir no WhatsApp Web (Navegador)
               </a>
 
+              {/* Botão 3: Copiar Texto da Mensagem */}
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(approvalModalData.wppMsg || '');
+                  alert('Mensagem oficial copiada! Você pode colar diretamente na conversa do cliente no WhatsApp.');
+                }}
+                className="btn-secondary-subtle"
+                style={{ padding: '0.6rem 1rem', fontSize: '0.78rem', justifyContent: 'center' }}
+              >
+                📋 Copiar Texto Completo da Mensagem
+              </button>
+
+              {/* Botão 4: Google Workspace Oficial mourato@mouratoassociados.com.br */}
               <a
-                href={approvalModalData.mailtoUrl}
+                href={approvalModalData.googleWorkspaceUrl || approvalModalData.mailtoUrl}
+                target="_blank"
+                rel="noreferrer"
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem',
-                  padding: '0.85rem 1.25rem', background: 'var(--gold-primary, #C5A869)', color: '#0D121D',
-                  fontWeight: 700, fontSize: '0.88rem', borderRadius: '8px', textDecoration: 'none',
-                  boxShadow: '0 4px 12px rgba(197, 168, 105, 0.3)'
+                  padding: '0.85rem 1.25rem', background: 'linear-gradient(135deg, #C5A869 0%, #AA820A 100%)', color: '#0A0E17',
+                  fontWeight: 700, fontSize: '0.86rem', borderRadius: '8px', textDecoration: 'none',
+                  boxShadow: '0 4px 15px rgba(197, 168, 105, 0.35)'
                 }}
               >
-                <span>✉️</span> Enviar E-mail Oficial (mourato@mouratoassociados.com.br)
+                <span>✉️</span> Abrir e Enviar no Google Workspace ({approvalModalData.destEmail || 'mourato@mouratoassociados.com.br'})
               </a>
 
               <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
