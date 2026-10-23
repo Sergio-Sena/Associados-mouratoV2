@@ -121,20 +121,42 @@ const getApprovedLeadsSet = () => {
     return new Set();
   }
 };
+
 const markLeadAsApprovedLocally = (id, lead = null) => {
   try {
     const set = getApprovedLeadsSet();
     if (id) set.add(String(id));
     if (lead) {
-      if (lead.email) set.add(lead.email.toLowerCase().trim());
-      if (lead.telefone) set.add(lead.telefone.replace(/\D/g, ''));
-      if (lead.email && lead.empresa) set.add(`${lead.email.toLowerCase().trim()}_${lead.empresa.trim()}`);
-      if (lead.nome && lead.telefone) set.add(`${lead.nome.trim()}_${lead.telefone.replace(/\D/g, '')}`);
+      const email = (lead.email || '').toLowerCase().trim();
+      const phone = (lead.telefone || '').replace(/\D/g, '');
+      // Evita adicionar e-mails institucionais genéricos que poderiam aprovar outros leads por engano
+      if (email && email !== 'mourato@mouratoassociados.com.br' && email !== 'mourato.importacao@gmail.com') {
+        set.add(email);
+      }
+      if (phone && phone !== '11978990034') {
+        set.add(phone);
+      }
+      if (email && lead.empresa) set.add(`${email}_${lead.empresa.trim()}`);
     }
     localStorage.setItem(STORAGE_APPROVED_LEADS, JSON.stringify(Array.from(set)));
   } catch (e) {
     console.warn('Erro ao salvar lead aprovado localmente:', e);
   }
+};
+
+const unmarkLeadAsApprovedLocally = (id, lead = null) => {
+  try {
+    const set = getApprovedLeadsSet();
+    if (id) set.delete(String(id));
+    if (lead) {
+      const email = (lead.email || '').toLowerCase().trim();
+      const phone = (lead.telefone || '').replace(/\D/g, '');
+      if (email) set.delete(email);
+      if (phone) set.delete(phone);
+      if (email && lead.empresa) set.delete(`${email}_${lead.empresa.trim()}`);
+    }
+    localStorage.setItem(STORAGE_APPROVED_LEADS, JSON.stringify(Array.from(set)));
+  } catch (e) {}
 };
 
 // Conversor Oficial de Lead Aprovado em Registro de Cliente
@@ -201,11 +223,17 @@ const convertLeadToClientRecord = (lead, linkFicha = '') => {
 
 const isClientAlreadyInList = (clientList, lead) => {
   if (!lead || !Array.isArray(clientList)) return false;
-  const leadEmail = (lead.email || '').toLowerCase().trim();
-  const leadEmpresa = (lead.empresa || '').toLowerCase().trim();
-  const leadNome = (lead.nome || '').toLowerCase().trim();
+  const deletedIds = getDeletedClientIds();
   const leadId = String(lead.id || '');
   const leadDoc = (lead.documento || lead.cnpj || lead.cpf || '').replace(/\D/g, '');
+
+  // Trava de Exclusão Definitiva: Se este registro ou documento foi excluído pelo usuário, não re-adicionar
+  if (deletedIds.has(leadId) || deletedIds.has(`cli-lead-${leadId}`) || (leadDoc && deletedIds.has(leadDoc))) {
+    return true;
+  }
+
+  const leadEmail = (lead.email || '').toLowerCase().trim();
+  const leadEmpresa = (lead.empresa || '').toLowerCase().trim();
 
   return clientList.some(c => {
     if (c.id === `cli-lead-${leadId}` || c.leadOriginId === leadId) return true;
@@ -376,6 +404,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
       if (initialView) {
         setActiveView(initialView);
       }
+      fetchLeads();
     }
   }, [isOpen, initialView]);
 
@@ -423,7 +452,28 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
     };
   }, []);
 
-  const [leads, setLeads] = useState([]);
+  const [leads, setLeads] = useState(() => {
+    try {
+      const saved = localStorage.getItem('mourato_leads_solicitacoes');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const approvedSet = getApprovedLeadsSet();
+          return parsed.filter(l => {
+            const email = (l.email || '').toLowerCase().trim();
+            const phone = (l.telefone || '').replace(/\D/g, '');
+            const isApproved = 
+              (l.id && approvedSet.has(String(l.id))) ||
+              (email && email !== 'mourato@mouratoassociados.com.br' && email !== 'mourato.importacao@gmail.com' && approvedSet.has(email)) ||
+              (phone && phone !== '11978990034' && approvedSet.has(phone)) ||
+              l.status === 'aprovado';
+            return !isApproved;
+          });
+        }
+      }
+    } catch (_) {}
+    return [];
+  });
   const [leadsLoading, setLeadsLoading] = useState(false);
 
   const fetchLeads = async () => {
@@ -470,12 +520,12 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
     const approvedLeadsToMigrate = [];
 
     (items || []).forEach(lead => {
+      const email = (lead.email || '').toLowerCase().trim();
+      const phone = (lead.telefone || '').replace(/\D/g, '');
       const isApproved = 
         (lead.id && approvedSet.has(String(lead.id))) ||
-        (lead.email && approvedSet.has(lead.email.toLowerCase().trim())) ||
-        (lead.telefone && approvedSet.has(lead.telefone.replace(/\D/g, ''))) ||
-        (lead.email && lead.empresa && approvedSet.has(`${lead.email.toLowerCase().trim()}_${lead.empresa.trim()}`)) ||
-        (lead.nome && lead.telefone && approvedSet.has(`${lead.nome.trim()}_${lead.telefone.replace(/\D/g, '')}`)) ||
+        (email && email !== 'mourato@mouratoassociados.com.br' && email !== 'mourato.importacao@gmail.com' && approvedSet.has(email)) ||
+        (phone && phone !== '11978990034' && approvedSet.has(phone)) ||
         lead.status === 'aprovado';
 
       if (isApproved) {
@@ -512,7 +562,9 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
   };
 
   const handleDeleteLead = async (id) => {
-    if (!window.confirm('Remover este lead?')) return;
+    if (!window.confirm('Remover esta solicitação?')) return;
+    const targetLead = leads.find(l => l.id === id);
+
     if (import.meta.env.VITE_API_URL) {
       try {
         await fetch(`${import.meta.env.VITE_API_URL}/leads/${id}`, {
@@ -529,7 +581,13 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
     setLeads(updated);
     try {
       localStorage.setItem('mourato_leads_solicitacoes', JSON.stringify(updated));
+      unmarkLeadAsApprovedLocally(id, targetLead);
+      const deleted = getDeletedClientIds();
+      deleted.add(String(id));
+      deleted.add(`cli-lead-${id}`);
+      localStorage.setItem(STORAGE_DELETED_CLIENTS_KEY, JSON.stringify(Array.from(deleted)));
     } catch (e) {}
+    showToast('🗑️ Lead Removido', 'A solicitação foi excluída com sucesso.');
   };
 
   const [approvalModalData, setApprovalModalData] = useState(null);
@@ -1377,11 +1435,19 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
       try {
         const deleted = getDeletedClientIds();
         deleted.add(id);
+        if (target?.leadOriginId) {
+          deleted.add(String(target.leadOriginId));
+          deleted.add(`cli-lead-${target.leadOriginId}`);
+        }
         if (target?.documento) {
-          deleted.add(target.documento.replace(/\D/g, ''));
+          const docClean = target.documento.replace(/\D/g, '');
+          if (docClean) deleted.add(docClean);
         }
         localStorage.setItem(STORAGE_DELETED_CLIENTS_KEY, JSON.stringify(Array.from(deleted)));
         localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(remaining));
+
+        // Se o cliente foi gerado a partir de um lead, remove a trava de aprovação para não re-sincronizar
+        unmarkLeadAsApprovedLocally(target?.leadOriginId || id, target);
       } catch (err) {
         console.error('Erro ao gravar exclusão:', err);
       }
@@ -1393,7 +1459,6 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
         setSelectedBureauClientId(remaining[0]?.id || 'cli-pj-mourato');
       }
 
-      window.dispatchEvent(new CustomEvent('mourato_client_saved'));
       showToast('🗑️ Cadastro Excluído', `"${targetName}" foi removido com sucesso.`);
     }
   };
