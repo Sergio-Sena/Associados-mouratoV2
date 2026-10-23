@@ -13,14 +13,16 @@ const inputStyle = {
   transition: 'border-color 0.2s'
 };
 
+const AWS_LEADS_API_URL = 'https://0bwr64p3ie.execute-api.us-east-1.amazonaws.com/prod';
+
 export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
   const [visible, setVisible] = useState(false);
   const [formData, setFormData] = useState({
     empresa: '', nome: '', email: '', telefone: '', pratica: 'hibrido', contexto: ''
   });
   const [submitted, setSubmitted] = useState(false);
+  const [isDuplicate, setIsDuplicate] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [copiedLink, setCopiedLink] = useState(false);
   const [errors, setErrors] = useState({});
 
   // Controla animação de entrada/saída
@@ -32,6 +34,7 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
       const t = setTimeout(() => {
         setVisible(false);
         setSubmitted(false);
+        setIsDuplicate(false);
         setFormData({ empresa: '', nome: '', email: '', telefone: '', pratica: 'hibrido', contexto: '' });
       }, 300);
       return () => clearTimeout(t);
@@ -51,6 +54,8 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
     setErrors({});
     setLoading(true);
+    setIsDuplicate(false);
+
     try {
       const leadPayload = {
         ...formData,
@@ -68,31 +73,35 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
         console.warn('Erro ao salvar lead localmente:', storErr);
       }
 
-      // 2. Se houver API remota ou servidor local ativo, tenta sincronizar
-      const apiUrl = import.meta.env.VITE_API_URL 
-        ? `${import.meta.env.VITE_API_URL}/leads`
-        : 'http://localhost:3000/api/leads';
-
+      // 2. Conecta à API oficial da AWS (DynamoDB na nuvem) com fallback configurado
+      const remoteUrl = `${import.meta.env.VITE_API_URL || AWS_LEADS_API_URL}/leads`;
       try {
-        const res = await fetch(apiUrl, {
+        const res = await fetch(remoteUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(leadPayload)
         });
         if (res.status === 409) {
-          const data = await res.json();
-          setErrors({ submit: data.error || 'Solicitação já registrada com este e-mail ou telefone.' });
-          setLoading(false);
-          return;
+          setIsDuplicate(true);
         }
       } catch (netErr) {
-        // Modo offline / nuvem estática sem backend ativo: dados já preservados com segurança
-        console.info('Sincronização em segundo plano concluída localmente.');
+        console.warn('Sincronização em nuvem em segundo plano:', netErr.message);
       }
+
+      // 3. Fallback servidor local se ativo
+      try {
+        await fetch('http://localhost:3000/api/leads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(leadPayload)
+        });
+      } catch (_) {}
+
+      // Dispara evento local para o painel administrativo recarregar caso esteja aberto
+      window.dispatchEvent(new CustomEvent('mourato_new_lead_received', { detail: leadPayload }));
 
       setSubmitted(true);
     } catch (err) {
-      // Fallback final
       setSubmitted(true);
     } finally {
       setLoading(false);
@@ -290,100 +299,64 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
             </form>
           </div>
         ) : (
-          <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
+          <div style={{ textAlign: 'center', padding: '1.75rem 0.5rem' }}>
             <div style={{
-              width: 56, height: 56, borderRadius: '50%',
-              background: 'rgba(197, 168, 105, 0.1)',
-              border: '1px solid var(--gold-primary)',
+              width: 68, height: 68, borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(197, 168, 105, 0.22) 0%, rgba(197, 168, 105, 0.05) 100%)',
+              border: '2px solid var(--gold-primary)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--gold-light)', margin: '0 auto 1.25rem'
+              color: 'var(--gold-light)', margin: '0 auto 1.5rem',
+              boxShadow: '0 0 25px rgba(197, 168, 105, 0.3)'
             }}>
-              <CheckCircle2 size={30} />
+              <CheckCircle2 size={36} />
             </div>
-            <h3 style={{ fontSize: '1.5rem', color: '#FFFFFF', marginBottom: '0.5rem' }}>
-              Solicitação Registrada
+
+            <span className="badge-institutional" style={{ marginBottom: '0.65rem' }}>
+              SOLICITAÇÃO RECEBIDA COM SUCESSO
+            </span>
+
+            <h3 style={{ fontSize: '1.45rem', color: '#FFFFFF', margin: '0.5rem 0 0.75rem' }}>
+              {isDuplicate ? 'Solicitação Já Registrada' : 'Solicitação Registrada'}
             </h3>
-            <p style={{ color: '#94A3B8', fontSize: '0.9rem', maxWidth: '440px', margin: '0 auto 1.5rem', lineHeight: 1.6 }}>
-              Agradecemos pelo contato, <strong style={{ color: '#FFFFFF' }}>{formData.nome}</strong>. Nossos sócios entrarão em contato no WhatsApp informado para coordenar a reunião executiva.
+
+            <p style={{ color: '#CBD5E1', fontSize: '0.9rem', maxWidth: '460px', margin: '0 auto 1.25rem', lineHeight: 1.65 }}>
+              Prezado(a) <strong style={{ color: '#FFFFFF' }}>{formData.nome || 'Cliente'}</strong>, sua solicitação de assessoria estratégica para a empresa <strong style={{ color: 'var(--gold-light)' }}>{formData.empresa || 'sua empresa'}</strong> foi formalmente recebida pela Diretoria Executiva da <strong>Mourato &amp; Associados</strong>.
             </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center', maxWidth: '420px', margin: '0 auto 1rem', width: '100%' }}>
-              {(() => {
-                const sheetUrl = typeof window !== 'undefined' 
-                  ? `${window.location.origin}/ficha-cadastral?nome=${encodeURIComponent(formData.nome)}&empresa=${encodeURIComponent(formData.empresa)}&telefone=${encodeURIComponent(formData.telefone)}`
-                  : `/ficha-cadastral?nome=${encodeURIComponent(formData.nome)}`;
-                const cleanPhone = formData.telefone.replace(/\D/g, '');
-                const waUrl = `https://wa.me/55${cleanPhone}?text=${encodeURIComponent(`Olá ${formData.nome}! Segue o link para preenchimento da sua Planilha / Ficha Cadastral da Mourato & Associados: ${sheetUrl}`)}`;
-
-                return (
-                  <>
-                    <div style={{
-                      width: '100%',
-                      background: 'rgba(15, 23, 42, 0.75)',
-                      border: '1px solid rgba(212, 175, 55, 0.3)',
-                      borderRadius: '8px',
-                      padding: '10px 12px',
-                      fontSize: '0.78rem',
-                      color: '#cbd5e1',
-                      wordBreak: 'break-all',
-                      textAlign: 'left'
-                    }}>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--gold-light)', display: 'block', fontWeight: 700, marginBottom: '4px' }}>
-                        LINK DA PLANILHA ONLINE GERADO:
-                      </span>
-                      {sheetUrl}
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', width: '100%' }}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (navigator.clipboard) {
-                            navigator.clipboard.writeText(sheetUrl);
-                            setCopiedLink(true);
-                            setTimeout(() => setCopiedLink(false), 3000);
-                          }
-                        }}
-                        className="btn-secondary-subtle"
-                        style={{ padding: '0.75rem 0.5rem', fontSize: '0.8rem', justifyContent: 'center', gap: '6px' }}
-                      >
-                        {copiedLink ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
-                        <span>{copiedLink ? 'Link Copiado!' : 'Copiar Link'}</span>
-                      </button>
-
-                      <a
-                        href={waUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn-secondary-subtle"
-                        style={{ padding: '0.75rem 0.5rem', fontSize: '0.8rem', justifyContent: 'center', gap: '6px', textDecoration: 'none', color: '#34d399', borderColor: 'rgba(52, 211, 153, 0.35)' }}
-                      >
-                        <MessageSquare size={14} />
-                        <span>Encaminhar WhatsApp</span>
-                      </a>
-                    </div>
-
-                    <a
-                      href={sheetUrl}
-                      className="btn-primary-gold"
-                      style={{ width: '100%', justifyContent: 'center', padding: '0.85rem', fontSize: '0.88rem', textDecoration: 'none', gap: '8px' }}
-                    >
-                      <span>Preencher Planilha Online Agora</span>
-                      <ArrowRight size={15} />
-                    </a>
-
-                    <button 
-                      type="button" 
-                      className="btn-secondary-subtle" 
-                      onClick={onClose}
-                      style={{ width: '100%', padding: '0.75rem', fontSize: '0.82rem', marginTop: '4px' }}
-                    >
-                      Concluir &amp; Fechar
-                    </button>
-                  </>
-                );
-              })()}
+            <div style={{
+              background: 'rgba(15, 23, 42, 0.6)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '1rem 1.25rem',
+              maxWidth: '460px',
+              margin: '0 auto 1.75rem',
+              textAlign: 'left',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.45rem',
+              fontSize: '0.8rem',
+              color: '#94A3B8'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--gold-light)', fontWeight: 700 }}>
+                <Shield size={14} color="var(--gold-primary)" />
+                <span>Atendimento Sob Sigilo Absoluto (NDA &amp; LGPD)</span>
+              </div>
+              <p style={{ margin: 0, lineHeight: 1.5 }}>
+                Nossa equipe pericial analisará os dados da demanda preliminar e entrará em contato diretamente via WhatsApp corporativo informado ({formData.telefone}) ou e-mail ({formData.email}).
+              </p>
+              <span style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '0.25rem' }}>
+                ✓ Nenhuma ação adicional é necessária no momento.
+              </span>
             </div>
+
+            <button 
+              type="button" 
+              className="btn-primary-gold" 
+              onClick={onClose}
+              style={{ padding: '0.85rem 2.5rem', fontSize: '0.88rem', margin: '0 auto', gap: '0.5rem' }}
+            >
+              <span>Concluir &amp; Fechar</span>
+            </button>
           </div>
         )}
       </div>

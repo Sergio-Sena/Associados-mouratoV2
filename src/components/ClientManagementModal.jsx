@@ -414,6 +414,15 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
     }
   }, [isOpen, initialView]);
 
+  // Escuta novos leads recebidos em tempo real para sincronizar a lista
+  useEffect(() => {
+    const handleNewLeadEvent = () => {
+      fetchLeads();
+    };
+    window.addEventListener('mourato_new_lead_received', handleNewLeadEvent);
+    return () => window.removeEventListener('mourato_new_lead_received', handleNewLeadEvent);
+  }, []);
+
   // Helper interno de checagem contra exclusões definitivas
   const isRecordDeleted = (rec, deletedIds) => {
     if (!rec || !deletedIds || deletedIds.size === 0) return false;
@@ -510,19 +519,20 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
     let items = [];
     const approvedSet = getApprovedLeadsSet();
 
-    // 1. Tenta buscar da API remota da AWS ou do backend local
-    if (import.meta.env.VITE_API_URL) {
-      try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/leads`, {
-          headers: { 'x-admin-password': import.meta.env.VITE_ADMIN_PASSWORD || '@Jota1307' }
-        });
-        const contentType = res.headers.get('content-type') || '';
-        if (res.ok && contentType.includes('application/json')) {
-          items = await res.json();
-        }
-      } catch (e) {
-        console.warn('Leads API remota offline, tentando fallback:', e.message);
+    const apiUrl = import.meta.env.VITE_API_URL || 'https://0bwr64p3ie.execute-api.us-east-1.amazonaws.com/prod';
+    const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'admin2026';
+
+    // 1. Tenta buscar da API remota oficial da AWS (DynamoDB mourato-leads)
+    try {
+      const res = await fetch(`${apiUrl}/leads`, {
+        headers: { 'x-admin-password': adminPassword }
+      });
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
+        items = await res.json();
       }
+    } catch (e) {
+      console.warn('Leads API remota offline, tentando fallback:', e.message);
     }
 
     // 2. Fallback backend local se o remoto estiver vazio
@@ -536,13 +546,23 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
       } catch (err) {}
     }
 
-    // 3. Fallback localStorage
-    if (!items || items.length === 0) {
-      try {
-        const saved = JSON.parse(localStorage.getItem('mourato_leads_solicitacoes') || '[]');
-        if (Array.isArray(saved) && saved.length > 0) items = saved;
-      } catch (err) {}
-    }
+    // 3. Mescla com eventuais leads salvos no localStorage para integridade máxima
+    try {
+      const saved = JSON.parse(localStorage.getItem('mourato_leads_solicitacoes') || '[]');
+      if (Array.isArray(saved) && saved.length > 0) {
+        if (!items || items.length === 0) {
+          items = saved;
+        } else {
+          const existingIds = new Set(items.map(it => String(it.id)));
+          saved.forEach(s => {
+            if (s && s.id && !existingIds.has(String(s.id))) {
+              items.push(s);
+              existingIds.add(String(s.id));
+            }
+          });
+        }
+      }
+    } catch (err) {}
 
     // 4. Segrega: Leads Aprovados saem de Leads e entram em Clientes (com trava anti-respawn)
     const pendingLeads = [];
@@ -598,14 +618,15 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
     if (!window.confirm('Remover esta solicitação?')) return;
     const targetLead = leads.find(l => l.id === id);
 
-    if (import.meta.env.VITE_API_URL) {
-      try {
-        await fetch(`${import.meta.env.VITE_API_URL}/leads/${id}`, {
-          method: 'DELETE',
-          headers: { 'x-admin-password': import.meta.env.VITE_ADMIN_PASSWORD || '@Jota1307' }
-        });
-      } catch (e) {}
-    }
+    const apiUrl = import.meta.env.VITE_API_URL || 'https://0bwr64p3ie.execute-api.us-east-1.amazonaws.com/prod';
+    const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'admin2026';
+
+    try {
+      await fetch(`${apiUrl}/leads/${id}`, {
+        method: 'DELETE',
+        headers: { 'x-admin-password': adminPassword }
+      });
+    } catch (e) {}
     try {
       await fetch(`http://localhost:3000/api/leads/${id}`, { method: 'DELETE' });
     } catch (e) {}
@@ -821,28 +842,29 @@ Website: https://www.mouratoassociados.com.br`;
       });
     } catch (e) {}
 
-    if (import.meta.env.VITE_API_URL) {
+    const apiUrl = import.meta.env.VITE_API_URL || 'https://0bwr64p3ie.execute-api.us-east-1.amazonaws.com/prod';
+    const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'admin2026';
+
+    try {
+      await fetch(`${apiUrl}/leads/${id}`, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json', 
+          'x-admin-password': adminPassword 
+        },
+        body: JSON.stringify({ status: 'aprovado' })
+      });
+    } catch (e) {
       try {
-        await fetch(`${import.meta.env.VITE_API_URL}/leads/${id}`, {
-          method: 'PATCH',
+        await fetch(`${apiUrl}/leads/${id}`, {
+          method: 'POST',
           headers: { 
             'Content-Type': 'application/json', 
-            'x-admin-password': import.meta.env.VITE_ADMIN_PASSWORD || '@Jota1307' 
+            'x-admin-password': adminPassword 
           },
           body: JSON.stringify({ status: 'aprovado' })
         });
-      } catch (e) {
-        try {
-          await fetch(`${import.meta.env.VITE_API_URL}/leads/${id}`, {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json', 
-              'x-admin-password': import.meta.env.VITE_ADMIN_PASSWORD || '@Jota1307' 
-            },
-            body: JSON.stringify({ status: 'aprovado' })
-          });
-        } catch (_) {}
-      }
+      } catch (_) {}
     }
 
     // 11. Disparo imediato do e-mail oficial no Google Workspace ao aprovar
@@ -2471,12 +2493,12 @@ Website: https://www.mouratoassociados.com.br`;
                 <Sparkles size={16} color={activeView === 'leads' ? 'var(--gold-primary)' : '#64748B'} />
                 <span>Leads & Solicitações</span>
               </div>
-              {leads.filter(l => l.status === 'novo').length > 0 && (
+              {leads.length > 0 && (
                 <span style={{
                   fontSize: '0.68rem', padding: '0.1rem 0.45rem', borderRadius: '9999px',
                   background: 'rgba(197, 168, 105, 0.3)', color: 'var(--gold-light)', fontWeight: 700
                 }}>
-                  {leads.filter(l => l.status === 'novo').length}
+                  {leads.length}
                 </span>
               )}
             </button>
