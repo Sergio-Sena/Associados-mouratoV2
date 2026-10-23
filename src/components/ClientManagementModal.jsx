@@ -1257,7 +1257,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
 
   if (!isOpen) return null;
 
-  // Login Handler (Acesso Corporativo)
+  // Login Handler (Acesso Corporativo - Fluxo 100% Idêntico e Unificado para Qualquer Login)
   const handleLogin = (e) => {
     e.preventDefault();
     const userInput = authForm.user.trim().toLowerCase();
@@ -1267,6 +1267,24 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
     if (validUsers.includes(userInput) && validPass.includes(passInput)) {
       setIsAuthenticated(true);
       setAuthError('');
+      // Sincronização e Purga Imediata de Cache Legado ao Logar
+      try {
+        const deletedIds = getDeletedClientIds();
+        const saved = localStorage.getItem(STORAGE_CLIENTS_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            const filtered = parsed.filter(c => !deletedIds.has(c.id) && !deletedIds.has((c.documento || '').replace(/\D/g, '')));
+            setClients(filtered);
+            localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(filtered));
+          }
+        } else {
+          const baseInicial = TEIA_INITIAL_CLIENTS.filter(t => !deletedIds.has(t.id) && !deletedIds.has((t.documento || '').replace(/\D/g, '')));
+          setClients(baseInicial);
+          localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(baseInicial));
+        }
+      } catch (_) {}
+      fetchLeads();
     } else {
       setAuthError('Credenciais inválidas. Usuário ou senha incorretos.');
     }
@@ -1474,6 +1492,24 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
         showToast('🔄 Base Restaurada', 'Os clientes oficiais da base foram restaurados com sucesso.');
       } catch (err) {
         console.error('Erro ao restaurar base:', err);
+      }
+    }
+  };
+
+  // Limpeza de Memória Cache & Sincronização Unificada
+  const handleClearCacheAndSync = () => {
+    if (window.confirm('Deseja purgar a memória cache local e sincronizar a base oficial de clientes? Isso removerá resíduos temporários e deixará o painel 100% alinhado.')) {
+      try {
+        const deletedIds = getDeletedClientIds();
+        localStorage.removeItem('mourato_clients_records_v1');
+        localStorage.removeItem('mourato_clients_records');
+        const baseLimpa = TEIA_INITIAL_CLIENTS.filter(t => !deletedIds.has(t.id) && !deletedIds.has((t.documento || '').replace(/\D/g, '')));
+        localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(baseLimpa));
+        setClients(baseLimpa);
+        fetchLeads();
+        showToast('🧹 Cache Limpo!', 'Memória local purgada e base de clientes sincronizada com sucesso.');
+      } catch (err) {
+        console.error('Erro ao purgar cache:', err);
       }
     }
   };
@@ -1992,6 +2028,32 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
               Entrar no Painel
               <ArrowRight size={15} />
             </button>
+
+            <div style={{ marginTop: '0.85rem', textAlign: 'center' }}>
+              <button
+                type="button"
+                onClick={handleClearCacheAndSync}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#64748B',
+                  fontSize: '0.74rem',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  padding: '0.3rem 0.6rem',
+                  borderRadius: '4px',
+                  transition: 'color 0.2s'
+                }}
+                onMouseEnter={(e) => e.target.style.color = 'var(--gold-light)'}
+                onMouseLeave={(e) => e.target.style.color = '#64748B'}
+                title="Limpar memória em cache e carregar a base oficial unificada"
+              >
+                <RotateCcw size={13} />
+                Limpar Cache Local &amp; Sincronizar Base Oficial
+              </button>
+            </div>
           </form>
 
           <div style={{ marginTop: '1.75rem', borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: '1rem', textAlign: 'center', fontSize: '0.72rem', color: '#64748B' }}>
@@ -2789,6 +2851,29 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
                     >
                       <Download size={15} />
                       Baixar Todas Fichas (Robô)
+                    </button>
+
+                    <button 
+                      type="button"
+                      onClick={handleClearCacheAndSync}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.45rem',
+                        padding: '0.65rem 1rem',
+                        fontSize: '0.82rem',
+                        fontWeight: 600,
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'rgba(239, 68, 68, 0.12)',
+                        border: '1px solid rgba(239, 68, 68, 0.35)',
+                        color: '#FCA5A5',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                      title="Limpar memória cache local do navegador e sincronizar os clientes reais"
+                    >
+                      <RotateCcw size={14} />
+                      Limpar Cache &amp; Sincronizar
                     </button>
                   </div>
                 </div>
