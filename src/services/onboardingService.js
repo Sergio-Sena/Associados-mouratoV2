@@ -254,6 +254,102 @@ export async function submitOnboardingNative(payload) {
 }
 
 export const STORAGE_CLIENTS_KEY = 'mourato_clients_records_v2';
+export const STORAGE_USED_TOKENS_KEY = 'mourato_used_ficha_tokens';
+export const STORAGE_CLIENT_SEQUENCE_KEY = 'mourato_client_sequence_counter';
+
+/**
+ * Gera o próximo código sequencial de cliente (CLI-001, CLI-002, etc.)
+ */
+export function getNextClientSequence() {
+  try {
+    let currentSeq = 0;
+    if (typeof localStorage !== 'undefined') {
+      const rawClients = localStorage.getItem(STORAGE_CLIENTS_KEY);
+      if (rawClients) {
+        const parsed = JSON.parse(rawClients);
+        if (Array.isArray(parsed)) {
+          parsed.forEach(c => {
+            if (c.codigoCliente) {
+              const m = String(c.codigoCliente).match(/CLI-(\d+)/i);
+              if (m) {
+                const n = parseInt(m[1], 10);
+                if (n > currentSeq) currentSeq = n;
+              }
+            }
+          });
+          if (parsed.length > currentSeq) {
+            currentSeq = parsed.length;
+          }
+        }
+      }
+      const savedCounter = parseInt(localStorage.getItem(STORAGE_CLIENT_SEQUENCE_KEY) || '0', 10);
+      if (savedCounter > currentSeq) currentSeq = savedCounter;
+    }
+    const nextNum = currentSeq + 1;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(STORAGE_CLIENT_SEQUENCE_KEY, String(nextNum));
+    }
+    return `CLI-${String(nextNum).padStart(3, '0')}`;
+  } catch {
+    return `CLI-001`;
+  }
+}
+
+/**
+ * Marca o link e o token da Ficha como USADO / EXPIRADO permanentemente
+ */
+export function markFichaLinkAsUsed({ token, leadId, email, telefone, codigoCliente, protocolo, nome }) {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    const raw = localStorage.getItem(STORAGE_USED_TOKENS_KEY);
+    const map = raw ? JSON.parse(raw) : {};
+    const info = {
+      codigoCliente: codigoCliente || 'CLI-001',
+      protocolo: protocolo || `MA-${Date.now()}`,
+      nome: nome || 'Cliente',
+      usadoEm: new Date().toISOString(),
+      invalido: true
+    };
+    if (token) map[String(token).trim()] = info;
+    if (leadId) map[String(leadId).trim()] = info;
+    const cleanPhone = (telefone || '').replace(/\D/g, '');
+    const cleanEmail = (email || '').toLowerCase().trim();
+    if (cleanPhone && cleanPhone.length >= 10 && cleanPhone !== '11978990034') {
+      map[`phone_${cleanPhone}`] = info;
+    }
+    if (cleanEmail && !cleanEmail.includes('mouratoassociados')) {
+      map[`email_${cleanEmail}`] = info;
+    }
+    localStorage.setItem(STORAGE_USED_TOKENS_KEY, JSON.stringify(map));
+  } catch (e) {
+    console.error('Erro ao registrar link utilizado:', e);
+  }
+}
+
+/**
+ * Checa se o link da ficha já foi utilizado e deve ser considerado INVÁLIDO
+ */
+export function checkFichaLinkIsUsed({ token, leadId, email, telefone }) {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_USED_TOKENS_KEY);
+    if (!raw) return null;
+    const map = JSON.parse(raw);
+    if (token && map[String(token).trim()]) return map[String(token).trim()];
+    if (leadId && map[String(leadId).trim()]) return map[String(leadId).trim()];
+    const cleanPhone = (telefone || '').replace(/\D/g, '');
+    const cleanEmail = (email || '').toLowerCase().trim();
+    if (cleanPhone && cleanPhone.length >= 10 && map[`phone_${cleanPhone}`]) {
+      return map[`phone_${cleanPhone}`];
+    }
+    if (cleanEmail && map[`email_${cleanEmail}`]) {
+      return map[`email_${cleanEmail}`];
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Lê arquivo e converte para Data URL (Base64)
@@ -286,8 +382,11 @@ export function saveClientToOfficialSite(payload, protocolo) {
       ? maskCNPJ(payload.empresa.cnpj) 
       : maskCPF(payload.titular?.cpf || '');
 
+    const codigoCliente = payload.codigoCliente || getNextClientSequence();
+
     const newRecord = {
       id: `cli-lead-${Date.now()}`,
+      codigoCliente: codigoCliente,
       tipo: isPj ? 'PJ' : 'PF',
       nomeRazao: isPj ? payload.empresa.razao_social : (payload.titular?.nome || 'Cliente'),
       documento: docFormatted,
@@ -335,6 +434,17 @@ export function saveClientToOfficialSite(payload, protocolo) {
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(updated));
       localStorage.setItem('mourato_active_bureau_client_id', newRecord.id);
+
+      // Marca o link/token como permanentemente utilizado
+      markFichaLinkAsUsed({
+        token: payload.token,
+        leadId: payload.leadId || payload.id,
+        email: payload.contato?.email,
+        telefone: payload.contato?.celular,
+        codigoCliente: codigoCliente,
+        protocolo: protocolo || payload.protocolo,
+        nome: isPj ? payload.empresa.razao_social : (payload.titular?.nome || 'Cliente')
+      });
 
       // Inicializa estrutura no Birô de Crédito para pesquisa e alimentação imediata do colaborador
       try {

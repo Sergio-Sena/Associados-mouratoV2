@@ -57,6 +57,7 @@ import {
 } from 'lucide-react';
 import { createPixCharge, createCheckoutProPreference, validateAntifraudPayer } from '../services/mercadoPagoService';
 import { TEIA_INITIAL_CLIENTS } from '../data/teiaDatabase';
+import { getNextClientSequence } from '../services/onboardingService';
 
 const STORAGE_CLIENTS_KEY = 'mourato_clients_records_v2';
 const STORAGE_DELETED_CLIENTS_KEY = 'mourato_deleted_clients_v2';
@@ -169,11 +170,13 @@ const convertLeadToClientRecord = (lead, linkFicha = '') => {
   const leadId = String(lead.id || Date.now());
 
   const baseUrl = typeof window !== 'undefined' ? (window.location.origin || 'https://www.mouratoassociados.com.br') : 'https://www.mouratoassociados.com.br';
-  const calculatedLink = linkFicha || `${baseUrl}/ficha-cadastral?nome=${encodeURIComponent(lead.nome || '')}&empresa=${encodeURIComponent(lead.empresa || '')}&telefone=${encodeURIComponent(lead.telefone || '')}&email=${encodeURIComponent(lead.email || '')}&origem=audiencia_aprovada`;
+  const leadToken = lead.token || lead.id || `tok-${leadId}`;
+  const calculatedLink = linkFicha || `${baseUrl}/ficha-cadastral?nome=${encodeURIComponent(lead.nome || '')}&empresa=${encodeURIComponent(lead.empresa || '')}&telefone=${encodeURIComponent(lead.telefone || '')}&email=${encodeURIComponent(lead.email || '')}&token=${encodeURIComponent(leadToken)}&leadId=${encodeURIComponent(leadId)}&origem=audiencia_aprovada`;
 
   return {
     id: `cli-lead-${leadId}`,
     leadOriginId: leadId,
+    codigoCliente: lead.codigoCliente || getNextClientSequence(),
     tipo: isPj ? 'PJ' : 'PF',
     nomeRazao: (lead.empresa || lead.nome || 'Novo Cliente').toUpperCase(),
     documento: cleanDoc,
@@ -723,9 +726,10 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
     // 1. Marca imediatamente como aprovado na trava local com chaves múltiplas
     markLeadAsApprovedLocally(id, targetLead);
 
-    // 2. Monta o link oficial da Ficha Cadastral com os dados preenchidos
+    // 2. Monta o link oficial da Ficha Cadastral com os dados preenchidos e token de uso único
     const baseUrl = window.location.origin || 'https://www.mouratoassociados.com.br';
-    const linkFicha = `${baseUrl}/ficha-cadastral?nome=${encodeURIComponent(targetLead.nome || '')}&empresa=${encodeURIComponent(targetLead.empresa || '')}&telefone=${encodeURIComponent(targetLead.telefone || '')}&email=${encodeURIComponent(targetLead.email || '')}&origem=audiencia_aprovada`;
+    const token = targetLead.id || `tok-${Date.now()}`;
+    const linkFicha = `${baseUrl}/ficha-cadastral?nome=${encodeURIComponent(targetLead.nome || '')}&empresa=${encodeURIComponent(targetLead.empresa || '')}&telefone=${encodeURIComponent(targetLead.telefone || '')}&email=${encodeURIComponent(targetLead.email || '')}&token=${encodeURIComponent(token)}&leadId=${encodeURIComponent(targetLead.id || '')}&origem=audiencia_aprovada`;
 
     // 3. Monta o texto oficial para WhatsApp com a Ficha Cadastral Oficial
     const wppMsg = `Olá, *${targetLead.nome || 'Cliente'}* (${targetLead.empresa || 'Empresa'})!\n\nSua solicitação de assessoria na *Mourato & Associados* foi *APROVADA* com sucesso pela diretoria pericial.\n\nPara darmos início imediato à sua auditoria de crédito e calibragem de rating junto aos birôs oficiais (Banco Central SCR, Serasa, Boa Vista e Quod), por favor acesse sua Ficha Cadastral Oficial no link seguro abaixo:\n\n📋 *Acesse sua Ficha Cadastral:* ${linkFicha}\n\n_Mourato & Associados Ltda — CNPJ: 38.377.738/0001-45_\nAtendimento Oficial WhatsApp: (11) 97899-0034 | mourato@mouratoassociados.com.br`;
@@ -3001,28 +3005,28 @@ Website: https://www.mouratoassociados.com.br`;
                                 ✉️ E-mail
                               </button>
 
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const url = (window.location.origin || 'https://www.mouratoassociados.com.br') + '/ficha-cadastral?nome=' + encodeURIComponent(lead.nome) + '&empresa=' + encodeURIComponent(lead.empresa) + '&telefone=' + encodeURIComponent(lead.telefone) + '&email=' + encodeURIComponent(lead.email) + '&origem=audiencia_aprovada';
-                                  navigator.clipboard.writeText(url);
-                                  alert('Link oficial da Planilha/Ficha Cadastral copiado:\n\n' + url);
-                                }}
-                                className="btn-secondary-subtle"
-                                style={{ padding: '0.55rem', fontSize: '0.74rem', justifyContent: 'center' }}
-                              >
-                                📋 Copiar Link
-                              </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const url = (window.location.origin || 'https://www.mouratoassociados.com.br') + '/ficha-cadastral?nome=' + encodeURIComponent(lead.nome) + '&empresa=' + encodeURIComponent(lead.empresa) + '&telefone=' + encodeURIComponent(lead.telefone) + '&email=' + encodeURIComponent(lead.email) + '&token=' + encodeURIComponent(lead.id || 'tok-' + Date.now()) + '&leadId=' + encodeURIComponent(lead.id || '') + '&origem=audiencia_aprovada';
+                                    navigator.clipboard.writeText(url);
+                                    alert('Link oficial da Planilha/Ficha Cadastral copiado:\n\n' + url);
+                                  }}
+                                  className="btn-secondary-subtle"
+                                  style={{ padding: '0.55rem', fontSize: '0.74rem', justifyContent: 'center' }}
+                                >
+                                  📋 Copiar Link
+                                </button>
 
-                              <a
-                                href={'/ficha-cadastral?nome=' + encodeURIComponent(lead.nome) + '&empresa=' + encodeURIComponent(lead.empresa) + '&telefone=' + encodeURIComponent(lead.telefone) + '&email=' + encodeURIComponent(lead.email) + '&origem=audiencia_aprovada'}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="btn-secondary-subtle"
-                                style={{ padding: '0.55rem', fontSize: '0.74rem', justifyContent: 'center', textDecoration: 'none' }}
-                              >
-                                🔗 Abrir Ficha
-                              </a>
+                                <a
+                                  href={'/ficha-cadastral?nome=' + encodeURIComponent(lead.nome) + '&empresa=' + encodeURIComponent(lead.empresa) + '&telefone=' + encodeURIComponent(lead.telefone) + '&email=' + encodeURIComponent(lead.email) + '&token=' + encodeURIComponent(lead.id || 'tok-' + Date.now()) + '&leadId=' + encodeURIComponent(lead.id || '') + '&origem=audiencia_aprovada'}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="btn-secondary-subtle"
+                                  style={{ padding: '0.55rem', fontSize: '0.74rem', justifyContent: 'center', textDecoration: 'none' }}
+                                >
+                                  🔗 Abrir Ficha
+                                </a>
                             </div>
                           </div>
                         ) : (
@@ -3387,6 +3391,20 @@ Website: https://www.mouratoassociados.com.br`;
                                 PF • SÓCIO
                               </span>
                             )}
+
+                            {/* Código Sequencial do Cliente */}
+                            <span style={{ 
+                              fontSize: '0.68rem', 
+                              fontFamily: 'monospace',
+                              fontWeight: 800,
+                              padding: '0.15rem 0.5rem', 
+                              borderRadius: '4px', 
+                              background: 'rgba(197, 168, 105, 0.15)', 
+                              color: 'var(--gold-light)', 
+                              border: '1px solid rgba(197, 168, 105, 0.4)'
+                            }}>
+                              {client.codigoCliente || 'CLI-001'}
+                            </span>
 
                             <span style={{ 
                               fontSize: '0.68rem', 

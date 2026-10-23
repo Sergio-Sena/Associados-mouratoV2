@@ -22,6 +22,7 @@ import {
   maskCEP, 
   maskPhone,
   saveClientToOfficialSite,
+  checkFichaLinkIsUsed,
   readFileAsBase64,
   TEIA_IFRAME_URL
 } from '../services/onboardingService';
@@ -33,7 +34,9 @@ const getQueryParams = () => {
     nome: p.get('nome') || '',
     empresa: p.get('empresa') || '',
     telefone: p.get('telefone') || '',
-    email: p.get('email') || ''
+    email: p.get('email') || '',
+    token: p.get('token') || '',
+    leadId: p.get('leadId') || ''
   };
 };
 
@@ -57,6 +60,7 @@ export const FichaCadastralStandalone = ({ isFullPage = false, onClose = null })
   const [copiedLink, setCopiedLink] = useState(false);
   const leadParams = getQueryParams();
   const isDuplicate = checkDuplicate(leadParams.email, leadParams.telefone);
+  const usedLinkInfo = checkFichaLinkIsUsed(leadParams);
 
   // Escuta o evento oficial emitido pela Ficha ao concluir a submissão no iframe
   useEffect(() => {
@@ -90,6 +94,7 @@ export const FichaCadastralStandalone = ({ isFullPage = false, onClose = null })
         // 1. Salva automaticamente no banco de dados do site oficial (localStorage)
         const savedRecord = saveClientToOfficialSite(clientData, proto);
         const savedId = savedRecord ? savedRecord.id : `cli-lead-${Date.now()}`;
+        const clientCodigo = event.data.codigoCliente || event.data.cliente?.codigoCliente || savedRecord?.codigoCliente || '';
         if (typeof localStorage !== 'undefined') {
           localStorage.setItem('mourato_active_bureau_client_id', savedId);
         }
@@ -97,6 +102,7 @@ export const FichaCadastralStandalone = ({ isFullPage = false, onClose = null })
         // 2. Exibe tela de confirmação oficial com protocolo e opção de impressão
         setSubmissionSuccess({
           protocolo: proto,
+          codigoCliente: clientCodigo,
           cliente: clientName,
           cpf: clientDoc || clientData.titular?.cpf || '',
           totalCadastrados: event.data.totalCadastrados,
@@ -368,8 +374,22 @@ export const FichaCadastralStandalone = ({ isFullPage = false, onClose = null })
               margin: '0 auto 2rem',
               textAlign: 'left'
             }}>
-              <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--gold-light)', marginBottom: '0.4rem', fontWeight: 700 }}>
-                PROTOCOLO OFICIAL DE ATENDIMENTO
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.55rem', flexWrap: 'wrap' }}>
+                <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--gold-light)', fontWeight: 700 }}>
+                  PROTOCOLO OFICIAL DE ATENDIMENTO
+                </div>
+                <div style={{
+                  fontSize: '0.8rem',
+                  color: 'var(--gold-light)',
+                  fontFamily: 'monospace',
+                  fontWeight: 800,
+                  background: 'rgba(197, 168, 105, 0.15)',
+                  border: '1px solid rgba(197, 168, 105, 0.35)',
+                  padding: '2px 8px',
+                  borderRadius: '4px'
+                }}>
+                  CÓDIGO: {submissionSuccess.codigoCliente || submissionSuccess.payload?.codigoCliente || 'CLI-001'}
+                </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', background: '#0A0D14', padding: '0.85rem 1.15rem', borderRadius: '6px', border: '1px solid var(--border-subtle)' }}>
                 <code style={{ fontSize: '1.25rem', color: '#FFFFFF', letterSpacing: '0.08em', fontWeight: 700 }}>
@@ -463,8 +483,48 @@ export const FichaCadastralStandalone = ({ isFullPage = false, onClose = null })
           /* ================================================================ */
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
+            {/* BLOQUEIO DE LINK JÁ UTILIZADO / EXPIRADO */}
+            {usedLinkInfo && (
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.08)',
+                border: '1.5px solid rgba(239, 68, 68, 0.5)',
+                borderRadius: '12px',
+                padding: '1.5rem',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '1rem',
+                boxShadow: '0 0 30px rgba(239, 68, 68, 0.2)'
+              }}>
+                <ShieldCheck size={28} color="#EF4444" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ color: '#FCA5A5', fontWeight: 800, fontSize: '1rem', marginBottom: '0.35rem' }}>
+                    🔒 LINK CADASTRAL JÁ UTILIZADO (ACESSO ÚNICO EXPIRADO)
+                  </div>
+                  <p style={{ color: '#CBD5E1', fontSize: '0.86rem', margin: '0 0 0.75rem', lineHeight: 1.55 }}>
+                    Este link de cadastro foi concluído e registrado no sistema pericial da <strong>Mourato &amp; Associados</strong>. Para garantir sigilo bancário e conformidade estrita com a LGPD, o link foi invalidado automaticamente para evitar duplicidades.
+                  </p>
+                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.8rem', background: 'rgba(212, 175, 55, 0.15)', border: '1px solid rgba(212, 175, 55, 0.4)', color: 'var(--gold-light)', padding: '0.2rem 0.6rem', borderRadius: '4px', fontFamily: 'monospace', fontWeight: 700 }}>
+                      CÓDIGO: {usedLinkInfo.codigoCliente || 'CLI-001'}
+                    </span>
+                    <span style={{ fontSize: '0.8rem', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.3)', color: '#38BDF8', padding: '0.2rem 0.6rem', borderRadius: '4px', fontFamily: 'monospace', fontWeight: 700 }}>
+                      PROTOCOLO: {usedLinkInfo.protocolo || 'CONCLUÍDO'}
+                    </span>
+                    <a
+                      href={`https://wa.me/5511978990034?text=${encodeURIComponent(`Olá, sou o titular do cadastro ${usedLinkInfo.codigoCliente || 'CLI-001'} (Protocolo: ${usedLinkInfo.protocolo || ''}). Gostaria de informações sobre o andamento pericial.`)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ fontSize: '0.8rem', color: '#25D366', fontWeight: 700, textDecoration: 'none', marginLeft: 'auto' }}
+                    >
+                      💬 Falar com a Diretoria no WhatsApp &rarr;
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* BLOQUEIO DE CADASTRO DUPLICADO */}
-            {isDuplicate && (
+            {isDuplicate && !usedLinkInfo && (
               <div style={{
                 background: 'rgba(239, 68, 68, 0.08)',
                 border: '1px solid rgba(239, 68, 68, 0.4)',
@@ -516,6 +576,8 @@ export const FichaCadastralStandalone = ({ isFullPage = false, onClose = null })
                   if (leadParams.empresa) url.searchParams.set('empresa', leadParams.empresa);
                   if (leadParams.telefone) url.searchParams.set('telefone', leadParams.telefone);
                   if (leadParams.email) url.searchParams.set('email', leadParams.email);
+                  if (leadParams.token) url.searchParams.set('token', leadParams.token);
+                  if (leadParams.leadId) url.searchParams.set('leadId', leadParams.leadId);
                   return url.toString();
                 })()}
                 title="Ficha Cadastral Mourato & Associados"

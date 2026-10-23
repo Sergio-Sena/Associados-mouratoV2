@@ -411,22 +411,39 @@
       accent-color: var(--gold);
     }
 
-    /* Barra de Ações Flutuante / Rodapé */
+    /* Barra de Ações ao Final do Cadastro (Sem sobrepor campos no celular) */
     .bottom-actions-bar {
-      position: sticky;
-      bottom: 20px;
+      position: static;
+      margin-top: 28px;
+      margin-bottom: 40px;
       background: rgba(15, 23, 42, 0.95);
       backdrop-filter: blur(14px);
       border: 1px solid rgba(212, 175, 55, 0.4);
       border-radius: 14px;
-      padding: 16px 24px;
+      padding: 20px 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       flex-wrap: wrap;
-      gap: 14px;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
-      z-index: 100;
+      gap: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    @media (max-width: 640px) {
+      .bottom-actions-bar {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+        padding: 18px 16px;
+      }
+      .bottom-actions-bar > div:last-child {
+        flex-direction: column;
+        width: 100%;
+        gap: 10px;
+      }
+      .bottom-actions-bar button {
+        width: 100%;
+      }
     }
 
     .status-msg {
@@ -1390,8 +1407,13 @@
     <div class="confirm-modal-card" style="max-width: 540px; text-align: center;">
       <div style="font-size: 3.2rem; margin-bottom: 12px;">✅</div>
       <h2 style="font-size: 1.35rem; color: #fff; margin-bottom: 6px;">FICHA TRANSMITIDA COM SUCESSO!</h2>
-      <div style="font-size: 0.88rem; color: var(--gold); font-weight: 700; margin-bottom: 14px; font-family: 'JetBrains Mono', monospace;" id="sucesso-protocolo">
-        PROTOCOLO: MA-20261015-0000
+      <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap;">
+        <span style="font-size: 0.88rem; color: var(--gold); font-weight: 700; font-family: 'JetBrains Mono', monospace; background: rgba(212, 175, 55, 0.12); padding: 4px 12px; border-radius: 6px; border: 1px solid rgba(212, 175, 55, 0.3);" id="sucesso-codigo">
+          CÓDIGO: CLI-001
+        </span>
+        <span style="font-size: 0.88rem; color: #38bdf8; font-weight: 700; font-family: 'JetBrains Mono', monospace; background: rgba(56, 189, 248, 0.12); padding: 4px 12px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.3);" id="sucesso-protocolo">
+          PROTOCOLO: MA-20261015-0000
+        </span>
       </div>
       <p style="font-size: 0.86rem; color: #cbd5e1; line-height: 1.6; margin-bottom: 22px;">
         Suas informações cadastrais e documentos foram transmitidos com segurança e criptografia para a <strong>Mourato &amp; Associados</strong>, amparados por rigoroso sigilo sob termo de confidencialidade (NDA) e LGPD.<br><br>
@@ -1415,7 +1437,142 @@
     </div>
   </div>
 
+  <!-- Modal de Link Cadastral Já Utilizado / Inválido (Uso Único Expirado) -->
+  <div id="modal-link-invalido" class="modal-overlay">
+    <div class="confirm-modal-card" style="max-width: 560px; text-align: center; border: 1.5px solid #ef4444; box-shadow: 0 0 45px rgba(239, 68, 68, 0.35);">
+      <div style="font-size: 3.2rem; margin-bottom: 12px;">🔒</div>
+      <span style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: #fca5a5; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); padding: 4px 12px; border-radius: 20px; font-weight: 700; display: inline-block; margin-bottom: 12px;">
+        ACESSO EXPIRADO • SEGURANÇA BANCÁRIA &amp; LGPD
+      </span>
+      <h2 style="font-size: 1.35rem; color: #fff; margin-bottom: 8px;">LINK CADASTRAL JÁ UTILIZADO</h2>
+      <p style="font-size: 0.85rem; color: #cbd5e1; line-height: 1.6; margin-bottom: 20px;">
+        Este link exclusivo de transmissão é de <strong>uso único</strong> e já foi concluído e registrado no sistema pericial da <strong>Mourato &amp; Associados</strong>. Por rígidas diretrizes de sigilo financeiro e proteção de dados, o acesso foi permanentemente invalidado para prevenir duplicidade de informações.
+      </p>
+
+      <div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 10px; padding: 16px; margin-bottom: 22px; text-align: left;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding-bottom: 8px;">
+          <span style="font-size: 0.75rem; color: #94a3b8;">CÓDIGO DO CLIENTE:</span>
+          <span id="link-invalido-codigo" style="font-size: 0.95rem; font-weight: 800; color: var(--gold); font-family: 'JetBrains Mono', monospace;">CLI-001</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding-bottom: 8px;">
+          <span style="font-size: 0.75rem; color: #94a3b8;">PROTOCOLO REGISTRADO:</span>
+          <span id="link-invalido-protocolo" style="font-size: 0.85rem; font-weight: 700; color: #38bdf8; font-family: 'JetBrains Mono', monospace;">MA-20261015-0000</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 0.75rem; color: #94a3b8;">STATUS DA ESTEIRA:</span>
+          <span style="font-size: 0.75rem; font-weight: 700; color: #34d399;">✓ TRANSMISSÃO HOMOLOGADA</span>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+        <a id="btn-wpp-link-invalido" href="https://wa.me/5511978990034" target="_blank" class="btn btn-gold" style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px;">
+          💬 Contatar Diretoria no WhatsApp
+        </a>
+        <a href="/" target="_top" class="btn btn-secondary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px;">
+          🌐 Portal Mourato &amp; Associados
+        </a>
+      </div>
+    </div>
+  </div>
+
   <script>
+    /* =========================================================================
+       SISTEMA DE SEQUÊNCIA DE CADASTRO E INVALIDAÇÃO DE LINK DE USO ÚNICO
+       ========================================================================= */
+    function obterProximoCodigoClienteLocal() {
+      try {
+        let nextNum = 1;
+        const seqCounter = parseInt(localStorage.getItem('mourato_client_sequence_counter') || '0', 10);
+        if (!isNaN(seqCounter) && seqCounter > 0) {
+          nextNum = seqCounter + 1;
+        }
+        const saved = localStorage.getItem('mourato_clients_records_v2');
+        if (saved) {
+          const list = JSON.parse(saved);
+          if (Array.isArray(list)) {
+            list.forEach(c => {
+              const cod = c.codigoCliente || '';
+              const match = cod.match(/CLI-(\d+)/i);
+              if (match && match[1]) {
+                const num = parseInt(match[1], 10);
+                if (!isNaN(num) && num >= nextNum) {
+                  nextNum = num + 1;
+                }
+              }
+            });
+          }
+        }
+        localStorage.setItem('mourato_client_sequence_counter', String(nextNum));
+        return `CLI-${String(nextNum).padStart(3, '0')}`;
+      } catch (e) {
+        return 'CLI-001';
+      }
+    }
+
+    function checarLinkUtilizadoLocal(params) {
+      try {
+        const rawTokens = localStorage.getItem('mourato_used_ficha_tokens');
+        if (!rawTokens) return null;
+        const list = JSON.parse(rawTokens);
+        if (!Array.isArray(list)) return null;
+
+        const token = (params.token || '').trim();
+        const leadId = (params.leadId || '').trim();
+        const email = (params.email || '').toLowerCase().trim();
+        const tel = (params.telefone || '').replace(/\D/g, '');
+
+        return list.find(item => {
+          if (token && item.token && item.token === token) return true;
+          if (leadId && item.leadId && item.leadId === leadId) return true;
+          if (email && item.email && item.email === email) return true;
+          if (tel && tel.length >= 10 && item.telefone && item.telefone === tel) return true;
+          return false;
+        }) || null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function registrarLinkUtilizadoLocal(entry) {
+      try {
+        const rawTokens = localStorage.getItem('mourato_used_ficha_tokens');
+        let list = [];
+        if (rawTokens) {
+          list = JSON.parse(rawTokens);
+          if (!Array.isArray(list)) list = [];
+        }
+        list.push({
+          ...entry,
+          dataHora: new Date().toISOString()
+        });
+        localStorage.setItem('mourato_used_ficha_tokens', JSON.stringify(list));
+      } catch (e) {
+        console.error('Erro ao registrar link utilizado:', e);
+      }
+    }
+
+    function exibirTelaLinkInvalido(usedInfo) {
+      const modal = document.getElementById('modal-link-invalido');
+      if (!modal) return;
+      const codEl = document.getElementById('link-invalido-codigo');
+      const protoEl = document.getElementById('link-invalido-protocolo');
+      const wppBtn = document.getElementById('btn-wpp-link-invalido');
+
+      if (codEl) codEl.textContent = usedInfo.codigoCliente || 'CLI-001';
+      if (protoEl) protoEl.textContent = usedInfo.protocolo || 'MA-CONCLUÍDO';
+      if (wppBtn) {
+        const msg = encodeURIComponent(`Olá, sou o titular do cadastro ${usedInfo.codigoCliente || 'CLI-001'} (Protocolo: ${usedInfo.protocolo || ''}). Gostaria de informações sobre o andamento pericial.`);
+        wppBtn.href = `https://wa.me/5511978990034?text=${msg}`;
+      }
+
+      modal.classList.add('active');
+      // Desativa formulário e botões para impedir reenvio
+      const form = document.getElementById('form-onboarding');
+      if (form) {
+        form.querySelectorAll('input, select, textarea, button').forEach(el => el.disabled = true);
+      }
+    }
+
     // Função para controlar a liberação do botão de envio através do aceite do termo
     function atualizarStatusBotaoEnvio() {
       const chk = document.getElementById('aceite-termo-lgpd');
@@ -1445,6 +1602,19 @@
       const urlParams = new URLSearchParams(window.location.search);
       const isOperador = urlParams.get('admin') === '1' || urlParams.get('operador') === '1';
       const queryParam = urlParams.get('cpf') || urlParams.get('query') || urlParams.get('client');
+
+      // Verificação de Link de Uso Único Expirado (se já preencheu anteriormente)
+      if (!isOperador) {
+        const leadToken = urlParams.get('token') || '';
+        const leadId = urlParams.get('leadId') || '';
+        const leadEmail = urlParams.get('email') || '';
+        const leadTelefone = urlParams.get('telefone') || '';
+        const linkJaUsado = checarLinkUtilizadoLocal({ token: leadToken, leadId: leadId, email: leadEmail, telefone: leadTelefone });
+        if (linkJaUsado) {
+          exibirTelaLinkInvalido(linkJaUsado);
+          return;
+        }
+      }
 
       // Se não for operador consultando um cliente existente, garante formulário 100% limpo
       if (!isOperador && !queryParam) {
@@ -2075,10 +2245,15 @@
         btnModal.disabled = true;
       }
 
+      // Gera código sequencial oficial do cliente (CLI-001, CLI-002...)
+      const codigoCliente = obterProximoCodigoClienteLocal();
+
       // Gera código de protocolo formal
       const dataHoje = new Date().toISOString().slice(0, 10).replace(/-/g, '');
       const randomSuf = Math.floor(1000 + Math.random() * 9000);
       const protocolo = `MA-${dataHoje}-${randomSuf}`;
+
+      payloadParaTransmitir.codigoCliente = codigoCliente;
 
       try {
         await fetch('/api/clients/onboarding', {
@@ -2092,6 +2267,7 @@
 
       // Armazena cópia auditável com metadados de blindagem jurídica e consentimento LGPD
       const fichaFinalBlindada = {
+        codigoCliente: codigoCliente,
         protocolo: protocolo,
         dataHoraTransmissao: new Date().toISOString(),
         origem: 'www.mouratoassociados.com.br/ficha-cadastral',
@@ -2106,7 +2282,21 @@
       };
       window.__ultimoPayloadTransmitido = fichaFinalBlindada;
 
+      // Invalida o link de transmissão imediatamente (Uso Único)
+      const urlParams = new URLSearchParams(window.location.search);
+      registrarLinkUtilizadoLocal({
+        token: urlParams.get('token') || '',
+        leadId: urlParams.get('leadId') || '',
+        email: (payloadParaTransmitir.contato ? payloadParaTransmitir.contato.email : urlParams.get('email') || '').toLowerCase().trim(),
+        telefone: (payloadParaTransmitir.contato ? payloadParaTransmitir.contato.celular : urlParams.get('telefone') || '').replace(/\D/g, ''),
+        codigoCliente: codigoCliente,
+        protocolo: protocolo,
+        nome: payloadParaTransmitir.titular ? payloadParaTransmitir.titular.nome : ''
+      });
+
       fecharModalConfirmacao();
+      const elCodigo = document.getElementById('sucesso-codigo');
+      if (elCodigo) elCodigo.textContent = `CÓDIGO: ${codigoCliente}`;
       document.getElementById('sucesso-protocolo').textContent = `PROTOCOLO OFICIAL: ${protocolo}`;
       document.getElementById('modal-sucesso').classList.add('active');
 
@@ -2115,8 +2305,10 @@
         window.parent.postMessage({
           type: 'MOURATO_FICHA_ONBOARDING_SUCESSO',
           protocolo: protocolo,
+          codigoCliente: codigoCliente,
           payload: fichaFinalBlindada,
           cliente: {
+            codigoCliente: codigoCliente,
             nome: payloadParaTransmitir.titular ? payloadParaTransmitir.titular.nome : 'Cliente',
             cpf: payloadParaTransmitir.titular ? payloadParaTransmitir.titular.cpf : '',
             email: payloadParaTransmitir.contato ? payloadParaTransmitir.contato.email : '',
@@ -2125,7 +2317,7 @@
         }, '*');
       }
 
-      showToast('Ficha Concluída!', `Protocolo ${protocolo} gerado com sucesso!`, 'success');
+      showToast('Ficha Concluída!', `Cliente ${codigoCliente} cadastrado com sucesso!`, 'success');
 
       if (btnModal) {
         btnModal.innerHTML = 'Confirmar e Transmitir Ficha';
@@ -2147,6 +2339,7 @@
         gerado_em: raw.dataHoraTransmissao || new Date().toISOString(),
         origem_coleta: "Portal Oficial Mourato & Associados (Produção)",
         status_esteira: "NOVO",
+        codigo_cliente: raw.codigoCliente || 'CLI-001',
         protocolo_atendimento: raw.protocolo || `MA-${Date.now()}`,
 
         // 1. IDENTIFICAÇÃO PESSOAL
