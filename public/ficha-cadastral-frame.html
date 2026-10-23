@@ -1218,20 +1218,26 @@
 
         </div>
 
-        <!-- Termo de Consentimento & Autorização Legal (Inicia DESMARCADO - OBRIGATÓRIO TICAR PARA LIBERAR ENVIO) -->
-        <div class="termo-consentimento-box" id="box-termo-consentimento" style="transition: border-color 0.3s ease;">
-          <strong style="color: var(--gold); display: block; margin-bottom: 6px;">TERMO DE AUTORIZAÇÃO PERICIAL & CONSENTIMENTO (LGPD & CDC ART. 43):</strong>
-          Ao preencher e enviar a presente ficha, o Titular qualificado declara, sob as penas da lei, a veracidade de todas as informações prestadas e outorga expressos poderes à <strong>Mourato & Associados</strong> para, em seu nome e benefício:
-          1) Realizar a extração e auditoria pericial dos relatórios de crédito nos birôs oficiais (Serasa, Boa Vista, Quod e SCR/Bacen);
-          2) Notificar extrajudicialmente credores e órgãos gestores de bancos de dados para cumprimento do Art. 43, § 3º e § 5º do Código de Defesa do Consumidor (exclusão de consultas indevidas, baixas de dívidas prescritas e retificação de dados);
-          3) Estruturar e direcionar o dossiê cadastral pericial para reativação do rating de crédito e alavancagem financeira.
+        <!-- Termo de Consentimento, Contratação & Isenção Legal Blindada (Inicia DESMARCADO - OBRIGATÓRIO TICAR PARA LIBERAR ENVIO) -->
+        <div class="termo-consentimento-box" id="box-termo-consentimento" style="transition: border-color 0.3s ease; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(212, 175, 55, 0.4); border-radius: 12px; padding: 18px; margin-top: 24px;">
+          <strong style="color: var(--gold); display: block; margin-bottom: 8px; font-size: 0.92rem; letter-spacing: 0.5px;">
+            TERMO DE ADESÃO, MANDATO PERICIAL &amp; CONSENTIMENTO LGPD (LEI FEDERAL Nº 13.709/2018):
+          </strong>
+          <div style="font-size: 0.78rem; color: #cbd5e1; line-height: 1.6; max-height: 180px; overflow-y: auto; padding-right: 8px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 12px;">
+            <p style="margin-bottom: 8px;"><strong>1. CONTRATAÇÃO VOLUNTÁRIA:</strong> Ao preencher e transmitir a presente Ficha Cadastral, o Titular qualificado declara expressamente, sob as penas civis e criminais da lei, que buscou e contratou a assessoria técnica e financeira da <strong>Mourato &amp; Associados Ltda</strong> (CNPJ 38.377.738/0001-45) por sua exclusiva e livre iniciativa, visando à prestação de serviços de perícia econômico-financeira, auditoria cadastral e calibragem de rating de crédito.</p>
+            <p style="margin-bottom: 8px;"><strong>2. CONSENTIMENTO ESPECÍFICO LGPD (ART. 7º, I E ART. 8º):</strong> O Titular autoriza expressa e irrevogavelmente a Mourato &amp; Associados a coletar, tratar, armazenar e auditar seus dados cadastrais, financeiros e bancários perante os birôs oficiais (Serasa, Boa Vista, Quod, Banco Central do Brasil - SCR/CCS, Receita Federal e Cartórios de Protesto), exclusivamente para a elaboração do dossiê pericial contratado.</p>
+            <p style="margin-bottom: 8px;"><strong>3. FORNECIMENTO VOLUNTÁRIO DE SENHAS &amp; ISENÇÃO DE RESPONSABILIDADE:</strong> O Titular declara expressamente que quaisquer senhas, credenciais de birôs ou certificados digitais fornecidos foram disponibilizados de forma estritamente voluntária e sob sua exclusiva responsabilidade, ciente de que destinam-se unicamente à viabilização das consultas técnicas pertinentes, isentando expressamente a Mourato &amp; Associados de qualquer responsabilidade por atos praticados estritamente nos limites deste mandato pericial.</p>
+            <p style="margin-bottom: 0;"><strong>4. NATUREZA DA OBRIGAÇÃO (OBRIGAÇÃO DE MEIO):</strong> O Contratante declara plena ciência de que os serviços contratados constituem obrigação de meio e auditoria técnica cadastral, inexistindo qualquer garantia ou promessa de deferimento compulsório de crédito ou financiamento, decisões estas privativas e discricionárias das instituições financeiras e credoras de mercado.</p>
+          </div>
           
-          <label class="checkbox-wrap" style="margin-top: 12px; cursor: pointer;">
-            <input type="checkbox" id="aceite-termo-lgpd" onchange="atualizarStatusBotaoEnvio()">
-            <span><strong>Declaro que li, concordo e autorizo</strong> o início dos trabalhos periciais e operacionais pela Mourato & Associados com base nas informações prestadas.</span>
+          <label class="checkbox-wrap" style="cursor: pointer; display: flex; align-items: flex-start; gap: 10px;">
+            <input type="checkbox" id="aceite-termo-lgpd" onchange="atualizarStatusBotaoEnvio()" style="margin-top: 3px;">
+            <span style="font-size: 0.82rem; color: #fff;">
+              <strong>Declaro que li, compreendi integralmente e concordo</strong> com todos os termos da contratação, consentimento LGPD e isenção de responsabilidade, autorizando o início imediato dos trabalhos periciais pela Mourato &amp; Associados com base nas informações prestadas.
+            </span>
           </label>
-          <div id="termo-aviso-obrigatorio" style="font-size: 0.74rem; color: #f59e0b; margin-top: 6px; font-weight: 600;">
-            ⚠️ Você precisa marcar o campo acima para liberar o botão de envio.
+          <div id="termo-aviso-obrigatorio" style="font-size: 0.74rem; color: #f59e0b; margin-top: 8px; font-weight: 600;">
+            ⚠️ O aceite formal dos termos contratuais e LGPD é obrigatório para liberar o envio da ficha.
           </div>
         </div>
 
@@ -1388,6 +1394,9 @@
         Nossa diretoria executiva e equipe técnica entrarão em contato através do WhatsApp/E-mail informados para coordenar os próximos passos.
       </p>
       <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+        <button type="button" onclick="baixarCopiaFichaCliente()" class="btn btn-secondary" style="border: 1px solid #38bdf8; color: #38bdf8; display: inline-flex; align-items: center; gap: 6px;" title="Baixar arquivo da ficha em JSON">
+          📥 Baixar Minha Ficha (JSON)
+        </button>
         <button type="button" onclick="window.print()" class="btn btn-secondary" style="border: 1px solid var(--gold); color: var(--gold);" title="Salvar comprovante em PDF ou Imprimir">
           🖨️ Imprimir Comprovante
         </button>
@@ -2077,6 +2086,22 @@
         console.warn('Backend local não acessível na nuvem estática, prosseguindo com armazenamento seguro e protocolo oficial:', err);
       }
 
+      // Armazena cópia auditável com metadados de blindagem jurídica e consentimento LGPD
+      const fichaFinalBlindada = {
+        protocolo: protocolo,
+        dataHoraTransmissao: new Date().toISOString(),
+        origem: 'www.mouratoassociados.com.br/ficha-cadastral',
+        termoConsentimentoLegal: {
+          versao: '2.0-LEGAL-BLINDADO',
+          declaracaoVoluntaria: true,
+          autorizacaoPericial: true,
+          isencaoResponsabilidade: true,
+          aceiteEm: new Date().toISOString()
+        },
+        ...payloadParaTransmitir
+      };
+      window.__ultimoPayloadTransmitido = fichaFinalBlindada;
+
       fecharModalConfirmacao();
       document.getElementById('sucesso-protocolo').textContent = `PROTOCOLO OFICIAL: ${protocolo}`;
       document.getElementById('modal-sucesso').classList.add('active');
@@ -2086,7 +2111,7 @@
         window.parent.postMessage({
           type: 'MOURATO_FICHA_ONBOARDING_SUCESSO',
           protocolo: protocolo,
-          payload: payloadParaTransmitir,
+          payload: fichaFinalBlindada,
           cliente: {
             nome: payloadParaTransmitir.titular ? payloadParaTransmitir.titular.nome : 'Cliente',
             cpf: payloadParaTransmitir.titular ? payloadParaTransmitir.titular.cpf : '',
@@ -2102,6 +2127,26 @@
         btnModal.innerHTML = 'Confirmar e Transmitir Ficha';
         btnModal.disabled = false;
       }
+    }
+
+    function baixarCopiaFichaCliente() {
+      const data = window.__ultimoPayloadTransmitido || payloadParaTransmitir;
+      if (!data) {
+        showToast('Aviso', 'Nenhum dado localizado para download.', 'warning');
+        return;
+      }
+      const jsonStr = JSON.stringify(data, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const nomeTitular = (data.titular?.nome || data.cliente?.nome || 'CLIENTE').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+      const docTitular = (data.titular?.cpf || data.cliente?.cpf || 'DOC').replace(/\D/g, '');
+      a.href = url;
+      a.download = `FICHA_CADASTRAL_${nomeTitular}_${docTitular}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     }
 
     function showToast(titulo, msg, tipo = 'success') {
