@@ -634,9 +634,89 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
       ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(wppMsg)}`
       : `https://api.whatsapp.com/send?text=${encodeURIComponent(wppMsg)}`;
 
-    // 4. Monta o e-mail oficial para Google Workspace (Gmail Web) com remetente mourato@mouratoassociados.com.br
+    // 4. Monta o e-mail oficial para Google Workspace com cabeçalho institucional, autolink e suporte exclusivo por telefone
     const emailSubject = `[Mourato & Associados] Solicitação Aprovada — Link da sua Planilha / Ficha Cadastral`;
-    const emailBody = `Prezado(a) ${targetLead.nome || 'Cliente'} (${targetLead.empresa || 'Empresa'}),\n\nÉ com satisfação que informamos que sua solicitação de assessoria corporativa foi APROVADA por nossa Diretoria.\n\nPara procedermos com a abertura de prontuário e auditoria pericial de crédito perante o Banco Central do Brasil (SCR) e birôs oficiais, solicitamos o preenchimento da sua Planilha Cadastral Oficial no link abaixo:\n\n📊 *Acesse sua Planilha / Ficha Cadastral:*\n${linkFicha}\n\n(O fornecimento de senhas de birôs é estritamente opcional e todas as informações estão sob sigilo pericial, Termo de Confidencialidade e LGPD).\n\nAtenciosamente,\n\nJosé Jailson Mourato da Silva\nMourato & Associados — Governança e Inteligência Financeira\nAv. São Luís, 187, Sala 69 A - República, São Paulo/SP\nTelefone / WhatsApp: (11) 97899-0034 | E-mail: mourato@mouratoassociados.com.br\nwww.mouratoassociados.com.br`;
+    
+    // Texto formatado para o corpo do Google Workspace / Mailto
+    const emailBody = `MOURATO & ASSOCIADOS — GOVERNANÇA E INTELIGÊNCIA FINANCEIRA
+Assessoria Corporativa & Auditoria Pericial de Crédito
+
+Prezado(a) ${targetLead.nome || 'Cliente'} (${targetLead.empresa || 'Empresa'}),
+
+É com satisfação que informamos que sua solicitação de assessoria corporativa foi formalmente APROVADA pela Diretoria Pericial da Mourato & Associados.
+
+Para darmos início imediato à auditoria de crédito e calibragem de rating junto aos birôs oficiais (Banco Central SCR, Serasa, Boa Vista e Quod), por favor acesse e preencha sua Planilha Cadastral Oficial no link abaixo:
+
+🔗 ACESSE SUA PLANILHA / FICHA CADASTRAL OFICIAL (CLIQUE NO LINK):
+${linkFicha}
+
+(Informamos que o preenchimento de senhas de birôs é estritamente voluntário e todas as informações estão sob sigilo pericial e amparo da LGPD).
+
+────────────────────────────────────────────────────────────────────
+⚠️ ATENÇÃO: ESTA É UMA MENSAGEM AUTOMÁTICA. FAVOR NÃO RESPONDER A ESTE E-MAIL.
+Todos os esclarecimentos, alinhamentos e agendamentos serão realizados
+exclusivamente via telefone oficial: (11) 97899-0034.
+────────────────────────────────────────────────────────────────────
+
+Atenciosamente,
+
+MOURATO & ASSOCIADOS LTDA
+Diretoria de Governança e Inteligência Pericial
+CNPJ: 38.377.738/0001-45 • São Paulo/SP
+Atendimento Telefônico Oficial: (11) 97899-0034
+Website: https://www.mouratoassociados.com.br`;
+
+    // HTML completo com Logo Oficial para cópia ou envio enriquecido
+    const emailHtml = `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #07090E; color: #FFFFFF; padding: 32px 24px; border-radius: 8px; max-width: 620px; margin: 0 auto; border: 1px solid rgba(197, 168, 105, 0.35);">
+  <div style="text-align: center; border-bottom: 1px solid rgba(197, 168, 105, 0.25); padding-bottom: 22px; margin-bottom: 24px;">
+    <img src="https://www.mouratoassociados.com.br/mourato-logo.png" alt="Mourato &amp; Associados" width="280" style="max-width: 100%; height: auto; display: block; margin: 0 auto 12px auto;" />
+    <div style="font-size: 11px; color: #C5A869; letter-spacing: 2.5px; text-transform: uppercase; font-weight: 600;">Governança, Inteligência Financeira &amp; Rating</div>
+  </div>
+
+  <p style="font-size: 15px; color: #F1F5F9; line-height: 1.6; margin: 0 0 16px 0;">
+    Prezado(a) <strong>${targetLead.nome || 'Cliente'}</strong> (${targetLead.empresa || 'Empresa'}),
+  </p>
+
+  <p style="font-size: 14px; color: #CBD5E1; line-height: 1.65; margin: 0 0 20px 0;">
+    É com satisfação que confirmamos que a sua solicitação de assessoria corporativa foi formalmente <strong>APROVADA</strong> pela Diretoria Pericial da <strong>Mourato &amp; Associados</strong>.
+  </p>
+
+  <div style="background: rgba(197, 168, 105, 0.08); border-left: 3px solid #C5A869; padding: 16px; margin: 20px 0; border-radius: 4px;">
+    <p style="margin: 0; font-size: 13px; color: #E2E8F0; line-height: 1.6;">
+      Para darmos início imediato à auditoria pericial e estruturação do dossiê de rating junto aos birôs oficiais (Banco Central SCR, Serasa, Boa Vista e Quod), solicitamos o preenchimento da sua Planilha Cadastral Oficial:
+    </p>
+  </div>
+
+  <div style="text-align: center; margin: 28px 0 14px 0;">
+    <a href="${linkFicha}" target="_blank" rel="noopener noreferrer" style="background: linear-gradient(135deg, #D4AF37 0%, #AA820A 100%); color: #07090E; text-decoration: none; padding: 15px 30px; border-radius: 6px; font-weight: 700; font-size: 14px; display: inline-block; box-shadow: 0 4px 16px rgba(212, 175, 55, 0.35); letter-spacing: 0.5px;">
+      📊 ACESSAR PLANILHA / FICHA CADASTRAL OFICIAL
+    </a>
+  </div>
+
+  <p style="font-size: 12px; color: #94A3B8; text-align: center; word-break: break-all; margin: 0 0 24px 0;">
+    Link direto autolink: <a href="${linkFicha}" target="_blank" rel="noopener noreferrer" style="color: #D4AF37; text-decoration: underline;">${linkFicha}</a>
+  </p>
+
+  <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 6px; padding: 14px 18px; margin: 24px 0; text-align: center;">
+    <p style="margin: 0; font-size: 12px; color: #FCA5A5; font-weight: 700; letter-spacing: 0.5px;">
+      ⚠️ MENSAGEM AUTOMÁTICA — FAVOR NÃO RESPONDER A ESTE E-MAIL
+    </p>
+    <p style="margin: 6px 0 0 0; font-size: 12px; color: #CBD5E1; line-height: 1.5;">
+      Os demais contatos, esclarecimentos periciais e alinhamentos operacionais serão realizados exclusivamente via telefone/WhatsApp oficial: <strong style="color: #F1F5F9;">(11) 97899-0034</strong>.
+    </p>
+  </div>
+
+  <p style="font-size: 11.5px; color: #64748B; line-height: 1.5; margin: 0 0 24px 0;">
+    <em>Nota de Sigilo e LGPD: O fornecimento de senhas ou dados de birôs é estritamente voluntário e opcional. Todas as informações estão sob sigilo pericial e amparo da LGPD.</em>
+  </p>
+
+  <div style="border-top: 1px solid rgba(255, 255, 255, 0.12); margin-top: 24px; padding-top: 20px; font-size: 12px; color: #94A3B8; text-align: center; line-height: 1.6;">
+    <strong style="color: #FFFFFF;">MOURATO &amp; ASSOCIADOS LTDA</strong><br>
+    CNPJ 38.377.738/0001-45 &bull; Av. São Luís, 187, Sala 69 A - República, São Paulo/SP<br>
+    Atendimento Telefônico Oficial: (11) 97899-0034 &bull; <a href="https://www.mouratoassociados.com.br" style="color: #D4AF37; text-decoration: none;">www.mouratoassociados.com.br</a>
+  </div>
+</div>`;
 
     const destEmail = (targetLead.email && targetLead.email.trim() && targetLead.email.trim().toLowerCase() !== 'mourato@mouratoassociados.com.br')
       ? targetLead.email.trim()
@@ -680,6 +760,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
       mailtoUrl,
       emailSubject,
       emailBody,
+      emailHtml,
       clientCreated: newClientRecord
     });
 
@@ -8569,6 +8650,42 @@ Mourato & Associados Ltda
               >
                 <span>✉️</span> Abrir e Enviar no Google Workspace ({approvalModalData.destEmail || 'mourato@mouratoassociados.com.br'})
               </a>
+
+              {/* Botão 5: Copiar E-mail Institucional Formatado em HTML (com Logo Oficial) */}
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    const blobHtml = new Blob([approvalModalData.emailHtml || approvalModalData.emailBody], { type: 'text/html' });
+                    const blobText = new Blob([approvalModalData.emailBody || ''], { type: 'text/plain' });
+                    const item = new ClipboardItem({
+                      'text/html': blobHtml,
+                      'text/plain': blobText
+                    });
+                    navigator.clipboard.write([item]).then(() => {
+                      alert('E-mail institucional com cabeçalho, logo e autolink copiado com sucesso! Você pode colar (Ctrl+V) diretamente no corpo do Google Workspace/Gmail.');
+                    }).catch(() => {
+                      navigator.clipboard.writeText(approvalModalData.emailBody || '');
+                      alert('E-mail oficial copiado para a área de transferência!');
+                    });
+                  } catch (_) {
+                    navigator.clipboard.writeText(approvalModalData.emailBody || '');
+                    alert('E-mail oficial copiado para a área de transferência!');
+                  }
+                }}
+                className="btn-secondary-subtle"
+                style={{ padding: '0.55rem 0.9rem', fontSize: '0.75rem', justifyContent: 'center' }}
+              >
+                🏷️ Copiar E-mail Formatado (HTML com Logo Oficial)
+              </button>
+
+              <div style={{
+                fontSize: '0.7rem', color: '#F87171', background: 'rgba(239, 68, 68, 0.08)',
+                padding: '0.45rem 0.65rem', borderRadius: '6px', border: '1px solid rgba(239, 68, 68, 0.2)',
+                textAlign: 'center'
+              }}>
+                ⚠️ Mensagem de envio automático — cliente orientado a não responder e contatar apenas por telefone: <strong>(11) 97899-0034</strong>
+              </div>
 
               <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
                 <button
