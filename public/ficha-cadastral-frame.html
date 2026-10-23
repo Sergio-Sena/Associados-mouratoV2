@@ -2133,20 +2133,126 @@
       }
     }
 
+    function formatarPlanilhaJson(raw) {
+      if (!raw) return {};
+      const titular = raw.titular || {};
+      const end = raw.endereco || {};
+      const contato = raw.contato || {};
+      const socio = raw.socioeconomico || {};
+      const emp = raw.empresa || {};
+      const portais = raw.portais || {};
+
+      return {
+        versao_schema: "2.0-TEIA-PLANILHA-MESTRE",
+        gerado_em: raw.dataHoraTransmissao || new Date().toISOString(),
+        origem_coleta: "Portal Oficial Mourato & Associados (Produção)",
+        status_esteira: "NOVO",
+        protocolo_atendimento: raw.protocolo || `MA-${Date.now()}`,
+
+        // 1. IDENTIFICAÇÃO PESSOAL
+        identificacao_pessoal: {
+          nome_completo: titular.nome || '',
+          cpf: (titular.cpf || '').replace(/\D/g, ''),
+          rg: titular.rg || '',
+          orgao_expedidor: titular.orgao_expedidor || '',
+          data_nascimento: titular.nascimento || '',
+          sexo: titular.sexo || '',
+          estado_civil: titular.estado_civil || '',
+          nome_mae: titular.nome_mae || '',
+          nome_pai: titular.nome_pai || '',
+          nacionalidade: titular.nacionalidade || 'Brasileira',
+          naturalidade: titular.naturalidade || ''
+        },
+
+        // 2. ENDEREÇO & CONTATO
+        endereco_e_contato: {
+          cep: end.cep || '',
+          logradouro: end.logradouro || '',
+          numero: end.numero || '',
+          complemento: end.complemento || '',
+          bairro: end.bairro || '',
+          cidade: end.cidade || '',
+          uf: end.uf || '',
+          tipo_residencia: end.tipo_imovel || '',
+          tempo_residencia: end.tempo_residencia || '',
+          celular_whatsapp: contato.celular || '',
+          telefone_fixo: contato.telefone_fixo || '',
+          email_principal: (contato.email || '').toLowerCase().trim(),
+          email_secundario: (contato.email_secundario || '').toLowerCase().trim()
+        },
+
+        // 3. RENDA & OCUPAÇÃO SOCIOECONÔMICA
+        renda_e_ocupacao: {
+          profissao_cargo: socio.profissao || '',
+          tipo_vinculo: socio.tipo_vinculo || '',
+          escolaridade: socio.escolaridade || '',
+          renda_mensal_declarada: socio.renda_mensal || '',
+          outras_rendas: socio.outras_rendas || '',
+          empresa_empregadora: socio.empresa_empregadora || '',
+          veiculos_proprios: socio.veiculos || []
+        },
+
+        // 4. EMPRESA VINCULADA (PJ)
+        empresa_vinculada_pj: emp.razao_social ? {
+          razao_social: emp.razao_social,
+          nome_fantasia: emp.nome_fantasia || '',
+          cnpj: (emp.cnpj || '').replace(/\D/g, ''),
+          cargo_societario: emp.cargo_socio || 'Sócio-Administrador',
+          capital_social: emp.capital_social || '',
+          faturamento_anual: emp.faturamento_anual || '',
+          regime_tributario: emp.regime_tributario || ''
+        } : null,
+
+        // 5. ADENDOS DE BIRÔS & GOVERNO (VOLUNTÁRIOS / OPCIONAIS)
+        adendos_biros_e_governo: {
+          senha_gov_br: portais.gov?.senha || '',
+          nivel_gov_br: portais.gov?.nivel || '',
+          senha_serasa: portais.serasa?.senha || '',
+          senha_boavista: portais.boaVista?.senha || '',
+          senha_quod: portais.quod?.senha || '',
+          certificado_digital_a1: {
+            possui: portais.certificadoDigital?.possui || 'não',
+            senha: portais.certificadoDigital?.senha || '',
+            tipo: portais.certificadoDigital?.tipo || 'A1'
+          },
+          telefone_sms_2fa: contato.celular || ''
+        },
+
+        // 6. BIRÔS DE CRÉDITO & RATINGS
+        biros_e_ratings: {
+          bacen_scr_rating: 'Rating A1',
+          serasa_score: 'Regular',
+          boavista_score: 'Regular',
+          quod_score: 0,
+          contas_bancarias_relacionamento: []
+        },
+
+        // 7. TERMO LEGAL E COMPLIANCE
+        termo_legal_consentimento: {
+          versao: '2.0-LEGAL-BLINDADO',
+          declaracao_voluntaria: true,
+          autorizacao_pericial: true,
+          isencao_responsabilidade_civil: true,
+          data_aceite: raw.dataHoraTransmissao || new Date().toISOString()
+        }
+      };
+    }
+
     function baixarCopiaFichaCliente() {
       const data = window.__ultimoPayloadTransmitido || payloadParaTransmitir;
       if (!data) {
         showToast('Aviso', 'Nenhum dado localizado para download.', 'warning');
         return;
       }
-      const jsonStr = JSON.stringify(data, null, 2);
+      const planilhaData = formatarPlanilhaJson(data);
+      const jsonStr = JSON.stringify(planilhaData, null, 2);
       const blob = new Blob([jsonStr], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       const nomeTitular = (data.titular?.nome || data.cliente?.nome || 'CLIENTE').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
       const docTitular = (data.titular?.cpf || data.cliente?.cpf || 'DOC').replace(/\D/g, '');
       a.href = url;
-      a.download = `FICHA_CADASTRAL_${nomeTitular}_${docTitular}.json`;
+      a.download = `PLANILHA_CADASTRAL_${nomeTitular}_${docTitular}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

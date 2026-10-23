@@ -163,8 +163,9 @@ const unmarkLeadAsApprovedLocally = (id, lead = null) => {
 const convertLeadToClientRecord = (lead, linkFicha = '') => {
   const cleanDoc = (lead.documento || lead.cnpj || lead.cpf || '').trim();
   const docDigits = cleanDoc.replace(/\D/g, '');
-  const docTipo = docDigits.length === 11 ? 'CPF' : 'CNPJ';
-  const phone = lead.telefone || '';
+  const isPj = lead.tipo === 'PJ' || docDigits.length > 11 || Boolean(lead.empresa && lead.empresa !== lead.nome);
+  const docTipo = isPj ? 'CNPJ' : 'CPF';
+  const phone = lead.telefone || lead.contato || '';
   const leadId = String(lead.id || Date.now());
 
   const baseUrl = typeof window !== 'undefined' ? (window.location.origin || 'https://www.mouratoassociados.com.br') : 'https://www.mouratoassociados.com.br';
@@ -173,39 +174,70 @@ const convertLeadToClientRecord = (lead, linkFicha = '') => {
   return {
     id: `cli-lead-${leadId}`,
     leadOriginId: leadId,
-    tipo: lead.tipo || (docDigits.length === 11 ? 'PF' : 'PJ'),
-    nomeRazao: (lead.empresa || lead.nome || 'Cliente Cadastrado').toUpperCase(),
-    documento: cleanDoc || 'Em Cadastramento (Ficha Enviada)',
+    tipo: isPj ? 'PJ' : 'PF',
+    nomeRazao: (lead.empresa || lead.nome || 'Novo Cliente').toUpperCase(),
+    documento: cleanDoc,
     documentoTipo: docTipo,
-    natureza: lead.natureza || 'Sociedade Empresária / Auditoria de Rating',
-    nire: '',
-    situacao: 'EM AUDITORIA',
-    statusConta: 'Lead Aprovado / Ficha Enviada',
+    natureza: isPj ? 'Sociedade Empresária' : 'Pessoa Física',
+    nire: lead.nire || '',
+    situacao: 'NOVO',
+    statusConta: 'Novo Cadastro (Ficha Enviada)',
     dataAbertura: lead.dataAbertura || new Date().toISOString().split('T')[0],
     dataCadastro: new Date().toISOString().split('T')[0],
     dataAprovacao: lead.aprovadoEm || new Date().toISOString(),
     socioVinculado: (lead.nome || '').toUpperCase(),
-    responsavel: `${(lead.nome || '').toUpperCase()} (${lead.email || 'mourato@mouratoassociados.com.br'})`,
+    responsavel: (lead.nome || '').toUpperCase(),
     contato: phone,
+    telefoneFixo: lead.telefoneFixo || '',
     email: (lead.email || '').toLowerCase().trim(),
-    endereco: lead.endereco || 'Aguardando preenchimento da Ficha Cadastral',
+    emailSecundario: lead.emailSecundario || '',
+    rg: lead.rg || '',
+    orgaoExpedidor: lead.orgaoExpedidor || '',
+    dataNascimento: lead.dataNascimento || '',
+    sexo: lead.sexo || '',
+    estadoCivil: lead.estadoCivil || '',
+    nomeMae: lead.nomeMae || '',
+    nomePai: lead.nomePai || '',
+    nacionalidade: lead.nacionalidade || 'Brasileira',
+    naturalidade: lead.naturalidade || '',
+    endereco: lead.endereco || '',
     cep: lead.cep || '',
-    origem: 'Lead do Site Aprovado',
+    origem: 'Portal Oficial Mourato & Associados',
     pratica: lead.pratica || 'Auditoria & Rating Bancário',
     contexto: lead.contexto || '',
     linkFicha: calculatedLink,
-    balanco: {
-      exercicio: '2026 (Em Análise)',
-      ativo: 'Aguardando DRE/Balanço',
-      patrimonioLiquido: 'Aguardando DRE/Balanço',
-      capitalSocial: 'Aguardando Ficha',
-      faturamentoAnual: 'Aguardando Faturamento',
-      contadorResponsavel: 'Aguardando Ficha'
+    socioeconomico: {
+      profissao: lead.profissao || lead.socioeconomico?.profissao || '',
+      tipoVinculo: lead.tipoVinculo || lead.socioeconomico?.tipoVinculo || (isPj ? 'Empresário / Sócio' : ''),
+      escolaridade: lead.escolaridade || lead.socioeconomico?.escolaridade || '',
+      rendaMensal: lead.rendaMensal || lead.socioeconomico?.rendaMensal || '',
+      outrasRendas: lead.outrasRendas || lead.socioeconomico?.outrasRendas || '',
+      empresaEmpregadora: lead.empresaEmpregadora || lead.socioeconomico?.empresaEmpregadora || '',
+      veiculos: lead.veiculos || []
     },
-    contasBancarias: [],
-    bancosHomologados: [],
+    empresa: isPj ? {
+      razaoSocial: lead.empresa || lead.nomeRazao || '',
+      nomeFantasia: lead.nomeFantasia || '',
+      cnpj: cleanDoc,
+      cargoSocio: lead.cargoSocio || 'Sócio-Administrador',
+      capitalSocial: lead.capitalSocial || '',
+      faturamentoAnual: lead.faturamentoAnual || '',
+      regimeTributario: lead.regimeTributario || ''
+    } : null,
+    portais: lead.portais || {
+      gov_br: lead.senhaGovBr || '',
+      nivel_gov_br: lead.nivelGovBr || '',
+      serasa: lead.senhaSerasa || '',
+      boavista: lead.senhaBoaVista || '',
+      quod: lead.senhaQuod || '',
+      pin_a1: lead.pinCertificadoA1 || ''
+    },
+    contasBancarias: lead.contasBancarias || [],
+    bancosHomologados: lead.bancosHomologados || [],
+    anexos: lead.anexos || [],
+    protocolo: lead.protocolo || `MA-${Date.now()}`,
     scrBacen: {
-      ratingGeral: 'AA',
+      ratingGeral: 'Rating A1',
       limiteTotalLiberado: 'R$ 0,00',
       volumeOperacoes: '0 operacoes',
       prejuizoRegistrado: 'R$ 0,00',
@@ -213,10 +245,10 @@ const convertLeadToClientRecord = (lead, linkFicha = '') => {
       detalhes: []
     },
     birosScores: {
-      serasaScore: 'Em Análise',
-      boaVistaScore: 'Em Análise',
-      quodScore: 'Em Análise',
-      bacenScrStatus: 'Em Análise'
+      serasaScore: 'Regular',
+      boaVistaScore: 'Regular',
+      quodScore: 0,
+      bacenScrStatus: 'Rating A1'
     }
   };
 };
@@ -250,91 +282,113 @@ const isClientAlreadyInList = (clientList, lead) => {
   });
 };
 
-// Exportador Oficial de Ficha Estruturada para o Robô Local (ClientesPF / Teia do Rating)
-export const downloadClientJsonForRobot = (client) => {
-  if (!client) return;
+// Construtor Oficial do JSON da Planilha Cadastral (Espelha as Seções da Planilha de Coleta)
+export const buildPlanilhaJsonFromClient = (client) => {
+  if (!client) return {};
 
-  const isPj = client.tipo === 'PJ';
-  const cleanDoc = (client.documento || '').replace(/\D/g, '');
+  const isPj = client.tipo === 'PJ' || !!client.empresa?.razaoSocial || (client.documentoTipo === 'CNPJ');
+  const cleanDoc = (client.documento || client.empresa?.cnpj || client.cpf || '').replace(/\D/g, '');
+  const cleanCpf = (client.cpf || client.responsavelCpf || (!isPj ? client.documento : '') || '').replace(/\D/g, '');
+  const cleanCnpj = (isPj ? (client.documento || client.empresa?.cnpj || '') : '').replace(/\D/g, '');
 
-  const robotPayload = {
-    versao_schema: "2.0-TEIA-ROBO",
+  return {
+    versao_schema: "2.0-TEIA-PLANILHA-MESTRE",
     gerado_em: new Date().toISOString(),
     origem_coleta: "Portal Oficial Mourato & Associados (Produção)",
-    status_esteira: "PRONTO_PARA_PROCESSAMENTO_LOCAL",
+    status_esteira: "NOVO",
+    protocolo_atendimento: client.protocolo || `MA-${Date.now()}`,
+
+    // SEÇÃO 1: IDENTIFICAÇÃO PESSOAL (TITULAR / SÓCIO)
+    identificacao_pessoal: {
+      nome_completo: client.socioVinculado || client.responsavel || client.titular?.nome || client.nomeRazao || '',
+      cpf: cleanCpf,
+      rg: client.rg || client.titular?.rg || '',
+      orgao_expedidor: client.orgaoExpedidor || client.titular?.orgao_expedidor || '',
+      data_nascimento: client.dataNascimento || client.titular?.nascimento || '',
+      sexo: client.sexo || client.titular?.sexo || '',
+      estado_civil: client.estadoCivil || client.titular?.estado_civil || '',
+      nome_mae: client.nomeMae || client.titular?.nome_mae || '',
+      nome_pai: client.nomePai || client.titular?.nome_pai || '',
+      nacionalidade: client.nacionalidade || client.titular?.nacionalidade || 'Brasileira',
+      naturalidade: client.naturalidade || client.titular?.naturalidade || ''
+    },
+
+    // SEÇÃO 2: ENDEREÇO & CONTATO
+    endereco_e_contato: {
+      cep: client.cep || client.endereco?.cep || '',
+      logradouro: client.logradouro || client.endereco?.logradouro || (typeof client.endereco === 'string' ? client.endereco : ''),
+      numero: client.numero || client.endereco?.numero || '',
+      complemento: client.complemento || client.endereco?.complemento || '',
+      bairro: client.bairro || client.endereco?.bairro || '',
+      cidade: client.cidade || client.endereco?.cidade || '',
+      uf: client.uf || client.endereco?.uf || '',
+      tipo_residencia: client.tipoImovel || client.endereco?.tipo_imovel || '',
+      tempo_residencia: client.tempoResidencia || client.endereco?.tempo_residencia || '',
+      celular_whatsapp: client.contato || client.celular || client.telefone || '',
+      telefone_fixo: client.telefoneFixo || client.contato?.telefone_fixo || '',
+      email_principal: (client.email || client.contato?.email || '').toLowerCase().trim(),
+      email_secundario: (client.emailSecundario || client.contato?.email_secundario || '').toLowerCase().trim()
+    },
+
+    // SEÇÃO 3: RENDA & OCUPAÇÃO SOCIOECONÔMICA
+    renda_e_ocupacao: {
+      profissao_cargo: client.socioeconomico?.profissao || client.profissao || '',
+      tipo_vinculo: client.socioeconomico?.tipoVinculo || client.socioeconomico?.tipo_vinculo || (isPj ? 'Empresário / Sócio' : ''),
+      escolaridade: client.socioeconomico?.escolaridade || '',
+      renda_mensal_declarada: client.socioeconomico?.rendaMensal || client.socioeconomico?.renda_mensal || client.rendaMensal || '',
+      outras_rendas: client.socioeconomico?.outrasRendas || client.socioeconomico?.outras_rendas || '',
+      empresa_empregadora: client.socioeconomico?.empresaEmpregadora || client.socioeconomico?.empresa_empregadora || '',
+      veiculos_proprios: client.socioeconomico?.veiculos || client.veiculos || []
+    },
+
+    // SEÇÃO 4: EMPRESA VINCULADA (PJ)
+    empresa_vinculada_pj: isPj ? {
+      razao_social: client.empresa?.razaoSocial || client.empresa?.razao_social || client.nomeRazao || '',
+      nome_fantasia: client.empresa?.nomeFantasia || client.nomeFantasia || '',
+      cnpj: cleanCnpj,
+      cargo_societario: client.empresa?.cargoSocio || client.empresa?.cargo_socio || client.cargoSocio || 'Sócio-Administrador',
+      capital_social: client.empresa?.capitalSocial || client.empresa?.capital_social || client.capitalSocial || client.balanco?.capitalSocial || '',
+      faturamento_anual: client.empresa?.faturamentoAnual || client.balanco?.faturamentoAnual || '',
+      regime_tributario: client.empresa?.regimeTributario || client.regimeTributario || ''
+    } : null,
+
+    // SEÇÃO 5: ADENDOS DE BIRÔS & GOVERNO (VOLUNTÁRIOS / OPCIONAIS)
+    adendos_biros_e_governo: {
+      senha_gov_br: client.senhaGovBr || client.portais?.gov_br || client.portais?.gov?.senha || '',
+      nivel_gov_br: client.nivelGovBr || client.portais?.gov?.nivel || '',
+      senha_serasa: client.senhaSerasa || client.portais?.serasa || client.portais?.serasa?.senha || '',
+      senha_boavista: client.senhaBoaVista || client.portais?.boavista || client.portais?.boaVista?.senha || '',
+      senha_quod: client.senhaQuod || client.portais?.quod || client.portais?.quod?.senha || '',
+      certificado_digital_a1: {
+        possui: client.portais?.certificadoDigital?.possui || (client.pinCertificadoA1 ? 'sim' : 'não'),
+        senha: client.pinCertificadoA1 || client.portais?.pin_a1 || client.portais?.certificadoDigital?.senha || '',
+        tipo: client.portais?.certificadoDigital?.tipo || 'A1'
+      },
+      telefone_sms_2fa: client.contato || client.celular || client.telefone || ''
+    },
+
+    // SEÇÃO 6: BIRÔS DE CRÉDITO & RATINGS
+    biros_e_ratings: {
+      bacen_scr_rating: client.bacenScr || client.scrBacen?.ratingGeral || 'Rating A1',
+      serasa_score: client.serasaScore || client.birosScores?.serasaScore || 'Regular',
+      boavista_score: client.boaVistaScore || client.birosScores?.boaVistaScore || 'Regular',
+      quod_score: client.quodScore || client.birosScores?.quodScore || 0,
+      contas_bancarias_relacionamento: (client.contasBancarias || []).map(b => ({
+        banco: b.banco === 'Outro' ? (b.bancoOutro || 'Outro') : b.banco,
+        tipo: b.tipoConta || (isPj ? 'Conta PJ' : 'Conta PF'),
+        status: b.statusConta || 'Ativa'
+      }))
+    },
+
+    // SEÇÃO 7: TERMO LEGAL E COMPLIANCE
     termo_legal_consentimento: {
       versao: "2.0-LEGAL-BLINDADO",
       declaracao_voluntaria: true,
       autorizacao_pericial: true,
       isencao_responsabilidade_civil: true,
-      data_aceite: client.dataCadastro || new Date().toISOString(),
-      protocolo_atendimento: client.protocolo || `MA-${Date.now()}`
+      data_aceite: client.dataCadastro || new Date().toISOString()
     },
-    // SEPARAÇÃO 100% RIGOROSA: PESSOA FÍSICA (TITULAR/SÓCIO)
-    titular_pessoa_fisica: {
-      nome: isPj ? (client.socioVinculado || client.responsavel || 'Sócio Titular') : client.nomeRazao,
-      cpf: isPj ? (client.responsavelCpf || '') : client.documento,
-      rg: client.rg || '',
-      data_nascimento: client.dataNascimento || '',
-      profissao: client.socioeconomico?.profissao || '',
-      renda_mensal: client.socioeconomico?.rendaMensal || '',
-      contato: {
-        celular: client.contato || '',
-        telefone_fixo: client.telefoneFixo || '',
-        email: client.email || '',
-        email_secundario: client.emailSecundario || ''
-      },
-      endereco_residencial: {
-        completo: client.endereco || '',
-        cep: client.cep || '',
-        tipo_imovel: client.tipoImovel || ''
-      },
-      // Bancos e relacionamentos PF (exclusivos do Titular - extraídos de Quod PF e Bacen SCR PF)
-      bancos_titular_pf: (client.contasBancarias || [])
-        .filter(b => !b.tipoConta || b.tipoConta === 'PF' || b.tipoConta === 'Titular' || !isPj)
-        .map(b => ({
-          banco: b.banco === 'Outro' ? (b.bancoOutro || 'Outro') : b.banco,
-          tipo: 'Conta Pessoa Física (PF)',
-          fonte_validacao: b.origemCcs ? 'Bacen CCS/SCR Oficial' : 'Relatório Quod Titular',
-          status: b.statusConta || 'Ativa'
-        })),
-      biros_scores_pf: {
-        quod_pf: client.quodScore || client.quod || 0,
-        serasa_pf: client.serasaScore || client.serasa || 'Regular',
-        boavista_pf: client.boaVistaScore || client.boavista || 0,
-        bacen_scr_rating_pf: client.bacenScr || client.bacen || 'Rating A1'
-      }
-    },
-    // SEPARAÇÃO 100% RIGOROSA: PESSOA JURÍDICA (EMPRESA)
-    empresa_pessoa_juridica: isPj ? {
-      razao_social: client.nomeRazao,
-      cnpj: client.documento,
-      capital_social: client.capitalSocial || client.empresa?.capitalSocial || '',
-      natureza_juridica: client.natureza || 'Sociedade Empresária',
-      cargo_socio: client.cargoSocio || client.empresa?.cargoSocio || 'Administrador',
-      endereco_comercial: client.enderecoComercial || client.endereco || '',
-      // Bancos PJ (exclusivos da Empresa - extraídos do Bacen SCR PJ / CCS)
-      bancos_empresa_pj: (client.contasBancarias || [])
-        .filter(b => b.tipoConta === 'PJ' || isPj)
-        .map(b => ({
-          banco: b.banco === 'Outro' ? (b.bancoOutro || 'Outro') : b.banco,
-          tipo: 'Conta Pessoa Jurídica (PJ)',
-          fonte_validacao: 'Bacen CCS PJ / SCR',
-          status: b.statusConta || 'Ativa'
-        })),
-      biros_scores_pj: {
-        serasa_pj: client.serasaPJ || 'Regular',
-        quod_pj: client.quodPJ || 0,
-        bacen_scr_pj: client.bacenPJ || 'Regular'
-      }
-    } : null,
-    credenciais_fornecidas_voluntariamente: {
-      gov_br: client.senhaGovBr || client.portais?.gov_br || '',
-      serasa: client.senhaSerasa || client.portais?.serasa || '',
-      boavista: client.senhaBoaVista || client.portais?.boavista || '',
-      quod: client.senhaQuod || client.portais?.quod || '',
-      pin_certificado_a1: client.pinCertificadoA1 || client.portais?.pin_a1 || ''
-    },
+
     anexos_documentos: (client.anexos || []).map(a => ({
       tipo: a.tipo,
       nome: a.nome,
@@ -342,14 +396,21 @@ export const downloadClientJsonForRobot = (client) => {
       data: a.data
     }))
   };
+};
 
-  const jsonContent = JSON.stringify(robotPayload, null, 2);
+// Exportador Oficial da Planilha Cadastral Estruturada (.JSON)
+export const downloadClientJsonForRobot = (client) => {
+  if (!client) return;
+
+  const planilhaJson = buildPlanilhaJsonFromClient(client);
+  const cleanDoc = (client.documento || client.empresa?.cnpj || client.cpf || '').replace(/\D/g, '');
+  const jsonContent = JSON.stringify(planilhaJson, null, 2);
   const blob = new Blob([jsonContent], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  const safeName = (client.nomeRazao || 'CLIENTE').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
+  const safeName = (client.nomeRazao || client.socioVinculado || 'CLIENTE').replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
   a.href = url;
-  a.download = `FICHA_ROBO_${safeName}_${cleanDoc || 'DOC'}.json`;
+  a.download = `PLANILHA_CADASTRAL_${safeName}_${cleanDoc || 'DOC'}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -360,18 +421,11 @@ export const exportAllClientsForRobot = (clientsList) => {
   if (!Array.isArray(clientsList) || clientsList.length === 0) return;
 
   const bundle = {
-    versao_schema: "2.0-TEIA-ROBO-BATCH",
+    versao_schema: "2.0-TEIA-PLANILHA-BATCH",
     data_exportacao: new Date().toISOString(),
     total_fichas: clientsList.length,
-    origem: "Mourato & Associados - Exportação em Lote para Robô Local (ClientesPF)",
-    fichas: clientsList.map(c => ({
-      id: c.id,
-      tipo: c.tipo,
-      nome: c.nomeRazao,
-      documento: c.documento,
-      protocolo: c.protocolo,
-      dados_completos: c
-    }))
+    origem: "Mourato & Associados - Exportação em Lote de Fichas/Planilhas Cadastrais",
+    planilhas_cadastrais: clientsList.map(c => buildPlanilhaJsonFromClient(c))
   };
 
   const jsonContent = JSON.stringify(bundle, null, 2);
@@ -379,7 +433,7 @@ export const exportAllClientsForRobot = (clientsList) => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `PACOTE_FICHAS_ROBO_${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `LOTE_PLANILHAS_CADASTRADO_${new Date().toISOString().slice(0, 10)}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -442,9 +496,18 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
     return false;
   };
 
-  // 1. Clients Database State (Carregamento Inteligente: Base Teia + LocalStorage com respeito estrito a exclusões)
+  // 1. Clients Database State (Carregamento Inteligente: Base Limpa com persistência local)
   const [clients, setClients] = useState(() => {
     try {
+      // Purga automática inicial para remover mock/demo antigos e iniciar com a plataforma limpa
+      if (typeof localStorage !== 'undefined' && localStorage.getItem('mourato_platform_cleaned_v3') !== 'true') {
+        localStorage.removeItem(STORAGE_CLIENTS_KEY);
+        localStorage.removeItem('mourato_clients_records');
+        localStorage.removeItem('mourato_clients_records_v1');
+        localStorage.removeItem('mourato_clients_records_v2');
+        localStorage.setItem('mourato_platform_cleaned_v3', 'true');
+        return [];
+      }
       const deletedIds = getDeletedClientIds();
       const saved = localStorage.getItem(STORAGE_CLIENTS_KEY);
       if (saved) {
@@ -453,10 +516,10 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
           return parsed.filter(c => !isRecordDeleted(c, deletedIds));
         }
       }
-      return TEIA_INITIAL_CLIENTS.filter(t => !isRecordDeleted(t, deletedIds));
+      return [];
     } catch (e) {
       console.error('Erro ao recuperar clientes do storage:', e);
-      return TEIA_INITIAL_CLIENTS;
+      return [];
     }
   });
 
@@ -945,9 +1008,7 @@ Website: https://www.mouratoassociados.com.br`;
   const [activePixModal, setActivePixModal] = useState(null);
 
   // 6. Birôs de Crédito & Scores Oficiais (PF & PJ)
-  const [selectedBureauClientId, setSelectedBureauClientId] = useState(() => {
-    return TEIA_INITIAL_CLIENTS[0]?.id || 'cli-pj-mourato';
-  });
+  const [selectedBureauClientId, setSelectedBureauClientId] = useState('');
   const [bureauScoresMap, setBureauScoresMap] = useState(() => {
     try {
       const saved = localStorage.getItem('mourato_bureau_scores_real_v1');
@@ -1531,9 +1592,8 @@ Website: https://www.mouratoassociados.com.br`;
             localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(filtered));
           }
         } else {
-          const baseInicial = TEIA_INITIAL_CLIENTS.filter(t => !deletedIds.has(t.id) && !deletedIds.has((t.documento || '').replace(/\D/g, '')));
-          setClients(baseInicial);
-          localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(baseInicial));
+          setClients([]);
+          localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify([]));
         }
       } catch (_) {}
       fetchLeads();
@@ -1801,33 +1861,17 @@ Website: https://www.mouratoassociados.com.br`;
     }
   };
 
-  // Restaurar Base Inicial de Demonstração
-  const handleRestoreDefaultClients = () => {
-    if (window.confirm('Deseja restaurar a base oficial inicial de demonstração da Mourato & Associados?')) {
-      try {
-        localStorage.removeItem(STORAGE_DELETED_CLIENTS_KEY);
-        localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(TEIA_INITIAL_CLIENTS));
-        setClients(TEIA_INITIAL_CLIENTS);
-        window.dispatchEvent(new CustomEvent('mourato_client_saved'));
-        showToast('🔄 Base Restaurada', 'Os clientes oficiais da base foram restaurados com sucesso.');
-      } catch (err) {
-        console.error('Erro ao restaurar base:', err);
-      }
-    }
-  };
-
-  // Limpeza de Memória Cache & Sincronização Unificada
+  // Limpeza de Memória Cache & Base Limpa
   const handleClearCacheAndSync = () => {
-    if (window.confirm('Deseja purgar a memória cache local e sincronizar a base oficial de clientes? Isso removerá resíduos temporários e deixará o painel 100% alinhado.')) {
+    if (window.confirm('Deseja purgar a memória cache local e resetar a base de clientes para iniciar 100% limpa?')) {
       try {
-        const deletedIds = getDeletedClientIds();
         localStorage.removeItem('mourato_clients_records_v1');
         localStorage.removeItem('mourato_clients_records');
-        const baseLimpa = TEIA_INITIAL_CLIENTS.filter(t => !isRecordDeleted(t, deletedIds));
-        localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(baseLimpa));
-        setClients(baseLimpa);
+        localStorage.removeItem('mourato_clients_records_v2');
+        localStorage.removeItem(STORAGE_CLIENTS_KEY);
+        setClients([]);
         fetchLeads();
-        showToast('🧹 Cache Limpo!', 'Memória local purgada e base de clientes sincronizada com sucesso.');
+        showToast('🧹 Base Limpa!', 'Memória local purgada. Plataforma pronta para subir clientes um a um.');
       } catch (err) {
         console.error('Erro ao purgar cache:', err);
       }
@@ -6043,9 +6087,37 @@ Website: https://www.mouratoassociados.com.br`;
 
           {/* ======================================================== */}
           {/* TAB 7: PONTUAÇÃO NOS BIRÔS DE CRÉDITO & BANCO CENTRAL     */}
-          {/* ======================================================== */}
           {activeView === 'bureau_scores' && (() => {
-            const activeClient = clients.find(c => c.id === selectedBureauClientId) || clients[0] || TEIA_INITIAL_CLIENTS[0];
+            const activeClient = clients.find(c => c.id === selectedBureauClientId) || clients[0] || null;
+            if (!activeClient) {
+              return (
+                <div style={{ maxWidth: '1240px', margin: '0 auto', textAlign: 'center', padding: '4rem 1rem' }}>
+                  <div style={{
+                    width: 72, height: 72, borderRadius: '50%',
+                    background: 'rgba(197, 168, 105, 0.1)',
+                    border: '1px solid var(--gold-border)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    margin: '0 auto 1.5rem', color: 'var(--gold-primary)'
+                  }}>
+                    <Sparkles size={36} />
+                  </div>
+                  <h3 style={{ color: '#FFFFFF', fontSize: '1.3rem', marginBottom: '0.5rem' }}>
+                    Nenhum Cliente para Auditoria nos Birôs
+                  </h3>
+                  <p style={{ color: '#94A3B8', fontSize: '0.88rem', maxWidth: '460px', margin: '0 auto 1.5rem', lineHeight: 1.6 }}>
+                    A base de clientes está limpa e pronta. Cadastre um novo cliente pela Ficha Cadastral ou aprove uma solicitação na aba Leads para calibrar pontuações no Serasa, Boa Vista, Quod e Bacen SCR.
+                  </p>
+                  <button 
+                    onClick={() => setActiveView('clients_new')}
+                    className="btn-primary-gold"
+                    style={{ padding: '0.8rem 1.6rem', fontSize: '0.85rem', margin: '0 auto', gap: '0.5rem' }}
+                  >
+                    <Plus size={16} />
+                    <span>Cadastrar Novo Cliente</span>
+                  </button>
+                </div>
+              );
+            }
             const bureauData = getBureauDataForClient(activeClient);
             const activeSerasa = (bureauData.serasa !== undefined && bureauData.serasa !== null) ? bureauData.serasa : 0;
             const activeBoaVista = (bureauData.boavista !== undefined && bureauData.boavista !== null) ? bureauData.boavista : 0;
@@ -8518,9 +8590,9 @@ Website: https://www.mouratoassociados.com.br`;
 
       {/* ---------------------------------------------------- */}
       {/* MODAL: PETIÇÕES & REQUERIMENTOS (HTML/IMPRESSÃO)    */}
-      {/* ---------------------------------------------------- */}
       {bureauModalDoc && (() => {
-        const activeClient = clients.find(c => c.id === selectedBureauClientId) || clients[0] || TEIA_INITIAL_CLIENTS[0];
+        const activeClient = clients.find(c => c.id === selectedBureauClientId) || clients[0] || null;
+        if (!activeClient) return null;
         const isSerasa = bureauModalDoc === 'serasa_petition';
 
         return (
