@@ -603,8 +603,8 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
     const baseUrl = window.location.origin || 'https://www.mouratoassociados.com.br';
     const linkFicha = `${baseUrl}/ficha-cadastral?nome=${encodeURIComponent(targetLead.nome || '')}&empresa=${encodeURIComponent(targetLead.empresa || '')}&telefone=${encodeURIComponent(targetLead.telefone || '')}&email=${encodeURIComponent(targetLead.email || '')}&origem=audiencia_aprovada`;
 
-    // 3. Monta o texto oficial para WhatsApp com a Planilha / Ficha Cadastral Oficial
-    const wppMsg = `Olá, *${targetLead.nome || 'Cliente'}* (${targetLead.empresa || 'Empresa'})!\n\nSua solicitação de assessoria na *Mourato & Associados* foi *APROVADA* com sucesso pela diretoria pericial.\n\nPara darmos início imediato à sua auditoria de crédito e calibragem de rating junto aos birôs oficiais (Banco Central SCR, Serasa, Boa Vista e Quod), por favor acesse sua Planilha Cadastral Oficial no link seguro abaixo:\n\n📊 *Acesse sua Planilha / Ficha Cadastral:* ${linkFicha}\n\n_Mourato & Associados Ltda — CNPJ: 38.377.738/0001-45_\nAtendimento Oficial WhatsApp: (11) 97899-0034 | mourato@mouratoassociados.com.br`;
+    // 3. Monta o texto oficial para WhatsApp com a Ficha Cadastral Oficial
+    const wppMsg = `Olá, *${targetLead.nome || 'Cliente'}* (${targetLead.empresa || 'Empresa'})!\n\nSua solicitação de assessoria na *Mourato & Associados* foi *APROVADA* com sucesso pela diretoria pericial.\n\nPara darmos início imediato à sua auditoria de crédito e calibragem de rating junto aos birôs oficiais (Banco Central SCR, Serasa, Boa Vista e Quod), por favor acesse sua Ficha Cadastral Oficial no link seguro abaixo:\n\n📋 *Acesse sua Ficha Cadastral:* ${linkFicha}\n\n_Mourato & Associados Ltda — CNPJ: 38.377.738/0001-45_\nAtendimento Oficial WhatsApp: (11) 97899-0034 | mourato@mouratoassociados.com.br`;
 
     // Telefone do CLIENTE destinatário (NUNCA usar o telefone corporativo da Mourato como destinatário)
     let rawDigits = (targetLead.telefone || '').replace(/\D/g, '');
@@ -635,7 +635,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
       : `https://api.whatsapp.com/send?text=${encodeURIComponent(wppMsg)}`;
 
     // 4. Monta o e-mail oficial para Google Workspace com cabeçalho institucional, autolink e suporte exclusivo por telefone
-    const emailSubject = `[Mourato & Associados] Solicitação Aprovada — Link da sua Planilha / Ficha Cadastral`;
+    const emailSubject = `[Mourato & Associados] Solicitação Aprovada — Link da sua Ficha Cadastral`;
     
     // Texto formatado para o corpo do Google Workspace / Mailto
     const emailBody = `MOURATO & ASSOCIADOS — GOVERNANÇA E INTELIGÊNCIA FINANCEIRA
@@ -645,9 +645,9 @@ Prezado(a) ${targetLead.nome || 'Cliente'} (${targetLead.empresa || 'Empresa'}),
 
 É com satisfação que informamos que sua solicitação de assessoria corporativa foi formalmente APROVADA pela Diretoria Pericial da Mourato & Associados.
 
-Para darmos início imediato à auditoria de crédito e calibragem de rating junto aos birôs oficiais (Banco Central SCR, Serasa, Boa Vista e Quod), por favor acesse e preencha sua Planilha Cadastral Oficial no link abaixo:
+Para darmos início imediato à auditoria de crédito e calibragem de rating junto aos birôs oficiais (Banco Central SCR, Serasa, Boa Vista e Quod), por favor acesse e preencha sua Ficha Cadastral Oficial no link abaixo:
 
-🔗 ACESSE SUA PLANILHA / FICHA CADASTRAL OFICIAL (CLIQUE NO LINK):
+🔗 ACESSE SUA FICHA CADASTRAL OFICIAL (CLIQUE NO LINK):
 ${linkFicha}
 
 (Informamos que o preenchimento de senhas de birôs é estritamente voluntário e todas as informações estão sob sigilo pericial e amparo da LGPD).
@@ -684,13 +684,13 @@ Website: https://www.mouratoassociados.com.br`;
 
   <div style="background: rgba(197, 168, 105, 0.08); border-left: 3px solid #C5A869; padding: 16px; margin: 20px 0; border-radius: 4px;">
     <p style="margin: 0; font-size: 13px; color: #E2E8F0; line-height: 1.6;">
-      Para darmos início imediato à auditoria pericial e estruturação do dossiê de rating junto aos birôs oficiais (Banco Central SCR, Serasa, Boa Vista e Quod), solicitamos o preenchimento da sua Planilha Cadastral Oficial:
+      Para darmos início imediato à auditoria pericial e estruturação do dossiê de rating junto aos birôs oficiais (Banco Central SCR, Serasa, Boa Vista e Quod), solicitamos o preenchimento da sua Ficha Cadastral Oficial:
     </p>
   </div>
 
   <div style="text-align: center; margin: 28px 0 14px 0;">
     <a href="${linkFicha}" target="_blank" rel="noopener noreferrer" style="background: linear-gradient(135deg, #D4AF37 0%, #AA820A 100%); color: #07090E; text-decoration: none; padding: 15px 30px; border-radius: 6px; font-weight: 700; font-size: 14px; display: inline-block; box-shadow: 0 4px 16px rgba(212, 175, 55, 0.35); letter-spacing: 0.5px;">
-      📊 ACESSAR PLANILHA / FICHA CADASTRAL OFICIAL
+      📋 ACESSAR FICHA CADASTRAL OFICIAL
     </a>
   </div>
 
@@ -805,13 +805,8 @@ Website: https://www.mouratoassociados.com.br`;
       }
     }
 
-    // 11. Abre automaticamente o WhatsApp Web e o Google Workspace direto na tela de envio oficial
-    try {
-      const autoUrl = cleanPhone ? wppWebUrl : wppUrl;
-      window.open(autoUrl, '_blank');
-    } catch (_) {}
-
-    if (destEmail) {
+    // 11. Disparo imediato do e-mail oficial no Google Workspace ao aprovar
+    if (googleWorkspaceUrl) {
       try {
         window.open(googleWorkspaceUrl, '_blank');
       } catch (_) {}
@@ -8553,170 +8548,50 @@ Mourato & Associados Ltda
             </div>
 
             <div style={{
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: '8px', padding: '1rem',
-              display: 'flex', flexDirection: 'column', gap: '0.5rem'
+              background: 'rgba(37, 211, 102, 0.08)',
+              border: '1px solid rgba(37, 211, 102, 0.25)',
+              borderRadius: '8px', padding: '0.85rem 1rem',
+              display: 'flex', alignItems: 'center', gap: '0.65rem'
             }}>
-              <label style={{ fontSize: '0.72rem', color: 'var(--gold-light, #E2C98A)', fontWeight: 700, textTransform: 'uppercase' }}>
-                Link da Ficha Cadastral Gerado:
-              </label>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <input
-                  type="text"
-                  readOnly
-                  value={approvalModalData.linkFicha}
-                  style={{
-                    flex: 1, background: '#070A10', border: '1px solid rgba(255,255,255,0.15)',
-                    color: '#CBD5E1', padding: '0.55rem 0.75rem', borderRadius: '6px', fontSize: '0.78rem'
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(approvalModalData.linkFicha);
-                    alert('Link oficial copiado para a área de transferência!');
-                  }}
-                  className="btn-secondary-subtle"
-                  style={{ padding: '0.55rem 0.9rem', fontSize: '0.75rem', whiteSpace: 'nowrap' }}
-                >
-                  📋 Copiar
-                </button>
+              <span style={{ fontSize: '1.2rem' }}>✉️</span>
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#4ADE80' }}>
+                  E-mail Oficial Aberto no Google Workspace
+                </div>
+                <div style={{ fontSize: '0.74rem', color: '#CBD5E1' }}>
+                  Enviado para: {approvalModalData.destEmail || approvalModalData.lead?.email || 'Cliente'}
+                </div>
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-              <div style={{
-                fontSize: '0.74rem', color: '#94A3B8', background: 'rgba(0,0,0,0.3)',
-                padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.06)',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.35rem'
-              }}>
-                <span>📱 <strong>Cliente Destinatário:</strong> {approvalModalData.cleanPhone ? `+${approvalModalData.cleanPhone}` : '(Selecione o contato no WhatsApp)'}</span>
-                <span style={{ color: 'var(--gold-light, #E2C98A)' }}>Remetente: (11) 97899-0034</span>
-              </div>
-
-              {/* Botão 1: Abrir direto no WhatsApp Business (Aplicativo Desktop / Windows) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', marginTop: '0.5rem' }}>
+              {/* 1. Botão que abre a mensagem do WhatsApp direto na conversa */}
               <a
-                href={approvalModalData.wppAppUrl || approvalModalData.wppUrl}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem',
-                  padding: '0.8rem 1.25rem', background: '#25D366', color: '#0A180E',
-                  fontWeight: 700, fontSize: '0.86rem', borderRadius: '8px', textDecoration: 'none',
-                  boxShadow: '0 4px 12px rgba(37, 211, 102, 0.3)'
-                }}
-              >
-                <span>💬</span> Abrir no WhatsApp Business (Aplicativo Desktop)
-              </a>
-
-              {/* Botão 2: Abrir no WhatsApp Web (Navegador) */}
-              <a
-                href={approvalModalData.wppWebUrl || approvalModalData.wppUrl}
+                href={approvalModalData.wppWebUrl || approvalModalData.wppAppUrl || approvalModalData.wppUrl}
                 target="_blank"
                 rel="noreferrer"
                 style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem',
-                  padding: '0.75rem 1.25rem', background: 'rgba(37, 211, 102, 0.15)', color: '#4ADE80',
-                  border: '1px solid rgba(37, 211, 102, 0.4)',
-                  fontWeight: 600, fontSize: '0.82rem', borderRadius: '8px', textDecoration: 'none'
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem',
+                  padding: '1rem 1.5rem', background: '#25D366', color: '#051E0E',
+                  fontWeight: 700, fontSize: '0.98rem', borderRadius: '10px', textDecoration: 'none',
+                  boxShadow: '0 4px 18px rgba(37, 211, 102, 0.4)', transition: 'all 0.2s ease'
                 }}
               >
-                <span>🌐</span> Abrir no WhatsApp Web (Navegador)
+                <span style={{ fontSize: '1.3rem' }}>💬</span> Abrir Mensagem no WhatsApp
               </a>
 
-              {/* Botão 3: Copiar Texto da Mensagem */}
+              {/* 2. Botão que fecha a tela */}
               <button
                 type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(approvalModalData.wppMsg || '');
-                  alert('Mensagem oficial copiada! Você pode colar diretamente na conversa do cliente no WhatsApp.');
-                }}
+                onClick={() => setApprovalModalData(null)}
                 className="btn-secondary-subtle"
-                style={{ padding: '0.6rem 1rem', fontSize: '0.78rem', justifyContent: 'center' }}
-              >
-                📋 Copiar Texto Completo da Mensagem
-              </button>
-
-              {/* Botão 4: Google Workspace Oficial mourato@mouratoassociados.com.br */}
-              <a
-                href={approvalModalData.googleWorkspaceUrl || approvalModalData.mailtoUrl}
-                target="_blank"
-                rel="noreferrer"
                 style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem',
-                  padding: '0.85rem 1.25rem', background: 'linear-gradient(135deg, #C5A869 0%, #AA820A 100%)', color: '#0A0E17',
-                  fontWeight: 700, fontSize: '0.86rem', borderRadius: '8px', textDecoration: 'none',
-                  boxShadow: '0 4px 15px rgba(197, 168, 105, 0.35)'
+                  padding: '0.85rem 1.25rem', fontSize: '0.88rem',
+                  fontWeight: 600, justifyContent: 'center', borderRadius: '10px'
                 }}
               >
-                <span>✉️</span> Abrir e Enviar no Google Workspace ({approvalModalData.destEmail || 'mourato@mouratoassociados.com.br'})
-              </a>
-
-              {/* Botão 5: Copiar E-mail Institucional Formatado em HTML (com Logo Oficial) */}
-              <button
-                type="button"
-                onClick={() => {
-                  try {
-                    const blobHtml = new Blob([approvalModalData.emailHtml || approvalModalData.emailBody], { type: 'text/html' });
-                    const blobText = new Blob([approvalModalData.emailBody || ''], { type: 'text/plain' });
-                    const item = new ClipboardItem({
-                      'text/html': blobHtml,
-                      'text/plain': blobText
-                    });
-                    navigator.clipboard.write([item]).then(() => {
-                      alert('E-mail institucional com cabeçalho, logo e autolink copiado com sucesso! Você pode colar (Ctrl+V) diretamente no corpo do Google Workspace/Gmail.');
-                    }).catch(() => {
-                      navigator.clipboard.writeText(approvalModalData.emailBody || '');
-                      alert('E-mail oficial copiado para a área de transferência!');
-                    });
-                  } catch (_) {
-                    navigator.clipboard.writeText(approvalModalData.emailBody || '');
-                    alert('E-mail oficial copiado para a área de transferência!');
-                  }
-                }}
-                className="btn-secondary-subtle"
-                style={{ padding: '0.55rem 0.9rem', fontSize: '0.75rem', justifyContent: 'center' }}
-              >
-                🏷️ Copiar E-mail Formatado (HTML com Logo Oficial)
+                ✕ Fechar Tela
               </button>
-
-              <div style={{
-                fontSize: '0.7rem', color: '#F87171', background: 'rgba(239, 68, 68, 0.08)',
-                padding: '0.45rem 0.65rem', borderRadius: '6px', border: '1px solid rgba(239, 68, 68, 0.2)',
-                textAlign: 'center'
-              }}>
-                ⚠️ Mensagem de envio automático — cliente orientado a não responder e contatar apenas por telefone: <strong>(11) 97899-0034</strong>
-              </div>
-
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setApprovalModalData(null);
-                    setActiveView('clients_list');
-                  }}
-                  className="btn-primary-gold"
-                  style={{ flex: 1, padding: '0.65rem 1.1rem', fontSize: '0.78rem', justifyContent: 'center', whiteSpace: 'nowrap' }}
-                >
-                  👥 Ver na Lista de Clientes
-                </button>
-                <a
-                  href={approvalModalData.linkFicha}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn-secondary-subtle"
-                  style={{ flex: 1, padding: '0.65rem', fontSize: '0.78rem', justifyContent: 'center', textDecoration: 'none', whiteSpace: 'nowrap' }}
-                >
-                  🔗 Abrir / Testar Ficha
-                </a>
-                <button
-                  type="button"
-                  onClick={() => setApprovalModalData(null)}
-                  className="btn-secondary-subtle"
-                  style={{ padding: '0.65rem 1.25rem', fontSize: '0.78rem' }}
-                >
-                  Fechar
-                </button>
-              </div>
             </div>
           </div>
         </div>
