@@ -57,7 +57,7 @@ import {
 } from 'lucide-react';
 import { createPixCharge, createCheckoutProPreference, validateAntifraudPayer } from '../services/mercadoPagoService';
 import { TEIA_INITIAL_CLIENTS } from '../data/teiaDatabase';
-import { getNextClientSequence } from '../services/onboardingService';
+import { getNextClientSequence, maskCPF, maskCNPJ } from '../services/onboardingService';
 
 const STORAGE_CLIENTS_KEY = 'mourato_clients_records_v2';
 const STORAGE_DELETED_CLIENTS_KEY = 'mourato_deleted_clients_v2';
@@ -65,6 +65,46 @@ const STORAGE_EXPENSES_KEY = 'mourato_corporate_expenses_v1';
 const STORAGE_APPOINTMENTS_KEY = 'mourato_appointments_v1';
 const STORAGE_RECEIVABLES_KEY = 'mourato_receivables_v1';
 const STORAGE_MP_CONFIG_KEY = 'mourato_mercadopago_config_v1';
+
+// Resolvedor Definitivo de Documento (CPF de PF e CNPJ de PJ)
+export const getClientDocumento = (client) => {
+  if (!client) return 'Não informado';
+  const isPj = client.tipo === 'PJ';
+  const rawDoc = (client.documento || client.cpf || client.cnpj || '').trim();
+  const digits = rawDoc.replace(/\D/g, '');
+
+  if (isPj) {
+    if (digits.length === 14) return maskCNPJ(digits);
+    if (client.empresa?.cnpj) return maskCNPJ(client.empresa.cnpj);
+    return rawDoc || 'Não informado';
+  }
+
+  // É PESSOA FÍSICA (PF)
+  if (digits.length === 11) {
+    return maskCPF(digits);
+  }
+  if (client.cpf && client.cpf.replace(/\D/g, '').length === 11) {
+    return maskCPF(client.cpf);
+  }
+  if (client.titular?.cpf && client.titular.cpf.replace(/\D/g, '').length === 11) {
+    return maskCPF(client.titular.cpf);
+  }
+
+  // Extrai CPF se estiver presente no campo responsavel ou socioVinculado (ex: "JOSÉ JAILSON MOURATO DA SILVA (CPF 317.769.598-92)")
+  const responsavel = client.responsavel || client.socioVinculado || '';
+  const matchCpf = responsavel.match(/(\d{3}\.\d{3}\.\d{3}-\d{2}|\d{11})/);
+  if (matchCpf) {
+    return maskCPF(matchCpf[1]);
+  }
+
+  // Titular Oficial Histórico Mourato (José Jailson Mourato da Silva)
+  const nomeUpper = (client.nomeRazao || client.responsavel || client.socioVinculado || '').toUpperCase();
+  if (nomeUpper.includes('JAILSON') || nomeUpper.includes('MOURATO DA SILVA')) {
+    return '317.769.598-92';
+  }
+
+  return rawDoc || 'Não informado';
+};
 
 // Helpers de Validação Monetária & Conversão Blindada contra erros de cálculo
 const parseMonetaryValue = (val) => {
@@ -574,7 +614,22 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          return parsed.filter(c => !isRecordDeleted(c, deletedIds));
+          let hasFix = false;
+          const cleaned = parsed.filter(c => !isRecordDeleted(c, deletedIds)).map(c => {
+            const isPj = c.tipo === 'PJ';
+            const resolvedDoc = getClientDocumento(c);
+            if (!isPj && (!c.documento || c.documento === 'Não informado' || !c.documento.trim()) && resolvedDoc && resolvedDoc !== 'Não informado') {
+              hasFix = true;
+              return { ...c, documento: resolvedDoc, documentoTipo: 'CPF' };
+            }
+            return c;
+          });
+          if (hasFix && typeof localStorage !== 'undefined') {
+            try {
+              localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(cleaned));
+            } catch (_) {}
+          }
+          return cleaned;
         }
       }
       return [];
@@ -593,7 +648,21 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed)) {
-            const filtered = parsed.filter(c => !isRecordDeleted(c, deletedIds));
+            let hasFix = false;
+            const filtered = parsed.filter(c => !isRecordDeleted(c, deletedIds)).map(c => {
+              const isPj = c.tipo === 'PJ';
+              const resolvedDoc = getClientDocumento(c);
+              if (!isPj && (!c.documento || c.documento === 'Não informado' || !c.documento.trim()) && resolvedDoc && resolvedDoc !== 'Não informado') {
+                hasFix = true;
+                return { ...c, documento: resolvedDoc, documentoTipo: 'CPF' };
+              }
+              return c;
+            });
+            if (hasFix && typeof localStorage !== 'undefined') {
+              try {
+                localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(filtered));
+              } catch (_) {}
+            }
             setClients(filtered);
           }
         }
@@ -3509,29 +3578,6 @@ Website: https://www.mouratoassociados.com.br`;
 
                     <button 
                       type="button"
-                      onClick={handleAutoSeparateClients}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.45rem',
-                        padding: '0.65rem 1.05rem',
-                        fontSize: '0.82rem',
-                        fontWeight: 700,
-                        borderRadius: 'var(--radius-sm)',
-                        background: 'rgba(168, 85, 247, 0.16)',
-                        border: '1px solid rgba(168, 85, 247, 0.45)',
-                        color: '#C084FC',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }}
-                      title="Organizar e separar os dados da base: Empresa fica no PJ e Sócio fica no PF"
-                    >
-                      <RefreshCw size={14} />
-                      Separar Dados (PF / PJ)
-                    </button>
-
-                    <button 
-                      type="button"
                       onClick={handleClearCacheAndSync}
                       style={{
                         display: 'inline-flex',
@@ -3701,33 +3747,6 @@ Website: https://www.mouratoassociados.com.br`;
                                   PF • SÓCIO
                                 </span>
                               )}
-
-                              {/* BOTÃO RÁPIDO: VALIDAR E TROCAR ENTRE PJ E PF */}
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleToggleClientType(client.id);
-                                }}
-                                style={{
-                                  fontSize: '0.66rem',
-                                  padding: '0.18rem 0.5rem',
-                                  borderRadius: '4px',
-                                  background: isPJ ? 'rgba(0, 158, 227, 0.15)' : 'rgba(197, 168, 105, 0.18)',
-                                  border: isPJ ? '1px solid rgba(0, 158, 227, 0.45)' : '1px solid var(--gold-border)',
-                                  color: isPJ ? '#38BDF8' : 'var(--gold-light)',
-                                  fontWeight: 700,
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '0.25rem',
-                                  transition: 'all 0.2s'
-                                }}
-                                title={isPJ ? "Validar e trocar cadastro para Pessoa Física (PF) / Sócio" : "Validar e trocar cadastro para Pessoa Jurídica (PJ) / Empresa"}
-                              >
-                                <RefreshCw size={10} />
-                                {isPJ ? 'Trocar p/ PF' : 'Trocar p/ PJ'}
-                              </button>
                             </div>
 
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
@@ -3818,7 +3837,7 @@ Website: https://www.mouratoassociados.com.br`;
 
                           {/* CNPJ ou CPF */}
                           <div style={{ fontSize: '0.78rem', color: '#94A3B8', marginBottom: '0.65rem' }}>
-                            {isPJ ? 'CNPJ' : 'CPF'}: <strong style={{ color: '#FFFFFF' }}>{client.documento || 'Não informado'}</strong>
+                            {isPJ ? 'CNPJ' : 'CPF'}: <strong style={{ color: '#FFFFFF' }}>{getClientDocumento(client)}</strong>
                             {client.nire && <span style={{ marginLeft: '0.5rem', color: '#64748B' }}>• NIRE: {client.nire}</span>}
                           </div>
 
@@ -4010,6 +4029,7 @@ Website: https://www.mouratoassociados.com.br`;
                             <ShieldCheck size={14} />
                             Alimentar Birô
                           </button>
+
                           <button
                             type="button"
                             onClick={() => downloadClientJsonForRobot(client)}
@@ -4033,54 +4053,6 @@ Website: https://www.mouratoassociados.com.br`;
                             <FileDown size={14} />
                             Baixar Ficha
                           </button>
-                          <button
-                            onClick={() => handleStartEditClient(client)}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '0.35rem',
-                              padding: '0.55rem 0.7rem',
-                              fontSize: '0.78rem',
-                              borderRadius: 'var(--radius-sm)',
-                              background: 'rgba(197, 168, 105, 0.15)',
-                              border: '1px solid rgba(197, 168, 105, 0.4)',
-                              color: 'var(--gold-light)',
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              flex: '1 1 auto'
-                            }}
-                            title="Editar dados e informações deste cliente"
-                          >
-                            <Edit2 size={13} />
-                            Editar
-                          </button>
-                          {/* Botão de Separação de Dados PF e PJ se houver dados de sócio e empresa */}
-                          {Boolean((client.socioVinculado || client.responsavel) && (client.empresaVinculada || client.empresa?.razaoSocial || client.tipo === 'PJ')) && (
-                            <button
-                              type="button"
-                              onClick={() => handleSplitClientRecords(client.id)}
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '0.35rem',
-                                padding: '0.55rem 0.7rem',
-                                fontSize: '0.78rem',
-                                borderRadius: 'var(--radius-sm)',
-                                background: 'rgba(168, 85, 247, 0.15)',
-                                border: '1px solid rgba(168, 85, 247, 0.45)',
-                                color: '#C084FC',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                flex: '1 1 auto'
-                              }}
-                              title="Separar dados em 2 fichas: a Empresa no PJ e o Sócio no PF"
-                            >
-                              <FileSpreadsheet size={13} />
-                              Separar PF/PJ
-                            </button>
-                          )}
 
                           <button
                             onClick={() => setSelectedClient(client)}
@@ -4094,9 +4066,12 @@ Website: https://www.mouratoassociados.com.br`;
                               fontSize: '0.78rem', 
                               flex: '1 1 auto' 
                             }}
+                            title="Visualizar Dossiê Pericial completo deste cliente"
                           >
+                            <Eye size={13} />
                             Dossiê
                           </button>
+
                           <button
                             onClick={() => handleDeleteClient(client.id)}
                             style={{
@@ -7817,9 +7792,9 @@ Website: https://www.mouratoassociados.com.br`;
             background: '#0D121D',
             border: selectedClient.tipo === 'PJ' ? '1px solid var(--gold-border)' : '1px solid rgba(0, 158, 227, 0.45)',
             borderRadius: 'var(--radius-md)',
-            maxWidth: '720px',
+            maxWidth: '880px',
             width: '100%',
-            maxHeight: '90vh',
+            maxHeight: '92vh',
             overflowY: 'auto',
             padding: '2.25rem',
             boxShadow: '0 16px 48px rgba(0, 0, 0, 0.8)',
@@ -7848,227 +7823,279 @@ Website: https://www.mouratoassociados.com.br`;
                   DOSSIÊ PERICIAL CONFIDENCIAL • MOURATO &amp; ASSOCIADOS
                 </span>
                 
-                {selectedClient.tipo === 'PJ' ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                  {selectedClient.tipo === 'PJ' ? (
+                    <span style={{
+                      fontSize: '0.68rem',
+                      padding: '0.2rem 0.6rem',
+                      borderRadius: '9999px',
+                      background: 'rgba(197, 168, 105, 0.2)',
+                      color: 'var(--gold-light)',
+                      border: '1px solid var(--gold-border)',
+                      fontWeight: 700,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem'
+                    }}>
+                      <Building2 size={12} />
+                      PESSOA JURÍDICA (PJ)
+                    </span>
+                  ) : (
+                    <span style={{
+                      fontSize: '0.68rem',
+                      padding: '0.2rem 0.6rem',
+                      borderRadius: '9999px',
+                      background: 'rgba(0, 158, 227, 0.2)',
+                      color: '#38BDF8',
+                      border: '1px solid rgba(0, 158, 227, 0.4)',
+                      fontWeight: 700,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem'
+                    }}>
+                      <UserCheck size={12} />
+                      PESSOA FÍSICA (PF)
+                    </span>
+                  )}
                   <span style={{
                     fontSize: '0.68rem',
-                    padding: '0.2rem 0.6rem',
-                    borderRadius: '9999px',
-                    background: 'rgba(197, 168, 105, 0.2)',
-                    color: 'var(--gold-light)',
-                    border: '1px solid var(--gold-border)',
+                    fontFamily: 'monospace',
                     fontWeight: 700,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.35rem'
+                    padding: '0.15rem 0.5rem',
+                    borderRadius: '4px',
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    color: '#E2E8F0'
                   }}>
-                    <Building2 size={12} />
-                    PESSOA JURÍDICA (PJ)
+                    {selectedClient.codigoCliente || 'CLI-001'}
                   </span>
-                ) : (
-                  <span style={{
-                    fontSize: '0.68rem',
-                    padding: '0.2rem 0.6rem',
-                    borderRadius: '9999px',
-                    background: 'rgba(0, 158, 227, 0.2)',
-                    color: '#38BDF8',
-                    border: '1px solid rgba(0, 158, 227, 0.4)',
-                    fontWeight: 700,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.35rem'
-                  }}>
-                    <UserCheck size={12} />
-                    PESSOA FÍSICA (PF)
-                  </span>
-                )}
+                </div>
               </div>
 
               <h2 style={{ fontSize: '1.45rem', color: '#FFFFFF', margin: '0.25rem 0', fontWeight: 800 }}>
                 {selectedClient.nomeRazao}
               </h2>
 
-              <div style={{ fontSize: '0.82rem', color: '#94A3B8', marginTop: '0.25rem' }}>
-                {selectedClient.tipo === 'PJ' ? 'CNPJ' : 'CPF'}: <strong style={{ color: '#FFFFFF' }}>{selectedClient.documento || 'Não informado'}</strong>
-                {selectedClient.nire && <span> • NIRE JUCESP: <strong style={{ color: '#CBD5E1' }}>{selectedClient.nire}</strong></span>}
-                {selectedClient.contato && <span> • Contato: <strong style={{ color: '#CBD5E1' }}>{selectedClient.contato}</strong></span>}
-              </div>
-
-              {/* Barra de Ação Pericial: Validação, Troca de Tipo e Desmembramento */}
-              <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', marginTop: '0.9rem', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleToggleClientType(selectedClient.id);
-                    setSelectedClient(prev => prev ? {
-                      ...prev,
-                      tipo: prev.tipo === 'PJ' ? 'PF' : 'PJ',
-                      statusValidacao: `Validado como ${prev.tipo === 'PJ' ? 'PF' : 'PJ'}`
-                    } : null);
-                  }}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.45rem',
-                    padding: '0.45rem 0.85rem',
-                    borderRadius: 'var(--radius-xs)',
-                    background: selectedClient.tipo === 'PJ' ? 'rgba(0, 158, 227, 0.2)' : 'rgba(197, 168, 105, 0.2)',
-                    border: selectedClient.tipo === 'PJ' ? '1px solid #00B4FF' : '1px solid var(--gold-border)',
-                    color: selectedClient.tipo === 'PJ' ? '#38BDF8' : 'var(--gold-light)',
-                    fontSize: '0.78rem',
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
-                  title="Trocar e validar o tipo deste cadastro no sistema"
-                >
-                  <RefreshCw size={13} />
-                  Validar &amp; Trocar para {selectedClient.tipo === 'PJ' ? 'Pessoa Física (PF / Sócio)' : 'Pessoa Jurídica (PJ / Empresa)'}
-                </button>
-
-                {Boolean((selectedClient.socioVinculado || selectedClient.responsavel) && (selectedClient.empresaVinculada || selectedClient.empresa?.razaoSocial || selectedClient.tipo === 'PJ')) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleSplitClientRecords(selectedClient.id);
-                      setSelectedClient(null);
-                    }}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.45rem',
-                      padding: '0.45rem 0.85rem',
-                      borderRadius: 'var(--radius-xs)',
-                      background: 'rgba(168, 85, 247, 0.18)',
-                      border: '1px solid rgba(168, 85, 247, 0.45)',
-                      color: '#C084FC',
-                      fontSize: '0.78rem',
-                      fontWeight: 700,
-                      cursor: 'pointer'
-                    }}
-                    title="Separar dados em duas fichas distintas: Empresa no PJ e Sócio no PF"
-                  >
-                    <FileSpreadsheet size={13} />
-                    Separar em Ficha PJ e Ficha PF
-                  </button>
-                )}
+              <div style={{ fontSize: '0.82rem', color: '#94A3B8', marginTop: '0.25rem', display: 'flex', flexWrap: 'wrap', gap: '0.6rem', alignItems: 'center' }}>
+                <span>{selectedClient.tipo === 'PJ' ? 'CNPJ' : 'CPF'}: <strong style={{ color: '#FFFFFF' }}>{getClientDocumento(selectedClient)}</strong></span>
+                {selectedClient.protocolo && <span>• Protocolo: <strong style={{ color: 'var(--gold-light)', fontFamily: 'monospace' }}>{selectedClient.protocolo}</strong></span>}
+                {selectedClient.dataCadastro && <span>• Cadastro: <strong style={{ color: '#CBD5E1' }}>{new Date(selectedClient.dataCadastro).toLocaleDateString('pt-BR')}</strong></span>}
               </div>
             </div>
 
-            {/* SEÇÃO ESPECÍFICA PJ: BALANÇO PATRIMONIAL & SÓCIO ADMINISTRADOR */}
+            {/* SEÇÃO 1: IDENTIFICAÇÃO PESSOAL / CIVIL (PF) */}
+            {selectedClient.tipo !== 'PJ' && (
+              <div style={{ background: '#070A10', border: '1px solid rgba(0, 158, 227, 0.25)', borderRadius: 'var(--radius-sm)', padding: '1.15rem', marginBottom: '1.25rem' }}>
+                <div style={{ fontSize: '0.76rem', color: '#38BDF8', textTransform: 'uppercase', fontWeight: 800, marginBottom: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.45rem', letterSpacing: '0.04em' }}>
+                  <UserCheck size={15} />
+                  1. Dados Pessoais &amp; Identificação Civil do Titular
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.85rem', fontSize: '0.8rem' }}>
+                  <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>NOME COMPLETO</span>
+                    <strong style={{ color: '#FFFFFF' }}>{selectedClient.nomeRazao}</strong>
+                  </div>
+                  <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>CPF REGISTRADO</span>
+                    <strong style={{ color: '#38BDF8' }}>{getClientDocumento(selectedClient)}</strong>
+                  </div>
+                  <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>RG / CNH &amp; ÓRGÃO</span>
+                    <strong style={{ color: '#FFFFFF' }}>{selectedClient.rg || 'Não informado'} {selectedClient.orgao ? `(${selectedClient.orgao})` : ''}</strong>
+                  </div>
+                  <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>DATA DE NASCIMENTO</span>
+                    <strong style={{ color: '#FFFFFF' }}>{selectedClient.dataNascimento || selectedClient.nasc || 'Não informada'}</strong>
+                  </div>
+                  <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>SEXO &amp; ESTADO CIVIL</span>
+                    <strong style={{ color: '#FFFFFF' }}>{selectedClient.sexo || 'Não informado'} • {selectedClient.estadoCivil || 'Não informado'}</strong>
+                  </div>
+                  <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>NOME DA MÃE (FILIAÇÃO)</span>
+                    <strong style={{ color: '#FFFFFF' }}>{selectedClient.nomeMae || selectedClient.mae || 'Não informado'}</strong>
+                  </div>
+                  <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>NOME DO PAI (FILIAÇÃO)</span>
+                    <strong style={{ color: '#FFFFFF' }}>{selectedClient.nomePai || selectedClient.pai || 'Não informado'}</strong>
+                  </div>
+                  <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>NACIONALIDADE &amp; NATURALIDADE</span>
+                    <strong style={{ color: '#FFFFFF' }}>{selectedClient.nacionalidade || 'Brasileira'} • {selectedClient.naturalidade || 'São Paulo/SP'}</strong>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SEÇÃO 1 (PJ): IDENTIFICAÇÃO EMPRESARIAL & SOCIETÁRIA */}
             {selectedClient.tipo === 'PJ' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '1.5rem' }}>
-                
-                {/* Vínculo Societário */}
-                <div style={{ background: '#070A10', border: '1px solid rgba(197, 168, 105, 0.2)', borderRadius: 'var(--radius-sm)', padding: '1rem' }}>
-                  <div style={{ fontSize: '0.74rem', color: 'var(--gold-light)', textTransform: 'uppercase', fontWeight: 700, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <Briefcase size={14} />
-                    Sócio Administrador Responsável
-                  </div>
-                  <div style={{ fontSize: '0.95rem', color: '#FFFFFF', fontWeight: 700 }}>
-                    {selectedClient.socioVinculado || selectedClient.responsavel || 'José Jailson Mourato da Silva'}
-                  </div>
-                  {selectedClient.natureza && (
-                    <div style={{ fontSize: '0.74rem', color: '#94A3B8', marginTop: '0.25rem' }}>
-                      Natureza Jurídica: {selectedClient.natureza}
-                    </div>
-                  )}
+              <div style={{ background: '#070A10', border: '1px solid rgba(197, 168, 105, 0.25)', borderRadius: 'var(--radius-sm)', padding: '1.15rem', marginBottom: '1.25rem' }}>
+                <div style={{ fontSize: '0.76rem', color: 'var(--gold-light)', textTransform: 'uppercase', fontWeight: 800, marginBottom: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.45rem', letterSpacing: '0.04em' }}>
+                  <Building2 size={15} />
+                  1. Identificação Empresarial &amp; Quadro Societário
                 </div>
 
-                {/* Dados Contábeis Auditados */}
-                {selectedClient.balanco && (
-                  <div style={{ background: '#070A10', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 'var(--radius-sm)', padding: '1.1rem' }}>
-                    <div style={{ fontSize: '0.74rem', color: 'var(--gold-light)', textTransform: 'uppercase', fontWeight: 700, marginBottom: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <FileSpreadsheet size={14} />
-                      Balanço Patrimonial &amp; Dados Contábeis ({selectedClient.balanco.exercicio || '2026 Auditado'})
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.85rem', fontSize: '0.8rem' }}>
-                      <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
-                        <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>ATIVO TOTAL</span>
-                        <strong style={{ color: '#FFFFFF' }}>{selectedClient.balanco.ativo || '---'}</strong>
-                      </div>
-                      <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
-                        <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>PATRIMÔNIO LÍQUIDO</span>
-                        <strong style={{ color: '#34D399' }}>{selectedClient.balanco.patrimonioLiquido || '---'}</strong>
-                      </div>
-                      <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
-                        <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>CAPITAL SOCIAL</span>
-                        <strong style={{ color: '#FFFFFF' }}>{selectedClient.balanco.capitalSocial || '---'}</strong>
-                      </div>
-                      <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
-                        <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>FATURAMENTO ANUAL</span>
-                        <strong style={{ color: 'var(--gold-light)' }}>{selectedClient.balanco.faturamentoAnual || '---'}</strong>
-                      </div>
-                    </div>
-
-                    {selectedClient.balanco.contadorResponsavel && (
-                      <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '0.75rem', borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: '0.5rem' }}>
-                        Responsável Técnico Contábil: <strong style={{ color: '#CBD5E1' }}>{selectedClient.balanco.contadorResponsavel}</strong>
-                      </div>
-                    )}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.85rem', fontSize: '0.8rem' }}>
+                  <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)', gridColumn: 'span 2' }}>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>RAZÃO SOCIAL</span>
+                    <strong style={{ color: '#FFFFFF', fontSize: '0.9rem' }}>{selectedClient.nomeRazao}</strong>
                   </div>
-                )}
-
+                  <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>CNPJ (RECEITA FEDERAL)</span>
+                    <strong style={{ color: 'var(--gold-light)' }}>{getClientDocumento(selectedClient)}</strong>
+                  </div>
+                  <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>NIRE JUCESP</span>
+                    <strong style={{ color: '#CBD5E1' }}>{selectedClient.nire || 'Não informado'}</strong>
+                  </div>
+                  <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>NATUREZA JURÍDICA</span>
+                    <strong style={{ color: '#CBD5E1' }}>{selectedClient.natureza || 'Sociedade Empresária Limitada'}</strong>
+                  </div>
+                  <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>SÓCIO ADMINISTRADOR</span>
+                    <strong style={{ color: '#FFFFFF' }}>{selectedClient.socioVinculado || selectedClient.responsavel || 'José Jailson Mourato da Silva'}</strong>
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* SEÇÃO ESPECÍFICA PF: EMPRESA VINCULADA, RENDA & PATRIMÔNIO */}
-            {selectedClient.tipo === 'PF' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '1.5rem' }}>
-                
-                {/* Vínculo Corporativo & Cargo */}
-                <div style={{ background: '#070A10', border: '1px solid rgba(0, 158, 227, 0.25)', borderRadius: 'var(--radius-sm)', padding: '1rem' }}>
-                  <div style={{ fontSize: '0.74rem', color: '#38BDF8', textTransform: 'uppercase', fontWeight: 700, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <Building2 size={14} />
-                    Empresa Vinculada &amp; Atuação
-                  </div>
-                  <div style={{ fontSize: '0.95rem', color: '#FFFFFF', fontWeight: 700 }}>
-                    {selectedClient.empresaVinculada || 'Mourato & Associados Ltda'}
-                  </div>
-                  <div style={{ fontSize: '0.76rem', color: '#94A3B8', marginTop: '0.25rem' }}>
-                    Cargo / Qualificação: <strong style={{ color: '#CBD5E1' }}>{selectedClient.profissao || 'Sócio / Titular'}</strong>
-                  </div>
+            {/* SEÇÃO 2: ENDEREÇO & LOCALIZAÇÃO */}
+            <div style={{ background: '#070A10', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 'var(--radius-sm)', padding: '1.15rem', marginBottom: '1.25rem' }}>
+              <div style={{ fontSize: '0.76rem', color: '#94A3B8', textTransform: 'uppercase', fontWeight: 800, marginBottom: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.45rem', letterSpacing: '0.04em' }}>
+                <MapPin size={15} color="var(--gold-primary)" />
+                2. Endereço Completo &amp; Localização
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.85rem', fontSize: '0.8rem' }}>
+                <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)', gridColumn: 'span 2' }}>
+                  <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>LOGRADOURO RESIDENCIAL / COMERCIAL</span>
+                  <strong style={{ color: '#FFFFFF' }}>{selectedClient.endereco || selectedClient.logradouro || 'Não informado'}</strong>
+                </div>
+                <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                  <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>BAIRRO</span>
+                  <strong style={{ color: '#FFFFFF' }}>{selectedClient.bairro || 'Não informado'}</strong>
+                </div>
+                <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                  <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>CIDADE / UF</span>
+                  <strong style={{ color: '#FFFFFF' }}>{selectedClient.cidade || 'São Paulo'} / {selectedClient.uf || 'SP'}</strong>
+                </div>
+                <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                  <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>CEP</span>
+                  <strong style={{ color: 'var(--gold-light)' }}>{selectedClient.cep || 'Não informado'}</strong>
+                </div>
+                <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                  <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>TIPO DO IMÓVEL &amp; TEMPO</span>
+                  <strong style={{ color: '#CBD5E1' }}>{selectedClient.tipoImovel || 'Próprio Quitado'} {selectedClient.tempoResidencia ? `• ${selectedClient.tempoResidencia}` : ''}</strong>
+                </div>
+              </div>
+            </div>
+
+            {/* SEÇÃO 3: CANAIS DE CONTATO */}
+            <div style={{ background: '#070A10', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 'var(--radius-sm)', padding: '1.15rem', marginBottom: '1.25rem' }}>
+              <div style={{ fontSize: '0.76rem', color: '#94A3B8', textTransform: 'uppercase', fontWeight: 800, marginBottom: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.45rem', letterSpacing: '0.04em' }}>
+                <PhoneCall size={15} color="#34D399" />
+                3. Canais de Contato &amp; Comunicação
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.85rem', fontSize: '0.8rem' }}>
+                <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                  <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>CELULAR / WHATSAPP</span>
+                  <strong style={{ color: '#34D399' }}>{selectedClient.contato || selectedClient.celular || 'Não informado'}</strong>
+                </div>
+                <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                  <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>TELEFONE FIXO / ALTERNATIVO</span>
+                  <strong style={{ color: '#FFFFFF' }}>{selectedClient.telefoneFixo || selectedClient.telefone || 'Não informado'}</strong>
+                </div>
+                <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                  <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>E-MAIL PRINCIPAL</span>
+                  <strong style={{ color: '#60A5FA' }}>{selectedClient.email || 'Não informado'}</strong>
+                </div>
+                <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                  <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>E-MAIL SECUNDÁRIO</span>
+                  <strong style={{ color: '#CBD5E1' }}>{selectedClient.emailSecundario || 'Não informado'}</strong>
+                </div>
+              </div>
+            </div>
+
+            {/* SEÇÃO 4 (PF): DADOS PROFISSIONAIS, ESCOLARIDADE & RENDA */}
+            {selectedClient.tipo !== 'PJ' && (
+              <div style={{ background: '#070A10', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 'var(--radius-sm)', padding: '1.15rem', marginBottom: '1.25rem' }}>
+                <div style={{ fontSize: '0.76rem', color: '#38BDF8', textTransform: 'uppercase', fontWeight: 800, marginBottom: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.45rem', letterSpacing: '0.04em' }}>
+                  <Briefcase size={15} />
+                  4. Profissão, Escolaridade &amp; Capacidade de Renda
                 </div>
 
-                {/* Renda & Bens */}
-                {selectedClient.rendaPatrimonio && (
-                  <div style={{ background: '#070A10', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 'var(--radius-sm)', padding: '1.1rem' }}>
-                    <div style={{ fontSize: '0.74rem', color: '#38BDF8', textTransform: 'uppercase', fontWeight: 700, marginBottom: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <Car size={14} />
-                      Renda, Pró-Labore &amp; Patrimônio Declarado
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.85rem', fontSize: '0.8rem' }}>
-                      {selectedClient.rendaPatrimonio.proLabore && (
-                        <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
-                          <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>PRÓ-LABORE / RENDA</span>
-                          <strong style={{ color: '#34D399' }}>{selectedClient.rendaPatrimonio.proLabore}</strong>
-                        </div>
-                      )}
-                      {selectedClient.rendaPatrimonio.bens && (
-                        <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
-                          <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>BENS DECLARADOS</span>
-                          <strong style={{ color: '#FFFFFF' }}>{selectedClient.rendaPatrimonio.bens}</strong>
-                        </div>
-                      )}
-                      {selectedClient.rendaPatrimonio.veiculos && (
-                        <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)', gridColumn: '1 / -1' }}>
-                          <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>VEÍCULOS / RENAVAM</span>
-                          <strong style={{ color: 'var(--gold-light)' }}>{selectedClient.rendaPatrimonio.veiculos}</strong>
-                        </div>
-                      )}
-                    </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.85rem', fontSize: '0.8rem' }}>
+                  <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>PROFISSÃO / CARGO</span>
+                    <strong style={{ color: '#FFFFFF' }}>{selectedClient.profissao || selectedClient.socioeconomico?.profissao || 'Sócio-Administrador'}</strong>
                   </div>
-                )}
-
+                  <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>VÍNCULO OCUPACIONAL</span>
+                    <strong style={{ color: '#FFFFFF' }}>{selectedClient.tipoVinculo || selectedClient.socioeconomico?.tipoVinculo || 'Empresário / Sócio PJ'}</strong>
+                  </div>
+                  <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>ESCOLARIDADE FORMAL</span>
+                    <strong style={{ color: '#FFFFFF' }}>{selectedClient.escolaridade || selectedClient.socioeconomico?.escolaridade || 'Superior Completo'}</strong>
+                  </div>
+                  <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>RENDA MENSAL / PRÓ-LABORE</span>
+                    <strong style={{ color: '#34D399' }}>{selectedClient.rendaMensal || selectedClient.socioeconomico?.rendaMensal || selectedClient.rendaPatrimonio?.proLabore || 'Declarado em Análise'}</strong>
+                  </div>
+                  <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>EMPRESA VINCULADA</span>
+                    <strong style={{ color: 'var(--gold-light)' }}>{selectedClient.empresaVinculada || selectedClient.socioeconomico?.empresaEmpregadora || 'Mourato & Associados Ltda'}</strong>
+                  </div>
+                  <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>PATRIMÔNIO / VEÍCULOS</span>
+                    <strong style={{ color: '#CBD5E1' }}>{selectedClient.rendaPatrimonio?.veiculos || selectedClient.rendaPatrimonio?.bens || 'Veículos e Bens Declarados'}</strong>
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* Contas Bancárias Cadastradas */}
-            <div style={{ marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '0.86rem', color: 'var(--gold-light)', textTransform: 'uppercase', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+            {/* SEÇÃO 4 (PJ): BALANÇO PATRIMONIAL & DADOS CONTÁBEIS */}
+            {selectedClient.tipo === 'PJ' && selectedClient.balanco && (
+              <div style={{ background: '#070A10', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 'var(--radius-sm)', padding: '1.15rem', marginBottom: '1.25rem' }}>
+                <div style={{ fontSize: '0.76rem', color: 'var(--gold-light)', textTransform: 'uppercase', fontWeight: 800, marginBottom: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.45rem', letterSpacing: '0.04em' }}>
+                  <FileSpreadsheet size={15} />
+                  4. Balanço Patrimonial &amp; Dados Contábeis ({selectedClient.balanco.exercicio || '2026 Auditado'})
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.85rem', fontSize: '0.8rem' }}>
+                  <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>ATIVO TOTAL</span>
+                    <strong style={{ color: '#FFFFFF' }}>{selectedClient.balanco.ativo || '---'}</strong>
+                  </div>
+                  <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>PATRIMÔNIO LÍQUIDO</span>
+                    <strong style={{ color: '#34D399' }}>{selectedClient.balanco.patrimonioLiquido || '---'}</strong>
+                  </div>
+                  <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>CAPITAL SOCIAL</span>
+                    <strong style={{ color: '#FFFFFF' }}>{selectedClient.balanco.capitalSocial || '---'}</strong>
+                  </div>
+                  <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>FATURAMENTO ANUAL</span>
+                    <strong style={{ color: 'var(--gold-light)' }}>{selectedClient.balanco.faturamentoAnual || '---'}</strong>
+                  </div>
+                </div>
+
+                {selectedClient.balanco.contadorResponsavel && (
+                  <div style={{ fontSize: '0.74rem', color: '#94A3B8', marginTop: '0.75rem', borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: '0.5rem' }}>
+                    Responsável Técnico Contábil: <strong style={{ color: '#CBD5E1' }}>{selectedClient.balanco.contadorResponsavel}</strong>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* SEÇÃO 5: CONTAS BANCÁRIAS CADASTRADAS */}
+            <div style={{ marginBottom: '1.25rem' }}>
+              <div style={{ fontSize: '0.76rem', color: 'var(--gold-light)', textTransform: 'uppercase', fontWeight: 800, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.45rem', letterSpacing: '0.04em' }}>
                 <Landmark size={15} />
-                Contas Bancárias ({selectedClient.contasBancarias?.length || 1}) {selectedClient.tipo === 'PJ' ? '• CCS Bacen' : ''}
-              </h3>
+                5. Contas Bancárias ({selectedClient.contasBancarias?.length || 1}) {selectedClient.tipo === 'PJ' ? '• CCS Bacen' : ''}
+              </div>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {selectedClient.contasBancarias?.map((b, idx) => (
@@ -8091,9 +8118,12 @@ Website: https://www.mouratoassociados.com.br`;
                             CCS BACEN HOMOLOGADO
                           </span>
                         )}
+                        <span style={{ fontSize: '0.68rem', color: '#94A3B8', background: 'rgba(255, 255, 255, 0.06)', padding: '0.1rem 0.45rem', borderRadius: '4px' }}>
+                          Tipo: {b.tipoConta || (selectedClient.tipo === 'PJ' ? 'PJ' : 'PF')}
+                        </span>
                       </div>
                       <span style={{ fontSize: '0.7rem', color: '#34D399', background: 'rgba(16, 185, 129, 0.12)', padding: '0.15rem 0.5rem', borderRadius: '9999px' }}>
-                        {b.statusConta}
+                        {b.statusConta || 'Ativa / Homologada'}
                       </span>
                     </div>
 
@@ -8131,12 +8161,12 @@ Website: https://www.mouratoassociados.com.br`;
               </div>
             </div>
 
-            {/* Bureaus Status */}
-            <div style={{ marginBottom: '1.5rem', background: '#070A10', padding: '1.1rem', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-              <h3 style={{ fontSize: '0.84rem', color: 'var(--gold-light)', textTransform: 'uppercase', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <ShieldCheck size={14} />
-                Bureaus &amp; Órgãos Reguladores
-              </h3>
+            {/* SEÇÃO 6: BIRÔS DE CRÉDITO & RATINGS */}
+            <div style={{ marginBottom: '1.25rem', background: '#070A10', padding: '1.1rem', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              <div style={{ fontSize: '0.76rem', color: 'var(--gold-light)', textTransform: 'uppercase', fontWeight: 800, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', letterSpacing: '0.04em' }}>
+                <ShieldCheck size={15} />
+                6. Bureaus, Ratings &amp; Órgãos Reguladores
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', fontSize: '0.78rem' }}>
                 <div style={{ background: '#0D121D', padding: '0.65rem', borderRadius: 'var(--radius-xs)' }}>
                   <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>BACEN SCR</span>
@@ -8144,7 +8174,7 @@ Website: https://www.mouratoassociados.com.br`;
                 </div>
                 <div style={{ background: '#0D121D', padding: '0.65rem', borderRadius: 'var(--radius-xs)' }}>
                   <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>SERASA EXPERIAN</span>
-                  <strong style={{ color: '#FFFFFF' }}>{selectedClient.serasaScore || selectedClient.serasaStatus}</strong>
+                  <strong style={{ color: '#FFFFFF' }}>{selectedClient.serasaScore || selectedClient.serasaStatus || 'Regular'}</strong>
                 </div>
                 <div style={{ background: '#0D121D', padding: '0.65rem', borderRadius: 'var(--radius-xs)' }}>
                   <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>GOV.BR</span>
@@ -8161,13 +8191,13 @@ Website: https://www.mouratoassociados.com.br`;
               </div>
             </div>
 
-            {/* Senhas & Credenciais de Consulta dos Birôs */}
-            <div style={{ marginBottom: '1.5rem', background: '#070A10', padding: '1.1rem', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(197, 168, 105, 0.25)' }}>
+            {/* SEÇÃO 7: CREDENCIAIS & SENHAS DE ACESSO AOS BIRÔS */}
+            <div style={{ marginBottom: '1.25rem', background: '#070A10', padding: '1.1rem', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(197, 168, 105, 0.25)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-                <h3 style={{ fontSize: '0.84rem', color: 'var(--gold-light)', textTransform: 'uppercase', margin: 0, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <KeyRound size={14} color="var(--gold-primary)" />
-                  Senhas &amp; Credenciais de Consulta dos Birôs
-                </h3>
+                <div style={{ fontSize: '0.76rem', color: 'var(--gold-light)', textTransform: 'uppercase', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '0.4rem', letterSpacing: '0.04em' }}>
+                  <KeyRound size={15} color="var(--gold-primary)" />
+                  7. Senhas &amp; Credenciais Salvas dos Birôs
+                </div>
                 <span style={{ fontSize: '0.7rem', color: '#64748B' }}>Acesso Opcional • Sem Trava Obrigatória</span>
               </div>
 
@@ -8233,6 +8263,34 @@ Website: https://www.mouratoassociados.com.br`;
               </div>
             </div>
 
+            {/* SEÇÃO 8: ANEXOS & EXTRATOS ENVIADOS */}
+            {Array.isArray(selectedClient.anexos) && selectedClient.anexos.length > 0 && (
+              <div style={{ marginBottom: '1.25rem', background: '#070A10', padding: '1.1rem', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                <div style={{ fontSize: '0.76rem', color: '#60A5FA', textTransform: 'uppercase', fontWeight: 800, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', letterSpacing: '0.04em' }}>
+                  <FileText size={15} />
+                  8. Anexos &amp; Extratos Bancários ({selectedClient.anexos.length})
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.65rem' }}>
+                  {selectedClient.anexos.map((anexo, aIdx) => (
+                    <div key={aIdx} style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                      <span style={{ fontSize: '0.78rem', color: '#E2E8F0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        📄 {anexo.nome || `Extrato_${aIdx + 1}.pdf`}
+                      </span>
+                      {anexo.dataUrl && (
+                        <a 
+                          href={anexo.dataUrl} 
+                          download={anexo.nome || 'anexo.pdf'}
+                          style={{ fontSize: '0.7rem', color: 'var(--gold-light)', textDecoration: 'none', fontWeight: 700 }}
+                        >
+                          Baixar
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Observações e Limites */}
             {selectedClient.limiteAprovado && (
               <div style={{ marginBottom: '1.25rem', fontSize: '0.82rem', background: '#070A10', padding: '0.85rem', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
@@ -8242,13 +8300,14 @@ Website: https://www.mouratoassociados.com.br`;
             )}
 
             {selectedClient.observacoesSigilosas && (
-              <div style={{ fontSize: '0.82rem', background: '#090D14', padding: '0.9rem', borderRadius: 'var(--radius-xs)', borderLeft: '3px solid var(--gold-primary)' }}>
+              <div style={{ fontSize: '0.82rem', background: '#090D14', padding: '0.9rem', borderRadius: 'var(--radius-xs)', borderLeft: '3px solid var(--gold-primary)', marginBottom: '1.25rem' }}>
                 <span style={{ color: '#64748B', display: 'block', fontSize: '0.7rem', marginBottom: '0.2rem', fontWeight: 600 }}>OBSERVAÇÕES PERICIAIS RESERVADAS</span>
                 <p style={{ color: '#CBD5E1', margin: 0, lineHeight: 1.5 }}>{selectedClient.observacoesSigilosas}</p>
               </div>
             )}
 
-            <div style={{ marginTop: '1.75rem', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
+            {/* AÇÕES NO RODAPÉ DO DOSSIÊ */}
+            <div style={{ marginTop: '1.75rem', display: 'flex', justifyContent: 'flex-end', gap: '0.65rem', flexWrap: 'wrap' }}>
               <button
                 onClick={() => {
                   const targetId = selectedClient.id;
@@ -8260,7 +8319,7 @@ Website: https://www.mouratoassociados.com.br`;
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.45rem',
-                  padding: '0.65rem 1.25rem',
+                  padding: '0.65rem 1.15rem',
                   fontSize: '0.82rem',
                   fontWeight: 700,
                   borderRadius: 'var(--radius-sm)',
@@ -8274,6 +8333,29 @@ Website: https://www.mouratoassociados.com.br`;
                 <ShieldCheck size={15} />
                 Acessar Birôs de Crédito
               </button>
+
+              <button
+                type="button"
+                onClick={() => downloadClientJsonForRobot(selectedClient)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  padding: '0.65rem 1.15rem',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'rgba(59, 130, 246, 0.16)',
+                  border: '1px solid rgba(59, 130, 246, 0.45)',
+                  color: '#60A5FA',
+                  cursor: 'pointer'
+                }}
+                title="Baixar planilha/ficha estruturada em JSON para o robô ClientesPF"
+              >
+                <FileDown size={15} />
+                Baixar Ficha (Robô)
+              </button>
+
               <button
                 onClick={() => {
                   const targetClient = selectedClient;
@@ -8283,7 +8365,7 @@ Website: https://www.mouratoassociados.com.br`;
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.45rem',
-                  padding: '0.65rem 1.25rem',
+                  padding: '0.65rem 1.15rem',
                   fontSize: '0.82rem',
                   fontWeight: 700,
                   borderRadius: 'var(--radius-sm)',
@@ -8297,6 +8379,7 @@ Website: https://www.mouratoassociados.com.br`;
                 <Edit2 size={15} />
                 Editar Cadastro
               </button>
+
               <button
                 onClick={() => {
                   const clientToCharge = selectedClient;
@@ -8309,6 +8392,7 @@ Website: https://www.mouratoassociados.com.br`;
                 <CreditCard size={15} />
                 Emitir Cobrança
               </button>
+
               <button
                 onClick={() => handleDeleteClient(selectedClient.id)}
                 style={{
@@ -8329,10 +8413,11 @@ Website: https://www.mouratoassociados.com.br`;
                 <Trash2 size={15} />
                 Excluir
               </button>
+
               <button
                 onClick={() => setSelectedClient(null)}
                 className="btn-secondary-subtle"
-                style={{ padding: '0.65rem 1.5rem', fontSize: '0.82rem' }}
+                style={{ padding: '0.65rem 1.35rem', fontSize: '0.82rem' }}
               >
                 Fechar Dossiê
               </button>
