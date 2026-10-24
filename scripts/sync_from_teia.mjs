@@ -130,8 +130,6 @@ try {
       empresaVinculada = 'Y7 Service Ltda / Perícias Contábeis Mourato';
     } else if (f.id_alias === 'erivaldo') {
       empresaVinculada = 'COMERCIAL NESPE CONSTRUTORA';
-    } else if (f.id_alias === 'sergio') {
-      empresaVinculada = 'SS TECHNOLOGIES LTDA (CNPJ 43.146.007/0001-29)';
     }
 
     // Veiculos formatados
@@ -162,8 +160,6 @@ try {
       );
     } else if (f.id_alias === 'erivaldo') {
       contas.push({ id: 1, banco: 'Santander', bancoOutro: '', agencia: '3410', conta: 'Conta PJ/PF Select', senhaAcesso: '', statusConta: 'Aberta e Operando' });
-    } else if (f.id_alias === 'sergio') {
-      contas.push({ id: 1, banco: 'Nubank', bancoOutro: 'Nu Pagamentos PJ', agencia: '0001', conta: 'Conta Jurídica / PF', senhaAcesso: 'Biometria', statusConta: 'Aberta e Operando' });
     } else {
       contas.push({ id: 1, banco: 'Itaú', bancoOutro: '', agencia: '0001', conta: 'Conta Corrente', senhaAcesso: '', statusConta: 'Aberta e Operando' });
     }
@@ -182,21 +178,21 @@ try {
       endereco: f.endereco_principal || 'São Paulo - SP',
       cep: f.cep || '01000-000',
       rendaPatrimonio: {
-        proLabore: f.id_alias === 'mourato' ? 'R$ 25.000,00' : f.id_alias === 'sergio' ? 'R$ 28.000,00' : f.id_alias === 'erivaldo' ? 'R$ 22.000,00' : 'R$ 15.000,00',
+        proLabore: f.id_alias === 'mourato' ? 'R$ 25.000,00' : f.id_alias === 'erivaldo' ? 'R$ 22.000,00' : 'R$ 15.000,00',
         bens: f.id_alias === 'nilson' ? 'Imóvel Residencial Próprio R$ 550.000,00' : 'Ativos e quotas de capital',
         veiculos: veiculosStr
       },
       contasBancarias: contas,
-      serasaScore: scoreData?.serasa ? `${scoreData.serasa}` : (f.id_alias === 'sergio' ? '802' : 'Regular'),
+      serasaScore: scoreData?.serasa ? `${scoreData.serasa}` : 'Regular',
       serasaStatus: f.id_alias === 'nilson' ? 'Apontamento Negociado (Prescritos em Purga)' : 'Sem Apontamentos',
-      boaVistaScore: scoreData?.boavista ? `${scoreData.boavista}` : (f.id_alias === 'sergio' ? '717' : 'Regular'),
+      boaVistaScore: scoreData?.boavista ? `${scoreData.boavista}` : 'Regular',
       boaVistaStatus: 'Sem Restrições',
       quodScore: scoreData?.quod ? `${scoreData.quod}` : 'Positivo',
       quodStatus: 'Positivo / Sem Restrição',
-      bacenScr: scoreData?.rating || (f.id_alias === 'sergio' ? 'Rating A1' : 'Rating A'),
+      bacenScr: scoreData?.rating || 'Rating A',
       govNivel: certStr ? 'Ouro' : 'Prata',
       govProtocolo: certStr || 'Validação Gov.br Ativa',
-      limiteAprovado: f.id_alias === 'mourato' ? 'R$ 1.450.000,00' : f.id_alias === 'sergio' ? 'R$ 950.000,00' : 'R$ 350.000,00',
+      limiteAprovado: f.id_alias === 'mourato' ? 'R$ 1.450.000,00' : 'R$ 350.000,00',
       observacoesSigilosas: f.observacoes || 'Cadastro pericial integrado com sucesso.',
       dataCadastro: f.created_at ? f.created_at.split(' ')[0].split('/').reverse().join('-') : '2026-09-01'
     });

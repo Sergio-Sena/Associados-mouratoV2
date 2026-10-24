@@ -376,64 +376,137 @@ export function saveClientToOfficialSite(payload, protocolo) {
       if (!Array.isArray(existing)) existing = [];
     }
 
-    const isPj = Boolean(payload.empresa && payload.empresa.razao_social && payload.empresa.cnpj);
-    const docClean = isPj ? (payload.empresa.cnpj || '') : (payload.titular?.cpf || '');
-    const docFormatted = isPj 
-      ? maskCNPJ(payload.empresa.cnpj) 
-      : maskCPF(payload.titular?.cpf || '');
+    const hasEmpresa = Boolean(payload.empresa && (payload.empresa.razao_social || payload.empresa.cnpj));
+    const hasTitular = Boolean(payload.titular && (payload.titular.nome || payload.titular.cpf));
 
-    const codigoCliente = payload.codigoCliente || getNextClientSequence();
+    const recordsToSave = [];
 
-    const newRecord = {
-      id: `cli-lead-${Date.now()}`,
-      codigoCliente: codigoCliente,
-      tipo: isPj ? 'PJ' : 'PF',
-      nomeRazao: isPj ? payload.empresa.razao_social : (payload.titular?.nome || 'Cliente'),
-      documento: docFormatted,
-      documentoTipo: isPj ? 'CNPJ' : 'CPF',
-      natureza: isPj ? 'Sociedade Empresária (Onboarding Digital)' : 'Pessoa Física (Auditoria de Rating & SCR)',
-      situacao: 'NOVO',
-      statusConta: 'Novo Cadastro (Ficha Preenchida)',
-      dataAbertura: new Date().toLocaleDateString('pt-BR'),
-      dataCadastro: new Date().toISOString(),
-      socioVinculado: payload.titular?.nome || '',
-      responsavel: `${payload.titular?.nome || ''} (CPF ${maskCPF(payload.titular?.cpf || '')})`,
-      contato: payload.contato?.celular || '',
-      telefoneFixo: payload.contato?.telefone_fixo || '',
-      email: payload.contato?.email || '',
-      emailSecundario: payload.contato?.email_secundario || '',
-      endereco: `${payload.endereco?.logradouro || ''}, ${payload.endereco?.numero || ''} ${payload.endereco?.complemento || ''} - ${payload.endereco?.bairro || ''}, ${payload.endereco?.cidade || ''}/${payload.endereco?.uf || ''}`,
-      cep: maskCEP(payload.endereco?.cep || ''),
-      tipoImovel: payload.endereco?.tipo_imovel || '',
-      tempoResidencia: payload.endereco?.tempo_residencia || '',
-      protocolo: protocolo || payload.protocolo,
-      socioeconomico: {
-        profissao: payload.socioeconomico?.profissao || '',
-        tipoVinculo: payload.socioeconomico?.tipo_vinculo || '',
-        escolaridade: payload.socioeconomico?.escolaridade || '',
-        rendaMensal: payload.socioeconomico?.renda_mensal || '',
-        outrasRendas: payload.socioeconomico?.outras_rendas || '',
-        empresaEmpregadora: payload.socioeconomico?.empresa_empregadora || ''
-      },
-      empresa: isPj ? {
-        razaoSocial: payload.empresa.razao_social,
-        cnpj: maskCNPJ(payload.empresa.cnpj),
-        capitalSocial: payload.empresa.capital_social,
-        cargoSocio: payload.empresa.cargo_socio
-      } : null,
-      portais: payload.portais || {},
-      anexos: payload.anexos || [], // PDFs do Quod, Bacen, etc.
-      origem: payload.origem || 'www.mouratoassociados.com.br',
-      autorizacaoLGPD: true
-    };
+    // 1. SEPARAR A PARTE EMPRESA (REGISTRO PJ)
+    if (hasEmpresa) {
+      const cnpjClean = (payload.empresa?.cnpj || '').replace(/\D/g, '');
+      const pjCodigo = payload.codigoCliente || getNextClientSequence();
+      const pjRecord = {
+        id: `cli-pj-${Date.now()}`,
+        codigoCliente: pjCodigo,
+        tipo: 'PJ',
+        nomeRazao: (payload.empresa.razao_social || 'EMPRESA').toUpperCase(),
+        documento: maskCNPJ(payload.empresa.cnpj || ''),
+        documentoTipo: 'CNPJ',
+        natureza: 'Sociedade Empresária (Onboarding Digital)',
+        situacao: 'NOVO',
+        statusConta: 'Novo Cadastro (Ficha Preenchida)',
+        statusValidacao: 'Validado como PJ',
+        dataAbertura: new Date().toLocaleDateString('pt-BR'),
+        dataCadastro: new Date().toISOString(),
+        socioVinculado: (payload.titular?.nome || '').toUpperCase(),
+        responsavel: `${payload.titular?.nome || ''} (CPF ${maskCPF(payload.titular?.cpf || '')})`,
+        contato: payload.contato?.celular || '',
+        telefoneFixo: payload.contato?.telefone_fixo || '',
+        email: payload.contato?.email || '',
+        emailSecundario: payload.contato?.email_secundario || '',
+        endereco: `${payload.endereco?.logradouro || ''}, ${payload.endereco?.numero || ''} ${payload.endereco?.complemento || ''} - ${payload.endereco?.bairro || ''}, ${payload.endereco?.cidade || ''}/${payload.endereco?.uf || ''}`,
+        cep: maskCEP(payload.endereco?.cep || ''),
+        tipoImovel: payload.endereco?.tipo_imovel || '',
+        tempoResidencia: payload.endereco?.tempo_residencia || '',
+        protocolo: protocolo || payload.protocolo,
+        empresa: {
+          razaoSocial: payload.empresa.razao_social,
+          cnpj: maskCNPJ(payload.empresa.cnpj || ''),
+          capitalSocial: payload.empresa.capital_social || '',
+          cargoSocio: payload.empresa.cargo_socio || 'Sócio-Administrador'
+        },
+        balanco: {
+          exercicio: '2026 (Auditado)',
+          ativo: '',
+          patrimonioLiquido: '',
+          capitalSocial: payload.empresa.capital_social || '',
+          faturamentoAnual: payload.empresa.faturamento_anual || '',
+          contadorResponsavel: ''
+        },
+        contasBancarias: (payload.contasBancarias || []).filter(b => b.origemCcs || b.tipoConta === 'PJ' || !b.tipoConta),
+        portais: payload.portais || {},
+        anexos: payload.anexos || [],
+        origem: payload.origem || 'www.mouratoassociados.com.br',
+        autorizacaoLGPD: true
+      };
+      recordsToSave.push(pjRecord);
+    }
 
-    // Remove eventual duplicata anterior pelo mesmo documento limpo
-    const filtered = existing.filter(c => (c.documento || '').replace(/\D/g, '') !== docClean.replace(/\D/g, ''));
-    const updated = [newRecord, ...filtered];
+    // 2. SEPARAR A PARTE PESSOA FÍSICA / SÓCIO (REGISTRO PF)
+    if (hasTitular) {
+      const cpfClean = (payload.titular?.cpf || '').replace(/\D/g, '');
+      const pfCodigo = getNextClientSequence();
+      const pfRecord = {
+        id: `cli-pf-${Date.now() + 1}`,
+        codigoCliente: pfCodigo,
+        tipo: 'PF',
+        nomeRazao: (payload.titular?.nome || 'CLIENTE SÓCIO').toUpperCase(),
+        documento: maskCPF(payload.titular?.cpf || ''),
+        documentoTipo: 'CPF',
+        natureza: 'Pessoa Física (Auditoria de Rating & SCR)',
+        situacao: 'NOVO',
+        statusConta: 'Novo Cadastro (Ficha Preenchida)',
+        statusValidacao: 'Validado como PF',
+        dataAbertura: new Date().toLocaleDateString('pt-BR'),
+        dataCadastro: new Date().toISOString(),
+        empresaVinculada: hasEmpresa ? (payload.empresa.razao_social || '').toUpperCase() : '',
+        socioVinculado: '',
+        responsavel: (payload.titular?.nome || '').toUpperCase(),
+        contato: payload.contato?.celular || '',
+        telefoneFixo: payload.contato?.telefone_fixo || '',
+        email: payload.contato?.email || '',
+        emailSecundario: payload.contato?.email_secundario || '',
+        endereco: `${payload.endereco?.logradouro || ''}, ${payload.endereco?.numero || ''} ${payload.endereco?.complemento || ''} - ${payload.endereco?.bairro || ''}, ${payload.endereco?.cidade || ''}/${payload.endereco?.uf || ''}`,
+        cep: maskCEP(payload.endereco?.cep || ''),
+        tipoImovel: payload.endereco?.tipo_imovel || '',
+        tempoResidencia: payload.endereco?.tempo_residencia || '',
+        protocolo: protocolo || payload.protocolo,
+        socioeconomico: {
+          profissao: payload.socioeconomico?.profissao || payload.empresa?.cargo_socio || 'Sócio-Administrador',
+          tipoVinculo: payload.socioeconomico?.tipo_vinculo || 'Empresário / Sócio',
+          escolaridade: payload.socioeconomico?.escolaridade || '',
+          rendaMensal: payload.socioeconomico?.renda_mensal || '',
+          outrasRendas: payload.socioeconomico?.outras_rendas || '',
+          empresaEmpregadora: hasEmpresa ? payload.empresa.razao_social : (payload.socioeconomico?.empresa_empregadora || '')
+        },
+        rendaPatrimonio: {
+          proLabore: payload.socioeconomico?.renda_mensal || '',
+          bens: '',
+          veiculos: ''
+        },
+        contasBancarias: (payload.contasBancarias || []).filter(b => b.tipoConta === 'PF'),
+        portais: payload.portais || {},
+        anexos: payload.anexos || [],
+        origem: payload.origem || 'www.mouratoassociados.com.br',
+        autorizacaoLGPD: true
+      };
+      recordsToSave.push(pfRecord);
+    }
+
+    // Se nem empresa nem titular vieram preenchidos, cria um genérico
+    if (recordsToSave.length === 0) {
+      recordsToSave.push({
+        id: `cli-lead-${Date.now()}`,
+        codigoCliente: getNextClientSequence(),
+        tipo: 'PF',
+        nomeRazao: 'Novo Cliente',
+        documento: '',
+        documentoTipo: 'CPF',
+        natureza: 'Pessoa Física',
+        dataCadastro: new Date().toISOString()
+      });
+    }
+
+    // Evita duplicatas removendo registros com os mesmos documentos salvos
+    const docsToAdd = new Set(recordsToSave.map(r => (r.documento || '').replace(/\D/g, '')).filter(Boolean));
+    const filtered = existing.filter(c => !docsToAdd.has((c.documento || '').replace(/\D/g, '')));
+    const updated = [...recordsToSave, ...filtered];
+
+    const primaryRecord = recordsToSave[0];
 
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(updated));
-      localStorage.setItem('mourato_active_bureau_client_id', newRecord.id);
+      localStorage.setItem('mourato_active_bureau_client_id', primaryRecord.id);
 
       // Marca o link/token como permanentemente utilizado
       markFichaLinkAsUsed({
@@ -441,9 +514,9 @@ export function saveClientToOfficialSite(payload, protocolo) {
         leadId: payload.leadId || payload.id,
         email: payload.contato?.email,
         telefone: payload.contato?.celular,
-        codigoCliente: codigoCliente,
+        codigoCliente: primaryRecord.codigoCliente,
         protocolo: protocolo || payload.protocolo,
-        nome: isPj ? payload.empresa.razao_social : (payload.titular?.nome || 'Cliente')
+        nome: primaryRecord.nomeRazao
       });
 
       // Inicializa estrutura no Birô de Crédito para pesquisa e alimentação imediata do colaborador

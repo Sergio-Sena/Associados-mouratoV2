@@ -160,12 +160,10 @@ const unmarkLeadAsApprovedLocally = (id, lead = null) => {
   } catch (e) {}
 };
 
-// Conversor Oficial de Lead Aprovado em Registro de Cliente
-const convertLeadToClientRecord = (lead, linkFicha = '') => {
+// Conversor Oficial de Lead Aprovado em Registros de Cliente (Separação Automática PF & PJ)
+const convertLeadToClientRecords = (lead, linkFicha = '') => {
   const cleanDoc = (lead.documento || lead.cnpj || lead.cpf || '').trim();
   const docDigits = cleanDoc.replace(/\D/g, '');
-  const isPj = lead.tipo === 'PJ' || docDigits.length > 11 || Boolean(lead.empresa && lead.empresa !== lead.nome);
-  const docTipo = isPj ? 'CNPJ' : 'CPF';
   const phone = lead.telefone || lead.contato || '';
   const leadId = String(lead.id || Date.now());
 
@@ -173,87 +171,147 @@ const convertLeadToClientRecord = (lead, linkFicha = '') => {
   const leadToken = lead.token || lead.id || `tok-${leadId}`;
   const calculatedLink = linkFicha || `${baseUrl}/ficha-cadastral?nome=${encodeURIComponent(lead.nome || '')}&empresa=${encodeURIComponent(lead.empresa || '')}&telefone=${encodeURIComponent(lead.telefone || '')}&email=${encodeURIComponent(lead.email || '')}&token=${encodeURIComponent(leadToken)}&leadId=${encodeURIComponent(leadId)}&origem=audiencia_aprovada`;
 
-  return {
-    id: `cli-lead-${leadId}`,
-    leadOriginId: leadId,
-    codigoCliente: lead.codigoCliente || getNextClientSequence(),
-    tipo: isPj ? 'PJ' : 'PF',
-    nomeRazao: (lead.empresa || lead.nome || 'Novo Cliente').toUpperCase(),
-    documento: cleanDoc,
-    documentoTipo: docTipo,
-    natureza: isPj ? 'Sociedade Empresária' : 'Pessoa Física',
-    nire: lead.nire || '',
-    situacao: 'NOVO',
-    statusConta: 'Novo Cadastro (Ficha Enviada)',
-    dataAbertura: lead.dataAbertura || new Date().toISOString().split('T')[0],
-    dataCadastro: new Date().toISOString().split('T')[0],
-    dataAprovacao: lead.aprovadoEm || new Date().toISOString(),
-    socioVinculado: (lead.nome || '').toUpperCase(),
-    responsavel: (lead.nome || '').toUpperCase(),
-    contato: phone,
-    telefoneFixo: lead.telefoneFixo || '',
-    email: (lead.email || '').toLowerCase().trim(),
-    emailSecundario: lead.emailSecundario || '',
-    rg: lead.rg || '',
-    orgaoExpedidor: lead.orgaoExpedidor || '',
-    dataNascimento: lead.dataNascimento || '',
-    sexo: lead.sexo || '',
-    estadoCivil: lead.estadoCivil || '',
-    nomeMae: lead.nomeMae || '',
-    nomePai: lead.nomePai || '',
-    nacionalidade: lead.nacionalidade || 'Brasileira',
-    naturalidade: lead.naturalidade || '',
-    endereco: lead.endereco || '',
-    cep: lead.cep || '',
-    origem: 'Portal Oficial Mourato & Associados',
-    pratica: lead.pratica || 'Auditoria & Rating Bancário',
-    contexto: lead.contexto || '',
-    linkFicha: calculatedLink,
-    socioeconomico: {
-      profissao: lead.profissao || lead.socioeconomico?.profissao || '',
-      tipoVinculo: lead.tipoVinculo || lead.socioeconomico?.tipoVinculo || (isPj ? 'Empresário / Sócio' : ''),
-      escolaridade: lead.escolaridade || lead.socioeconomico?.escolaridade || '',
-      rendaMensal: lead.rendaMensal || lead.socioeconomico?.rendaMensal || '',
-      outrasRendas: lead.outrasRendas || lead.socioeconomico?.outrasRendas || '',
-      empresaEmpregadora: lead.empresaEmpregadora || lead.socioeconomico?.empresaEmpregadora || '',
-      veiculos: lead.veiculos || []
-    },
-    empresa: isPj ? {
-      razaoSocial: lead.empresa || lead.nomeRazao || '',
-      nomeFantasia: lead.nomeFantasia || '',
-      cnpj: cleanDoc,
-      cargoSocio: lead.cargoSocio || 'Sócio-Administrador',
-      capitalSocial: lead.capitalSocial || '',
-      faturamentoAnual: lead.faturamentoAnual || '',
-      regimeTributario: lead.regimeTributario || ''
-    } : null,
-    portais: lead.portais || {
-      gov_br: lead.senhaGovBr || '',
-      nivel_gov_br: lead.nivelGovBr || '',
-      serasa: lead.senhaSerasa || '',
-      boavista: lead.senhaBoaVista || '',
-      quod: lead.senhaQuod || '',
-      pin_a1: lead.pinCertificadoA1 || ''
-    },
-    contasBancarias: lead.contasBancarias || [],
-    bancosHomologados: lead.bancosHomologados || [],
-    anexos: lead.anexos || [],
-    protocolo: lead.protocolo || `MA-${Date.now()}`,
-    scrBacen: {
-      ratingGeral: 'Rating A1',
-      limiteTotalLiberado: 'R$ 0,00',
-      volumeOperacoes: '0 operacoes',
-      prejuizoRegistrado: 'R$ 0,00',
-      pontualidade: '100%',
-      detalhes: []
-    },
-    birosScores: {
+  const rawEmpresa = (lead.empresa || '').trim();
+  const rawNome = (lead.nome || '').trim();
+  const hasEmpresa = Boolean(rawEmpresa && rawEmpresa.toUpperCase() !== rawNome.toUpperCase());
+  const hasNome = Boolean(rawNome);
+
+  const results = [];
+
+  // 1. REGISTRO PJ (EMPRESA)
+  if (hasEmpresa || docDigits.length > 11 || lead.tipo === 'PJ') {
+    const isDocCnpj = docDigits.length === 14;
+    results.push({
+      id: `cli-pj-${leadId}`,
+      leadOriginId: leadId,
+      codigoCliente: lead.codigoCliente || getNextClientSequence(),
+      tipo: 'PJ',
+      nomeRazao: (rawEmpresa || rawNome || 'Empresa').toUpperCase(),
+      documento: isDocCnpj ? cleanDoc : (lead.cnpj || ''),
+      documentoTipo: 'CNPJ',
+      natureza: 'Sociedade Empresária',
+      nire: lead.nire || '',
+      situacao: 'NOVO',
+      statusConta: 'Novo Cadastro (Ficha Enviada)',
+      statusValidacao: 'Validado como PJ',
+      dataAbertura: lead.dataAbertura || new Date().toISOString().split('T')[0],
+      dataCadastro: new Date().toISOString().split('T')[0],
+      dataAprovacao: lead.aprovadoEm || new Date().toISOString(),
+      socioVinculado: rawNome.toUpperCase(),
+      responsavel: rawNome.toUpperCase(),
+      contato: phone,
+      telefoneFixo: lead.telefoneFixo || '',
+      email: (lead.email || '').toLowerCase().trim(),
+      emailSecundario: lead.emailSecundario || '',
+      origem: 'Portal Oficial Mourato & Associados',
+      pratica: lead.pratica || 'Auditoria & Rating Bancário',
+      contexto: lead.contexto || '',
+      linkFicha: calculatedLink,
+      empresa: {
+        razaoSocial: (rawEmpresa || rawNome || '').toUpperCase(),
+        nomeFantasia: lead.nomeFantasia || '',
+        cnpj: isDocCnpj ? cleanDoc : (lead.cnpj || ''),
+        cargoSocio: lead.cargoSocio || 'Sócio-Administrador',
+        capitalSocial: lead.capitalSocial || '',
+        faturamentoAnual: lead.faturamentoAnual || '',
+        regimeTributario: lead.regimeTributario || ''
+      },
+      balanco: {
+        exercicio: '2026 (Auditado)',
+        ativo: '',
+        patrimonioLiquido: '',
+        capitalSocial: lead.capitalSocial || '',
+        faturamentoAnual: lead.faturamentoAnual || '',
+        contadorResponsavel: ''
+      },
+      contasBancarias: lead.contasBancarias || [],
+      portais: lead.portais || {},
+      anexos: lead.anexos || [],
+      protocolo: lead.protocolo || `MA-${Date.now()}`,
+      bacenScr: 'Rating A1',
       serasaScore: 'Regular',
       boaVistaScore: 'Regular',
       quodScore: 0,
-      bacenScrStatus: 'Rating A1'
-    }
-  };
+      govNivel: 'Ouro'
+    });
+  }
+
+  // 2. REGISTRO PF (SÓCIO / PESSOA FÍSICA)
+  if (hasNome && (hasEmpresa || docDigits.length <= 11 || lead.tipo === 'PF')) {
+    const isDocCpf = docDigits.length === 11;
+    results.push({
+      id: `cli-pf-${leadId}${hasEmpresa ? '-socio' : ''}`,
+      leadOriginId: leadId,
+      codigoCliente: getNextClientSequence(),
+      tipo: 'PF',
+      nomeRazao: rawNome.toUpperCase(),
+      documento: isDocCpf ? cleanDoc : (lead.cpf || ''),
+      documentoTipo: 'CPF',
+      natureza: 'Pessoa Física (Sócio Administrador)',
+      situacao: 'NOVO',
+      statusConta: 'Novo Cadastro (Ficha Enviada)',
+      statusValidacao: 'Validado como PF',
+      dataAbertura: lead.dataAbertura || new Date().toISOString().split('T')[0],
+      dataCadastro: new Date().toISOString().split('T')[0],
+      dataAprovacao: lead.aprovadoEm || new Date().toISOString(),
+      empresaVinculada: rawEmpresa.toUpperCase(),
+      socioVinculado: '',
+      responsavel: rawNome.toUpperCase(),
+      contato: phone,
+      telefoneFixo: lead.telefoneFixo || '',
+      email: (lead.email || '').toLowerCase().trim(),
+      emailSecundario: lead.emailSecundario || '',
+      rg: lead.rg || '',
+      origem: 'Portal Oficial Mourato & Associados',
+      pratica: lead.pratica || 'Auditoria & Rating Bancário',
+      contexto: lead.contexto || '',
+      linkFicha: calculatedLink,
+      socioeconomico: {
+        profissao: lead.profissao || lead.socioeconomico?.profissao || 'Sócio-Administrador',
+        tipoVinculo: lead.tipoVinculo || lead.socioeconomico?.tipoVinculo || 'Empresário / Sócio',
+        escolaridade: lead.escolaridade || lead.socioeconomico?.escolaridade || '',
+        rendaMensal: lead.rendaMensal || lead.socioeconomico?.rendaMensal || '',
+        outrasRendas: lead.outrasRendas || lead.socioeconomico?.outrasRendas || '',
+        empresaEmpregadora: rawEmpresa.toUpperCase(),
+        veiculos: lead.veiculos || []
+      },
+      rendaPatrimonio: {
+        proLabore: lead.rendaMensal || '',
+        bens: '',
+        veiculos: ''
+      },
+      contasBancarias: (lead.contasBancarias || []).filter(b => b.tipoConta === 'PF'),
+      portais: lead.portais || {},
+      anexos: lead.anexos || [],
+      protocolo: lead.protocolo || `MA-${Date.now()}`,
+      bacenScr: 'Rating A1',
+      serasaScore: 'Regular',
+      boaVistaScore: 'Regular',
+      quodScore: 0,
+      govNivel: 'Ouro'
+    });
+  }
+
+  // Fallback se nada foi gerado
+  if (results.length === 0) {
+    results.push({
+      id: `cli-lead-${leadId}`,
+      codigoCliente: getNextClientSequence(),
+      tipo: 'PF',
+      nomeRazao: (rawNome || rawEmpresa || 'Cliente').toUpperCase(),
+      documento: cleanDoc,
+      documentoTipo: 'CPF',
+      dataCadastro: new Date().toISOString()
+    });
+  }
+
+  return results;
+};
+
+// Wrapper para retrocompatibilidade
+const convertLeadToClientRecord = (lead, linkFicha = '') => {
+  const records = convertLeadToClientRecords(lead, linkFicha);
+  return records[0];
 };
 
 const isClientAlreadyInList = (clientList, lead) => {
@@ -654,16 +712,20 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
       }
     });
 
-    // Migra leads aprovados para a lista de Clientes caso ainda não estejam lá
+    // Migra leads aprovados para a lista de Clientes caso ainda não estejam lá (Separando PF e PJ)
     if (approvedLeadsToMigrate.length > 0) {
       setClients(prevClients => {
         let updatedList = [...prevClients];
         let hasChanges = false;
         approvedLeadsToMigrate.forEach(approvedLead => {
           if (!isClientAlreadyInList(updatedList, approvedLead)) {
-            const clientRec = convertLeadToClientRecord(approvedLead);
-            updatedList = [clientRec, ...updatedList];
-            hasChanges = true;
+            const clientRecs = convertLeadToClientRecords(approvedLead);
+            clientRecs.forEach(rec => {
+              if (!updatedList.some(c => c.id === rec.id || (rec.documento && (c.documento || '').replace(/\D/g, '') === rec.documento.replace(/\D/g, '') && (c.documento || '').replace(/\D/g, '').length >= 11))) {
+                updatedList = [rec, ...updatedList];
+                hasChanges = true;
+              }
+            });
           }
         });
         if (hasChanges) {
@@ -854,11 +916,13 @@ Website: https://www.mouratoassociados.com.br`;
     const googleWorkspaceUrl = `https://mail.google.com/mail/?view=cm&fs=1&authuser=mourato@mouratoassociados.com.br&to=${encodeURIComponent(destEmail)}&su=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
     const mailtoUrl = `mailto:${destEmail || 'mourato@mouratoassociados.com.br'}?cc=mourato@mouratoassociados.com.br&subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
 
-    // 5. Converte o Lead e Adiciona a Clientes (Sai de Leads e entra em Clientes)
-    const newClientRecord = convertLeadToClientRecord(targetLead, linkFicha);
+    // 5. Converte o Lead e Adiciona a Clientes (Separa PJ para Empresa e PF para Sócio)
+    const newClientRecords = convertLeadToClientRecords(targetLead, linkFicha);
+    const newClientRecord = newClientRecords[0];
     setClients(prevClients => {
-      const filtered = prevClients.filter(c => c.id !== newClientRecord.id && (!targetLead.email || (c.email || '').toLowerCase() !== targetLead.email.toLowerCase()));
-      const updated = [newClientRecord, ...filtered];
+      const idsToRemove = new Set(newClientRecords.map(r => r.id));
+      const filtered = prevClients.filter(c => !idsToRemove.has(c.id) && (!targetLead.email || (c.email || '').toLowerCase() !== targetLead.email.toLowerCase()));
+      const updated = [...newClientRecords, ...filtered];
       try {
         localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(updated));
       } catch (e) {}
@@ -1879,6 +1943,228 @@ Website: https://www.mouratoassociados.com.br`;
       } catch (err) {
         console.error('Erro ao purgar cache:', err);
       }
+    }
+  };
+
+  // ------------------------------------------------------------------
+  // VALIDAÇÃO & TROCA ENTRE PJ E PF (SEPARANDO DADOS DE EMPRESA E SÓCIO)
+  // ------------------------------------------------------------------
+  const handleToggleClientType = (clientId) => {
+    const target = clients.find(c => c.id === clientId);
+    if (!target) return;
+
+    const isCurrentlyPJ = target.tipo === 'PJ';
+    const newType = isCurrentlyPJ ? 'PF' : 'PJ';
+
+    let updatedName = target.nomeRazao;
+    let updatedDoc = target.documento || '';
+    let updatedDocTipo = newType === 'PJ' ? 'CNPJ' : 'CPF';
+    let updatedEmpresaVinculada = target.empresaVinculada || '';
+    let updatedSocioVinculado = target.socioVinculado || '';
+
+    if (isCurrentlyPJ) {
+      // De PJ para PF: O titular da ficha vira a Pessoa Física (Sócio)
+      if (target.socioVinculado && target.socioVinculado.trim() && target.socioVinculado.trim().toUpperCase() !== target.nomeRazao.trim().toUpperCase()) {
+        updatedEmpresaVinculada = target.nomeRazao;
+        updatedName = target.socioVinculado;
+      } else if (target.responsavel && target.responsavel.trim() && target.responsavel.trim().toUpperCase() !== target.nomeRazao.trim().toUpperCase()) {
+        const respClean = target.responsavel.split('(')[0].trim();
+        updatedEmpresaVinculada = target.nomeRazao;
+        updatedName = respClean;
+      }
+      const cpfCandidate = target.cpf || target.titular?.cpf || (target.documento?.replace(/\D/g, '').length === 11 ? target.documento : '');
+      updatedDoc = cpfCandidate;
+    } else {
+      // De PF para PJ: O titular da ficha vira a Empresa Vinculada
+      if (target.empresaVinculada && target.empresaVinculada.trim() && target.empresaVinculada.trim().toUpperCase() !== target.nomeRazao.trim().toUpperCase()) {
+        updatedSocioVinculado = target.nomeRazao;
+        updatedName = target.empresaVinculada;
+      } else if (target.empresa?.razaoSocial && target.empresa.razaoSocial.trim() && target.empresa.razaoSocial.trim().toUpperCase() !== target.nomeRazao.trim().toUpperCase()) {
+        updatedSocioVinculado = target.nomeRazao;
+        updatedName = target.empresa.razaoSocial;
+      }
+      const cnpjCandidate = target.cnpj || target.empresa?.cnpj || (target.documento?.replace(/\D/g, '').length === 14 ? target.documento : '');
+      updatedDoc = cnpjCandidate;
+    }
+
+    const updatedClients = clients.map(c => {
+      if (c.id === clientId) {
+        return {
+          ...c,
+          tipo: newType,
+          nomeRazao: updatedName,
+          documento: updatedDoc,
+          documentoTipo: updatedDocTipo,
+          natureza: newType === 'PJ' ? 'Sociedade Empresária' : 'Pessoa Física (Sócio Administrador)',
+          empresaVinculada: updatedEmpresaVinculada,
+          socioVinculado: updatedSocioVinculado,
+          statusValidacao: `Validado como ${newType}`,
+          validadoEm: new Date().toISOString()
+        };
+      }
+      return c;
+    });
+
+    setClients(updatedClients);
+    try {
+      localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(updatedClients));
+      window.dispatchEvent(new CustomEvent('mourato_client_saved'));
+    } catch (e) {}
+
+    showToast(
+      `🔄 Validado como ${newType === 'PJ' ? 'Pessoa Jurídica (PJ)' : 'Pessoa Física (PF)'}!`,
+      `"${updatedName}" agora está classificado na aba ${newType === 'PJ' ? 'Empresas (PJ)' : 'Sócios (PF)'}.`
+    );
+  };
+
+  // Separação de Registro em 2 Fichas (Empresa no PJ e Sócio no PF)
+  const handleSplitClientRecords = (clientId) => {
+    const target = clients.find(c => c.id === clientId);
+    if (!target) return;
+
+    const rawSocio = (target.socioVinculado || target.responsavel || target.titular?.nome || '').split('(')[0].trim();
+    const rawEmpresa = (target.empresaVinculada || target.empresa?.razaoSocial || (target.tipo === 'PJ' ? target.nomeRazao : '')).trim();
+
+    const nomeSocio = (rawSocio || 'Sócio Administrador').toUpperCase();
+    const nomeEmpresa = (rawEmpresa || 'Empresa Vinculada').toUpperCase();
+
+    // 1. Registro da Empresa (PJ)
+    const pjDoc = (target.tipo === 'PJ' && target.documentoTipo === 'CNPJ')
+      ? target.documento
+      : (target.empresa?.cnpj || target.cnpj || (target.documento?.replace(/\D/g, '').length === 14 ? target.documento : ''));
+
+    const pjRecord = {
+      ...target,
+      id: target.tipo === 'PJ' ? target.id : `cli-pj-${Date.now()}`,
+      tipo: 'PJ',
+      nomeRazao: nomeEmpresa,
+      documento: pjDoc,
+      documentoTipo: 'CNPJ',
+      natureza: 'Sociedade Empresária',
+      socioVinculado: nomeSocio,
+      empresaVinculada: '',
+      statusConta: 'Validado (Empresa PJ)',
+      statusValidacao: 'Validado como PJ',
+      validadoEm: new Date().toISOString()
+    };
+
+    // 2. Registro do Sócio (PF)
+    const pfDoc = (target.tipo === 'PF' && target.documentoTipo === 'CPF')
+      ? target.documento
+      : (target.cpf || target.titular?.cpf || (target.documento?.replace(/\D/g, '').length === 11 ? target.documento : ''));
+
+    const pfRecord = {
+      ...target,
+      id: target.tipo === 'PF' ? target.id : `cli-pf-${Date.now() + 1}`,
+      codigoCliente: target.tipo === 'PF' ? target.codigoCliente : getNextClientSequence(),
+      tipo: 'PF',
+      nomeRazao: nomeSocio,
+      documento: pfDoc,
+      documentoTipo: 'CPF',
+      natureza: 'Pessoa Física (Sócio Administrador)',
+      empresaVinculada: nomeEmpresa,
+      socioVinculado: '',
+      statusConta: 'Validado (Sócio PF)',
+      statusValidacao: 'Validado como PF',
+      validadoEm: new Date().toISOString()
+    };
+
+    const remaining = clients.filter(c => c.id !== clientId);
+    const updatedList = [pjRecord, pfRecord, ...remaining];
+
+    setClients(updatedList);
+    try {
+      localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(updatedList));
+      window.dispatchEvent(new CustomEvent('mourato_client_saved'));
+    } catch (e) {}
+
+    showToast(
+      '✂️ Dados Separados com Sucesso!',
+      `A Empresa "${nomeEmpresa}" foi alocada em PJ e o Sócio "${nomeSocio}" foi alocado em PF.`
+    );
+  };
+
+  // Auto-Separação Global: Separa Empresa em PJ e Sócio em PF e ajusta registros duplicados
+  const handleAutoSeparateClients = () => {
+    let hasModifications = false;
+    let separatedCount = 0;
+    let convertedCount = 0;
+
+    let updatedList = [];
+
+    clients.forEach(c => {
+      const docClean = (c.documento || '').replace(/\D/g, '');
+      const socio = (c.socioVinculado || c.responsavel || '').split('(')[0].trim().toUpperCase();
+
+      // Caso A: Registro PJ sem CNPJ válido e com sócio administrador claro (ex: MOURATO&ASSOCIADOS do sócio)
+      if (c.tipo === 'PJ' && docClean.length !== 14 && socio && socio !== c.nomeRazao.toUpperCase()) {
+        updatedList.push({
+          ...c,
+          tipo: 'PF',
+          nomeRazao: socio,
+          documento: docClean.length === 11 ? c.documento : '',
+          documentoTipo: 'CPF',
+          natureza: 'Pessoa Física (Sócio Administrador)',
+          empresaVinculada: c.nomeRazao.toUpperCase(),
+          socioVinculado: '',
+          statusValidacao: 'Validado como PF',
+          statusConta: 'Validado (Sócio PF)',
+          validadoEm: new Date().toISOString()
+        });
+        hasModifications = true;
+        convertedCount++;
+      }
+      // Caso B: Registro PJ com dados de sócio distintos e CNPJ preenchido, onde o sócio ainda não existe como PF na base
+      else if (c.tipo === 'PJ' && socio && socio !== c.nomeRazao.toUpperCase()) {
+        const jaExisteSocioNaBase = clients.some(other => other.tipo === 'PF' && (other.nomeRazao || '').toUpperCase() === socio);
+        if (!jaExisteSocioNaBase) {
+          // Mantém o PJ
+          updatedList.push({
+            ...c,
+            statusValidacao: 'Validado como PJ',
+            statusConta: 'Validado (Empresa PJ)'
+          });
+          // Cria o registro PF do Sócio
+          updatedList.push({
+            ...c,
+            id: `cli-pf-${c.id || Date.now()}-socio`,
+            codigoCliente: getNextClientSequence(),
+            tipo: 'PF',
+            nomeRazao: socio,
+            documento: (c.cpf || '').replace(/\D/g, '').length === 11 ? c.cpf : '',
+            documentoTipo: 'CPF',
+            natureza: 'Pessoa Física (Sócio Administrador)',
+            empresaVinculada: c.nomeRazao.toUpperCase(),
+            socioVinculado: '',
+            statusValidacao: 'Validado como PF',
+            statusConta: 'Validado (Sócio PF)',
+            validadoEm: new Date().toISOString()
+          });
+          hasModifications = true;
+          separatedCount++;
+        } else {
+          updatedList.push(c);
+        }
+      } else {
+        updatedList.push(c);
+      }
+    });
+
+    if (hasModifications) {
+      setClients(updatedList);
+      try {
+        localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(updatedList));
+        window.dispatchEvent(new CustomEvent('mourato_client_saved'));
+      } catch (e) {}
+      showToast(
+        '⚖️ Base Separada e Validada!',
+        `Organização concluída: ${convertedCount} cadastro(s) convertido(s) para PF e ${separatedCount} ficha(s) desmembrada(s) em PJ & PF.`
+      );
+    } else {
+      showToast(
+        '✓ Base já Separada',
+        'Todos os registros já estão com suas devidas separações entre Empresas (PJ) e Sócios (PF).'
+      );
     }
   };
 
@@ -3223,6 +3509,29 @@ Website: https://www.mouratoassociados.com.br`;
 
                     <button 
                       type="button"
+                      onClick={handleAutoSeparateClients}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.45rem',
+                        padding: '0.65rem 1.05rem',
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'rgba(168, 85, 247, 0.16)',
+                        border: '1px solid rgba(168, 85, 247, 0.45)',
+                        color: '#C084FC',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                      title="Organizar e separar os dados da base: Empresa fica no PJ e Sócio fica no PF"
+                    >
+                      <RefreshCw size={14} />
+                      Separar Dados (PF / PJ)
+                    </button>
+
+                    <button 
+                      type="button"
                       onClick={handleClearCacheAndSync}
                       style={{
                         display: 'inline-flex',
@@ -3354,75 +3663,106 @@ Website: https://www.mouratoassociados.com.br`;
 
                         <div>
                           {/* Cabeçalho do Card */}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
-                            {/* Badge do Tipo (PJ Dourada vs PF Azul) */}
-                            {isPJ ? (
-                              <span style={{
-                                fontSize: '0.68rem',
-                                padding: '0.2rem 0.6rem',
-                                borderRadius: '9999px',
-                                background: 'rgba(197, 168, 105, 0.2)',
-                                color: 'var(--gold-light)',
-                                border: '1px solid var(--gold-border)',
-                                fontWeight: 700,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '0.35rem',
-                                letterSpacing: '0.04em'
-                              }}>
-                                <Building2 size={12} />
-                                PJ • EMPRESA
-                              </span>
-                            ) : (
-                              <span style={{
-                                fontSize: '0.68rem',
-                                padding: '0.2rem 0.6rem',
-                                borderRadius: '9999px',
-                                background: 'rgba(0, 158, 227, 0.18)',
-                                color: '#38BDF8',
-                                border: '1px solid rgba(0, 158, 227, 0.4)',
-                                fontWeight: 700,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '0.35rem',
-                                letterSpacing: '0.04em'
-                              }}>
-                                <UserCheck size={12} />
-                                PF • SÓCIO
-                              </span>
-                            )}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem', flexWrap: 'wrap', gap: '0.45rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                              {/* Badge do Tipo (PJ Dourada vs PF Azul) */}
+                              {isPJ ? (
+                                <span style={{
+                                  fontSize: '0.68rem',
+                                  padding: '0.2rem 0.6rem',
+                                  borderRadius: '9999px',
+                                  background: 'rgba(197, 168, 105, 0.2)',
+                                  color: 'var(--gold-light)',
+                                  border: '1px solid var(--gold-border)',
+                                  fontWeight: 700,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.35rem',
+                                  letterSpacing: '0.04em'
+                                }}>
+                                  <Building2 size={12} />
+                                  PJ • EMPRESA
+                                </span>
+                              ) : (
+                                <span style={{
+                                  fontSize: '0.68rem',
+                                  padding: '0.2rem 0.6rem',
+                                  borderRadius: '9999px',
+                                  background: 'rgba(0, 158, 227, 0.18)',
+                                  color: '#38BDF8',
+                                  border: '1px solid rgba(0, 158, 227, 0.4)',
+                                  fontWeight: 700,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.35rem',
+                                  letterSpacing: '0.04em'
+                                }}>
+                                  <UserCheck size={12} />
+                                  PF • SÓCIO
+                                </span>
+                              )}
 
-                            {/* Código Sequencial do Cliente */}
-                            <span style={{ 
-                              fontSize: '0.68rem', 
-                              fontFamily: 'monospace',
-                              fontWeight: 800,
-                              padding: '0.15rem 0.5rem', 
-                              borderRadius: '4px', 
-                              background: 'rgba(197, 168, 105, 0.15)', 
-                              color: 'var(--gold-light)', 
-                              border: '1px solid rgba(197, 168, 105, 0.4)'
-                            }}>
-                              {client.codigoCliente || 'CLI-001'}
-                            </span>
+                              {/* BOTÃO RÁPIDO: VALIDAR E TROCAR ENTRE PJ E PF */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleClientType(client.id);
+                                }}
+                                style={{
+                                  fontSize: '0.66rem',
+                                  padding: '0.18rem 0.5rem',
+                                  borderRadius: '4px',
+                                  background: isPJ ? 'rgba(0, 158, 227, 0.15)' : 'rgba(197, 168, 105, 0.18)',
+                                  border: isPJ ? '1px solid rgba(0, 158, 227, 0.45)' : '1px solid var(--gold-border)',
+                                  color: isPJ ? '#38BDF8' : 'var(--gold-light)',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.25rem',
+                                  transition: 'all 0.2s'
+                                }}
+                                title={isPJ ? "Validar e trocar cadastro para Pessoa Física (PF) / Sócio" : "Validar e trocar cadastro para Pessoa Jurídica (PJ) / Empresa"}
+                              >
+                                <RefreshCw size={10} />
+                                {isPJ ? 'Trocar p/ PF' : 'Trocar p/ PJ'}
+                              </button>
+                            </div>
 
-                            <span style={{ 
-                              fontSize: '0.68rem', 
-                              padding: '0.15rem 0.5rem', 
-                              borderRadius: '9999px', 
-                              background: (client.origem === 'Lead do Site Aprovado' || client.statusConta === 'Lead Aprovado / Ficha Enviada')
-                                ? 'rgba(197, 168, 105, 0.2)'
-                                : 'rgba(16, 185, 129, 0.12)', 
-                              color: (client.origem === 'Lead do Site Aprovado' || client.statusConta === 'Lead Aprovado / Ficha Enviada')
-                                ? 'var(--gold-light)'
-                                : '#34D399',
-                              border: (client.origem === 'Lead do Site Aprovado' || client.statusConta === 'Lead Aprovado / Ficha Enviada')
-                                ? '1px solid var(--gold-border)'
-                                : '1px solid rgba(16, 185, 129, 0.25)',
-                              fontWeight: 700 
-                            }}>
-                              {(client.origem === 'Lead do Site Aprovado' || client.statusConta === 'Lead Aprovado / Ficha Enviada') ? '✓ Lead Aprovado' : 'Contas Ativas'}
-                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                              {/* Código Sequencial do Cliente */}
+                              <span style={{ 
+                                fontSize: '0.68rem', 
+                                fontFamily: 'monospace',
+                                fontWeight: 800,
+                                padding: '0.15rem 0.5rem', 
+                                borderRadius: '4px', 
+                                background: 'rgba(197, 168, 105, 0.15)', 
+                                color: 'var(--gold-light)', 
+                                border: '1px solid rgba(197, 168, 105, 0.4)'
+                              }}>
+                                {client.codigoCliente || 'CLI-001'}
+                              </span>
+
+                              <span style={{ 
+                                fontSize: '0.68rem', 
+                                padding: '0.15rem 0.5rem', 
+                                borderRadius: '9999px', 
+                                background: client.statusValidacao ? 'rgba(16, 185, 129, 0.2)' : ((client.origem === 'Lead do Site Aprovado' || client.statusConta === 'Lead Aprovado / Ficha Enviada')
+                                  ? 'rgba(197, 168, 105, 0.2)'
+                                  : 'rgba(16, 185, 129, 0.12)'), 
+                                color: client.statusValidacao ? '#34D399' : ((client.origem === 'Lead do Site Aprovado' || client.statusConta === 'Lead Aprovado / Ficha Enviada')
+                                  ? 'var(--gold-light)'
+                                  : '#34D399'),
+                                border: client.statusValidacao ? '1px solid rgba(16, 185, 129, 0.45)' : ((client.origem === 'Lead do Site Aprovado' || client.statusConta === 'Lead Aprovado / Ficha Enviada')
+                                  ? '1px solid var(--gold-border)'
+                                  : '1px solid rgba(16, 185, 129, 0.25)'),
+                                fontWeight: 700 
+                              }}>
+                                {client.statusValidacao ? `✓ ${client.statusValidacao}` : ((client.origem === 'Lead do Site Aprovado' || client.statusConta === 'Lead Aprovado / Ficha Enviada') ? '✓ Lead Aprovado' : 'Contas Ativas')}
+                              </span>
+                            </div>
                           </div>
 
                           {/* Razão Social / Nome Completo */}
@@ -3715,6 +4055,33 @@ Website: https://www.mouratoassociados.com.br`;
                             <Edit2 size={13} />
                             Editar
                           </button>
+                          {/* Botão de Separação de Dados PF e PJ se houver dados de sócio e empresa */}
+                          {Boolean((client.socioVinculado || client.responsavel) && (client.empresaVinculada || client.empresa?.razaoSocial || client.tipo === 'PJ')) && (
+                            <button
+                              type="button"
+                              onClick={() => handleSplitClientRecords(client.id)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '0.35rem',
+                                padding: '0.55rem 0.7rem',
+                                fontSize: '0.78rem',
+                                borderRadius: 'var(--radius-sm)',
+                                background: 'rgba(168, 85, 247, 0.15)',
+                                border: '1px solid rgba(168, 85, 247, 0.45)',
+                                color: '#C084FC',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                flex: '1 1 auto'
+                              }}
+                              title="Separar dados em 2 fichas: a Empresa no PJ e o Sócio no PF"
+                            >
+                              <FileSpreadsheet size={13} />
+                              Separar PF/PJ
+                            </button>
+                          )}
+
                           <button
                             onClick={() => setSelectedClient(client)}
                             className="btn-secondary-subtle"
@@ -7524,6 +7891,65 @@ Website: https://www.mouratoassociados.com.br`;
                 {selectedClient.tipo === 'PJ' ? 'CNPJ' : 'CPF'}: <strong style={{ color: '#FFFFFF' }}>{selectedClient.documento || 'Não informado'}</strong>
                 {selectedClient.nire && <span> • NIRE JUCESP: <strong style={{ color: '#CBD5E1' }}>{selectedClient.nire}</strong></span>}
                 {selectedClient.contato && <span> • Contato: <strong style={{ color: '#CBD5E1' }}>{selectedClient.contato}</strong></span>}
+              </div>
+
+              {/* Barra de Ação Pericial: Validação, Troca de Tipo e Desmembramento */}
+              <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', marginTop: '0.9rem', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleToggleClientType(selectedClient.id);
+                    setSelectedClient(prev => prev ? {
+                      ...prev,
+                      tipo: prev.tipo === 'PJ' ? 'PF' : 'PJ',
+                      statusValidacao: `Validado como ${prev.tipo === 'PJ' ? 'PF' : 'PJ'}`
+                    } : null);
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.45rem',
+                    padding: '0.45rem 0.85rem',
+                    borderRadius: 'var(--radius-xs)',
+                    background: selectedClient.tipo === 'PJ' ? 'rgba(0, 158, 227, 0.2)' : 'rgba(197, 168, 105, 0.2)',
+                    border: selectedClient.tipo === 'PJ' ? '1px solid #00B4FF' : '1px solid var(--gold-border)',
+                    color: selectedClient.tipo === 'PJ' ? '#38BDF8' : 'var(--gold-light)',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                  title="Trocar e validar o tipo deste cadastro no sistema"
+                >
+                  <RefreshCw size={13} />
+                  Validar &amp; Trocar para {selectedClient.tipo === 'PJ' ? 'Pessoa Física (PF / Sócio)' : 'Pessoa Jurídica (PJ / Empresa)'}
+                </button>
+
+                {Boolean((selectedClient.socioVinculado || selectedClient.responsavel) && (selectedClient.empresaVinculada || selectedClient.empresa?.razaoSocial || selectedClient.tipo === 'PJ')) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleSplitClientRecords(selectedClient.id);
+                      setSelectedClient(null);
+                    }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.45rem',
+                      padding: '0.45rem 0.85rem',
+                      borderRadius: 'var(--radius-xs)',
+                      background: 'rgba(168, 85, 247, 0.18)',
+                      border: '1px solid rgba(168, 85, 247, 0.45)',
+                      color: '#C084FC',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                    title="Separar dados em duas fichas distintas: Empresa no PJ e Sócio no PF"
+                  >
+                    <FileSpreadsheet size={13} />
+                    Separar em Ficha PJ e Ficha PF
+                  </button>
+                )}
               </div>
             </div>
 

@@ -344,48 +344,7 @@ export const TEIA_INITIAL_CLIENTS = [
     "observacoesSigilosas": "Contador com superior completo, casa própria avaliada em R$ 550k. Cadastro positivo ativo com saldos em saneamento e apontamentos prescritos em purga.",
     "dataCadastro": "2026-10-14"
   },
-  {
-    "id": "cli-pf-sergio",
-    "tipo": "PF",
-    "nomeRazao": "SERGIO PEREIRA SENA",
-    "documento": "270.002.048-00",
-    "documentoTipo": "CPF",
-    "profissao": "Empresário / Administrador",
-    "empresaVinculada": "SS TECHNOLOGIES LTDA (CNPJ 43.146.007/0001-29)",
-    "responsavel": "Titular",
-    "contato": "(11) 98765-4321",
-    "email": "",
-    "endereco": "Rua Catarinenses, 23, Vila Andrade - São Paulo - SP",
-    "cep": "05728-050",
-    "rendaPatrimonio": {
-      "proLabore": "R$ 28.000,00",
-      "bens": "Ativos e quotas de capital",
-      "veiculos": ""
-    },
-    "contasBancarias": [
-      {
-        "id": 1,
-        "banco": "Nubank",
-        "bancoOutro": "Nu Pagamentos PJ",
-        "agencia": "0001",
-        "conta": "Conta Jurídica / PF",
-        "senhaAcesso": "Biometria",
-        "statusConta": "Aberta e Operando"
-      }
-    ],
-    "serasaScore": "802",
-    "serasaStatus": "Sem Apontamentos",
-    "boaVistaScore": "717",
-    "boaVistaStatus": "Sem Restrições",
-    "quodScore": "Positivo",
-    "quodStatus": "Positivo / Sem Restrição",
-    "bacenScr": "Rating A1",
-    "govNivel": "Prata",
-    "govProtocolo": "Validação Gov.br Ativa",
-    "limiteAprovado": "R$ 950.000,00",
-    "observacoesSigilosas": "Sócio e Administrador da SS Technologies Ltda (100% participação, R$ 100k capital). Scores de excelência: Serasa 802 e Boa Vista 717.",
-    "dataCadastro": "2026-10-14"
-  },
+
   {
     "id": "cli-pf-silvanei",
     "tipo": "PF",
