@@ -53,7 +53,9 @@ import {
   RotateCcw,
   Share2,
   Download,
-  FileDown
+  FileDown,
+  MapPin,
+  PhoneCall
 } from 'lucide-react';
 import { createPixCharge, createCheckoutProPreference, validateAntifraudPayer } from '../services/mercadoPagoService';
 import { TEIA_INITIAL_CLIENTS } from '../data/teiaDatabase';
@@ -7878,7 +7880,13 @@ Website: https://www.mouratoassociados.com.br`;
               <div style={{ fontSize: '0.82rem', color: '#94A3B8', marginTop: '0.25rem', display: 'flex', flexWrap: 'wrap', gap: '0.6rem', alignItems: 'center' }}>
                 <span>{selectedClient.tipo === 'PJ' ? 'CNPJ' : 'CPF'}: <strong style={{ color: '#FFFFFF' }}>{getClientDocumento(selectedClient)}</strong></span>
                 {selectedClient.protocolo && <span>• Protocolo: <strong style={{ color: 'var(--gold-light)', fontFamily: 'monospace' }}>{selectedClient.protocolo}</strong></span>}
-                {selectedClient.dataCadastro && <span>• Cadastro: <strong style={{ color: '#CBD5E1' }}>{new Date(selectedClient.dataCadastro).toLocaleDateString('pt-BR')}</strong></span>}
+                {selectedClient.dataCadastro && (
+                  <span>• Cadastro: <strong style={{ color: '#CBD5E1' }}>
+                    {typeof selectedClient.dataCadastro === 'string' && selectedClient.dataCadastro.includes('/')
+                      ? selectedClient.dataCadastro
+                      : (!isNaN(new Date(selectedClient.dataCadastro).getTime()) ? new Date(selectedClient.dataCadastro).toLocaleDateString('pt-BR') : String(selectedClient.dataCadastro))}
+                  </strong></span>
+                )}
               </div>
             </div>
 
