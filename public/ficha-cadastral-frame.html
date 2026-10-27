@@ -1597,8 +1597,19 @@
       }
     }
 
+    // Anti-cache: se o navegador restaurar a página da memória (botão voltar), recarrega limpa
+    window.addEventListener('pageshow', (ev) => {
+      if (ev.persisted) window.location.reload();
+    });
+
     // Inicialização ao carregar a página
     document.addEventListener('DOMContentLoaded', async () => {
+      // Desativa o histórico de preenchimento do navegador em todos os campos (evita sugestões de outros clientes)
+      document.querySelectorAll('#form-onboarding input, #form-onboarding textarea, #form-onboarding select').forEach(campo => {
+        if (campo.type === 'password') campo.setAttribute('autocomplete', 'new-password');
+        else if (campo.type !== 'checkbox' && campo.type !== 'radio' && campo.type !== 'file') campo.setAttribute('autocomplete', 'off');
+        campo.setAttribute('data-lpignore', 'true');
+      });
       const urlParams = new URLSearchParams(window.location.search);
       const isOperador = urlParams.get('admin') === '1' || urlParams.get('operador') === '1';
       const queryParam = urlParams.get('cpf') || urlParams.get('query') || urlParams.get('client');
@@ -1702,17 +1713,18 @@
     function preencherFormularioComDados(c) {
       const el = id => document.getElementById(id);
 
-      // Limpa estados prévios de validação
-      document.querySelectorAll('.is-invalid, .is-valid').forEach(item => item.classList.remove('is-invalid', 'is-valid'));
-      document.querySelectorAll('.field-error-msg').forEach(msg => msg.style.display = 'none');
+      // Zera TODOS os campos antes de preencher, evitando que dados do cliente anterior permaneçam
+      const selectAtual = el('select-cliente-existente') ? el('select-cliente-existente').value : '';
+      limparFormularioFicha();
+      if (el('select-cliente-existente')) el('select-cliente-existente').value = selectAtual;
 
       // Bloco 1: Identificação
       if (el('titular-nome')) el('titular-nome').value = c.name || c.nome || '';
       if (el('titular-cpf')) el('titular-cpf').value = c.cpf || c.document || '';
       if (el('titular-rg')) el('titular-rg').value = c.rg || '';
-      if (el('titular-orgao')) el('titular-orgao').value = c.orgaoExpedidor || 'SSP/SP';
+      if (el('titular-orgao')) el('titular-orgao').value = c.orgaoExpedidor || '';
       if (el('titular-nasc')) el('titular-nasc').value = c.nascimento || '';
-      if (el('titular-estado-civil')) el('titular-estado-civil').value = c.estadoCivil || 'Casado(a)';
+      if (el('titular-estado-civil')) el('titular-estado-civil').value = c.estadoCivil || '';
       if (el('titular-mae')) el('titular-mae').value = c.mae || c.nome_mae || '';
       if (el('titular-pai')) el('titular-pai').value = c.pai || c.nome_pai || '';
 
@@ -1728,7 +1740,7 @@
         let comp = '';
         let bairro = '';
         let cidade = '';
-        let uf = 'SP';
+        let uf = '';
 
         if (partesVirgula.length > 1) {
           const numMatch = partesVirgula[1].match(/^(\d+)/);
@@ -1739,14 +1751,14 @@
         }
         if (partesTraco.length > 1) bairro = partesTraco[1] || '';
         if (partesTraco.length > 2) cidade = partesTraco[2] || '';
-        if (partesTraco.length > 3) uf = partesTraco[3] || 'SP';
+        if (partesTraco.length > 3) uf = partesTraco[3] || '';
 
         if (el('end-rua')) el('end-rua').value = rua || c.endereco;
-        if (el('end-num')) el('end-num').value = num || '91';
-        if (el('end-comp')) el('end-comp').value = comp || '';
-        if (el('end-bairro')) el('end-bairro').value = bairro || 'Vila Nova Mazzei';
-        if (el('end-cidade')) el('end-cidade').value = cidade || 'São Paulo';
-        if (el('end-uf')) el('end-uf').value = uf || 'SP';
+        if (el('end-num')) el('end-num').value = num;
+        if (el('end-comp')) el('end-comp').value = comp;
+        if (el('end-bairro')) el('end-bairro').value = bairro;
+        if (el('end-cidade')) el('end-cidade').value = cidade;
+        if (el('end-uf')) el('end-uf').value = uf;
       }
 
       if (el('contato-celular')) el('contato-celular').value = c.telefone || '';
@@ -1755,8 +1767,8 @@
 
       // Bloco 3: Profissão
       if (el('prof-cargo')) el('prof-cargo').value = c.profissao || '';
-      if (el('prof-escolaridade')) el('prof-escolaridade').value = c.escolaridade && c.escolaridade !== 'Não informado' ? c.escolaridade : 'Superior Completo';
-      if (el('prof-renda-mensal')) el('prof-renda-mensal').value = c.rendaDeclarada || 'R$ 8.500,00';
+      if (el('prof-escolaridade')) el('prof-escolaridade').value = c.escolaridade && c.escolaridade !== 'Não informado' ? c.escolaridade : '';
+      if (el('prof-renda-mensal')) el('prof-renda-mensal').value = c.rendaDeclarada || '';
 
       // Bloco 4: PJ & Veículo
       if (c.linkedCompanies && c.linkedCompanies.length > 0) {
@@ -1764,7 +1776,7 @@
         if (el('pj-razao')) el('pj-razao').value = emp.razaoSocial || '';
         if (el('pj-cnpj')) el('pj-cnpj').value = emp.cnpj || '';
         if (el('pj-capital')) el('pj-capital').value = emp.capitalSocial || '';
-        if (el('pj-cargo')) el('pj-cargo').value = emp.cargoSocio || 'Sócio-Administrador';
+        if (el('pj-cargo')) el('pj-cargo').value = emp.cargoSocio || '';
       }
 
       if (c.veiculos && c.veiculos.length > 0) {

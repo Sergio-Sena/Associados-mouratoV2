@@ -1843,6 +1843,11 @@ Website: https://www.mouratoassociados.com.br`;
 
     setActiveView('clients_list');
     // Reset form
+    resetNewClientForm();
+  };
+
+  // Zera completamente o formulário de cadastro (evita herdar dados do último cliente aberto)
+  const resetNewClientForm = () => {
     setNewClient({
       tipo: 'PJ',
       nomeRazao: '',
@@ -2961,6 +2966,7 @@ Website: https://www.mouratoassociados.com.br`;
             <button
               onClick={() => { 
                 setEditingClientId(null);
+                resetNewClientForm();
                 setActiveView('clients_new'); 
                 setSelectedClient(null); 
                 setSidebarOpen(false); 
@@ -3560,6 +3566,7 @@ Website: https://www.mouratoassociados.com.br`;
                     <button 
                       onClick={() => {
                         setEditingClientId(null);
+                        resetNewClientForm();
                         setActiveView('clients_new');
                       }}
                       className="btn-primary-gold"
@@ -5426,6 +5433,7 @@ Website: https://www.mouratoassociados.com.br`;
                       type="button"
                       onClick={() => {
                         setEditingClientId(null);
+                        resetNewClientForm();
                         setActiveView('clients_list');
                       }}
                       className="btn-secondary-subtle"
