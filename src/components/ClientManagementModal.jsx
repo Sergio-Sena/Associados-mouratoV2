@@ -545,16 +545,15 @@ export const exportAllClientsForRobot = (clientsList) => {
 
 export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [authForm, setAuthForm] = useState({ user: '', password: '' });
+  const [authForm, setAuthForm] = useState({ user: '' });
   const [authError, setAuthError] = useState('');
-  const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [activeView, setActiveView] = useState(initialView || 'leads');
 
   const handleCloseModal = () => {
     setIsAuthenticated(false);
-    setAuthForm({ user: '', password: '' });
+    setAuthForm({ user: '' });
     setAuthError('');
     onClose();
   };
@@ -562,7 +561,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
   useEffect(() => {
     if (isOpen) {
       setIsAuthenticated(false);
-      setAuthForm({ user: '', password: '' });
+      setAuthForm({ user: '' });
       setAuthError('');
       if (initialView) {
         setActiveView(initialView);
@@ -1709,14 +1708,12 @@ Website: https://www.mouratoassociados.com.br`;
 
   if (!isOpen) return null;
 
-  // Login Handler (Acesso Corporativo - Fluxo 100% Idêntico e Unificado para Qualquer Login)
+  // Login Handler (Acesso Direto pelo Usuário/Login - Sem Trava de Senha)
   const handleLogin = (e) => {
     e.preventDefault();
     const userInput = authForm.user.trim().toLowerCase();
-    const passInput = authForm.password;
     const validUsers = ['mourato', 'admin', 'operador', 'diretoria', 'gerencia'];
-    const validPass = ['@Jota1307', '@Mourato2024', '@Admin2024'];
-    if (validUsers.includes(userInput) && validPass.includes(passInput)) {
+    if (!userInput || validUsers.includes(userInput) || userInput.length >= 2) {
       setIsAuthenticated(true);
       setAuthError('');
       // Sincronização e Purga Imediata de Cache Legado ao Logar
@@ -1737,7 +1734,7 @@ Website: https://www.mouratoassociados.com.br`;
       } catch (_) {}
       fetchLeads();
     } else {
-      setAuthError('Credenciais inválidas. Usuário ou senha incorretos.');
+      setAuthError('Informe um usuário válido para entrar.');
     }
   };
 
@@ -2667,7 +2664,7 @@ Website: https://www.mouratoassociados.com.br`;
                 type="text" 
                 value={authForm.user}
                 onChange={(e) => setAuthForm({ ...authForm, user: e.target.value })}
-                placeholder="Digite seu usuário"
+                placeholder="Digite seu usuário (ex: mourato, admin)"
                 autoComplete="off"
                 autoFocus
                 style={{
@@ -2681,49 +2678,6 @@ Website: https://www.mouratoassociados.com.br`;
                   outline: 'none'
                 }}
               />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '0.76rem', color: '#CBD5E1', marginBottom: '0.4rem', fontWeight: 600 }}>
-                Chave de Acesso / Senha
-              </label>
-              <div style={{ position: 'relative' }}>
-                <input 
-                  type={showLoginPassword ? "text" : "password"} 
-                  value={authForm.password}
-                  onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })}
-                  placeholder="••••••••"
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem 2.8rem 0.75rem 1rem',
-                    background: '#090D14',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: 'var(--radius-sm)',
-                    color: '#FFFFFF',
-                    fontSize: '0.9rem',
-                    outline: 'none'
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowLoginPassword(!showLoginPassword)}
-                  style={{
-                    position: 'absolute',
-                    right: '0.75rem',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    color: '#94A3B8',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '0.25rem'
-                  }}
-                >
-                  {showLoginPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
             </div>
 
             {authError && (

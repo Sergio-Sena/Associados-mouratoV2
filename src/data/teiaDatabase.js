@@ -246,7 +246,7 @@ export const TEIA_INITIAL_CLIENTS = [
     "quodStatus": "Positivo / Sem Restrição",
     "bacenScr": "Rating A",
     "govNivel": "Ouro",
-    "govProtocolo": "e-CPF A1 (Senha: 123456) ICP-Brasil AC SyngularID Multipla (Validade: 31/07/2027)",
+    "govProtocolo": "e-CPF A1 ICP-Brasil AC SyngularID Multipla (Validade: 31/07/2027)",
     "limiteAprovado": "R$ 1.450.000,00",
     "observacoesSigilosas": "22 anos de relacionamento bancário ilibado. Rating A1 Registrato, CND Federal Negativa válida, zero prejuízo no SCR. Validação Gov.br SEI-SP ativa.",
     "dataCadastro": "2026-10-14"
@@ -318,7 +318,7 @@ export const TEIA_INITIAL_CLIENTS = [
         "bancoOutro": "",
         "agencia": "0289",
         "conta": "Conta Profissional CRC",
-        "senhaAcesso": "Nos281590@",
+        "senhaAcesso": "",
         "statusConta": "Aberta e Operando"
       },
       {
