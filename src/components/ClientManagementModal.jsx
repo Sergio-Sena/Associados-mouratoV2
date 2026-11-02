@@ -362,15 +362,11 @@ const isClientAlreadyInList = (clientList, lead) => {
   const deletedIds = getDeletedClientIds();
   const leadId = String(lead.id || '');
   const leadDoc = (lead.documento || lead.cnpj || lead.cpf || '').replace(/\D/g, '');
-  const leadEmail = (lead.email || '').toLowerCase().trim();
-  const leadPhone = (lead.telefone || '').replace(/\D/g, '');
 
-  // Trava de Exclusão Definitiva: Se este registro, documento, email ou telefone foi excluído pelo usuário, não re-adicionar
+  // Trava de Exclusão Definitiva: Se este ID ou documento foi excluído explicitamente pelo usuário, não re-adicionar
   if (
     (leadId && (deletedIds.has(leadId) || deletedIds.has(`cli-lead-${leadId}`))) ||
-    (leadDoc && deletedIds.has(leadDoc)) ||
-    (leadEmail && leadEmail !== 'mourato@mouratoassociados.com.br' && leadEmail !== 'mourato.importacao@gmail.com' && deletedIds.has(leadEmail)) ||
-    (leadPhone && leadPhone !== '11978990034' && deletedIds.has(leadPhone))
+    (leadDoc && deletedIds.has(leadDoc))
   ) {
     return true;
   }
@@ -380,8 +376,7 @@ const isClientAlreadyInList = (clientList, lead) => {
   return clientList.some(c => {
     if (c.id === `cli-lead-${leadId}` || c.leadOriginId === leadId) return true;
     if (leadDoc && leadDoc.length >= 11 && (c.documento || '').replace(/\D/g, '') === leadDoc) return true;
-    if (leadEmpresa && (c.nomeRazao || '').toLowerCase().trim() === leadEmpresa) return true;
-    if (leadEmail && (c.email || '').toLowerCase().trim() === leadEmail && leadEmail !== 'mourato@mouratoassociados.com.br' && leadEmail !== 'mourato.importacao@gmail.com') return true;
+    if (leadEmpresa && (c.nomeRazao || '').toLowerCase().trim() === leadEmpresa && c.tipo === 'PJ') return true;
     return false;
   });
 };

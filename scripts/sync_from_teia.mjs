@@ -15,10 +15,66 @@ console.log('====================================================');
 console.log(`📁 Origem dos dados: ${DEFAULT_TEIA_DATA}`);
 console.log(`🎯 Destino do banco: ${TARGET_DB_FILE}`);
 
+// Cria o diretório da Teia de Aranha se não existir
 if (!fs.existsSync(DEFAULT_TEIA_DATA)) {
-  console.warn(`⚠️ Diretório ${DEFAULT_TEIA_DATA} não foi encontrado.`);
-  console.log('Mantendo a base oficial estática intacta em src/data/teiaDatabase.js.');
-  process.exit(0);
+  try {
+    fs.mkdirSync(DEFAULT_TEIA_DATA, { recursive: true });
+    console.log(`📁 Diretório ${DEFAULT_TEIA_DATA} criado com sucesso.`);
+  } catch (_) {
+    console.warn(`⚠️ Não foi possível criar ${DEFAULT_TEIA_DATA}.`);
+  }
+}
+
+// Suporte à flag --pull: Baixa os leads da nuvem e salva na pasta da Teia de Aranha
+const isPullMode = process.argv.includes('--pull') || process.argv.includes('-p');
+if (isPullMode) {
+  console.log('🔄 Modo --pull ativado: buscando novos cadastros da nuvem para a Teia de Aranha...');
+  try {
+    const apiUrl = process.env.VITE_API_URL || 'https://0bwr64p3ie.execute-api.us-east-1.amazonaws.com/prod';
+    const adminPassword = process.env.VITE_ADMIN_PASSWORD || 'admin2026';
+    const res = await fetch(`${apiUrl}/leads`, {
+      headers: { 'x-admin-password': adminPassword }
+    });
+    if (res.ok) {
+      const remoteLeads = await res.json();
+      if (Array.isArray(remoteLeads) && remoteLeads.length > 0) {
+        const fichasFile = path.join(DEFAULT_TEIA_DATA, 'fichas_cadastrais_db.json');
+        let currentFichas = [];
+        if (fs.existsSync(fichasFile)) {
+          try { currentFichas = JSON.parse(fs.readFileSync(fichasFile, 'utf8')); } catch (_) {}
+        }
+        const existingIds = new Set(currentFichas.map(f => f.id_alias || f.id || f.cpf_raw));
+        let addedCount = 0;
+        remoteLeads.forEach(l => {
+          const lId = l.id || `lead-${Date.now()}`;
+          if (!existingIds.has(lId)) {
+            currentFichas.push({
+              id_alias: lId,
+              id: lId,
+              nome_completo: l.nome || 'Cliente',
+              cpf_raw: (l.documento || l.cpf || '').replace(/\D/g, ''),
+              cpf_formatado: l.documento || l.cpf || '',
+              telefone_principal: l.telefone || '',
+              email_principal: l.email || '',
+              empresa_solicitada: l.empresa || '',
+              protocolo: l.protocolo || '',
+              pratica: l.pratica || 'hibrido',
+              origem: 'Mica • Portal Oficial',
+              created_at: l.criadoEm || new Date().toISOString()
+            });
+            existingIds.add(lId);
+            addedCount++;
+          }
+        });
+        fs.writeFileSync(fichasFile, JSON.stringify(currentFichas, null, 2), 'utf8');
+        console.log(`✅ [PULL SUCESSO] ${addedCount} novos cadastros salvos em: ${fichasFile}`);
+      } else {
+        console.log('ℹ️ Nenhum novo cadastro pendente na nuvem.');
+      }
+    }
+  } catch (err) {
+    console.warn('⚠️ Erro ao puxar dados da nuvem:', err.message);
+  }
 }
 
 try {

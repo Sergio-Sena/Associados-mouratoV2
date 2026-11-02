@@ -59,35 +59,35 @@ export function buildLeadNotification(lead) {
   // 2. Telefone internacional do cliente
   const clientPhoneClean = formatPhoneForWhatsApp(leadTelefone);
 
-  // 3. Mensagem formal pronta com protocolo que o Canal Direto envia ao cliente após confirmar
+  // 3. Mensagem formal pronta com protocolo que a empresa envia ao cliente após confirmar
   const msgProntaParaCliente = 
 `Olá, *${leadNome}*!
 
-Confirmamos o recebimento da sua solicitação de assessoria na *Mourato & Associados* para a empresa *${leadEmpresa}*.
+A *Mourato & Associados Ltda* confirma a aprovação da sua solicitação de assessoria para a empresa *${leadEmpresa}*.
 
 📋 *Protocolo Oficial de Atendimento:* ${leadProtocolo}
 
-Para darmos início imediato à auditoria pericial preliminar e análise dos birôs (Banco Central SCR, Serasa, Boa Vista e Quod), por favor preencha sua Ficha Cadastral no link oficial abaixo:
+Para darmos início imediato à auditoria preliminar e análise dos birôs (Banco Central SCR, Serasa, Boa Vista e Quod), por favor preencha sua Ficha Cadastral no link oficial abaixo:
 
 📋 *Acesse sua Ficha Cadastral:*
 ${linkFicha}
 
 _Atenciosamente,_
-*Canal Direto — Mourato & Associados Ltda*
+*Mourato & Associados Ltda*
 CNPJ: 38.377.738/0001-45 | Atendimento: ${DIRETORIA_PHONE_FMT}
 ${DIRETORIA_EMAIL} | www.mouratoassociados.com.br`;
 
   // 4. Mensagem imediata de confirmação com protocolo que o próprio cliente pode levar consigo
   const msgComprovanteCliente = 
-`*MOURATO & ASSOCIADOS — COMPROVANTE DE PROTOCOLO*
+`*MOURATO & ASSOCIADOS LTDA — COMPROVANTE DE PROTOCOLO*
 Prezado(a) *${leadNome}*, confirmamos o registro da sua solicitação para a empresa *${leadEmpresa}*.
 
 📋 *Protocolo Oficial:* ${leadProtocolo}
-🔒 *Status:* Em análise pericial prioritária
+🔒 *Status:* Em análise preliminar
 📅 *Data:* ${new Date().toLocaleDateString('pt-BR')}
 
 Canal Direto: ${DIRETORIA_PHONE_FMT}
-www.mouratoassociados.com.br`;
+CNPJ: 38.377.738/0001-45 | www.mouratoassociados.com.br`;
 
   // 5. Links diretos para disparo ao cliente
   const linkDisparoClienteWhatsApp = clientPhoneClean 
@@ -108,7 +108,7 @@ www.mouratoassociados.com.br`;
 
   // 5.1. Mensagem de envio do CLIENTE diretamente para o Canal Direto (11 97899-0034)
   const msgClienteParaCanalDireto = 
-`Olá, *Canal Direto* da Mourato & Associados!
+`Olá, *Canal Direto* da Mourato & Associados Ltda!
 
 Acabei de registrar minha solicitação no portal oficial e gostaria de confirmar o recebimento do meu protocolo:
 
@@ -122,11 +122,12 @@ Solicito confirmação do início da análise pericial e da Ficha Cadastral nos 
 
   const linkEnviarCanalDiretoWhatsApp = `https://wa.me/${DIRETORIA_PHONE_CLEAN}?text=${encodeURIComponent(msgClienteParaCanalDireto)}`;
 
-  // 6. Mensagem de Alerta para o WhatsApp do Canal Direto (11 97899-0034)
-  const msgParaDiretoria = 
-`🚨 *[NOVO LEAD RECEBIDO NO PORTAL]* 🚨
+  // 5.2. Link seguro mobile para aprovar ou negar diretamente pelo celular
+  const linkAprovacaoMobile = `${baseUrl}/?view=mica-aprovar&leadId=${encodeURIComponent(leadId)}&protocolo=${encodeURIComponent(leadProtocolo)}&nome=${encodeURIComponent(leadNome)}&empresa=${encodeURIComponent(leadEmpresa)}&telefone=${encodeURIComponent(leadTelefone)}&email=${encodeURIComponent(leadEmail)}&pratica=${encodeURIComponent(leadPratica)}&token=mrt_sec_${leadId.slice(0, 8)}`;
 
-Uma nova solicitação de Audiência Privada / Assessoria acaba de ser registrada no site:
+  // 6. Mensagem de Alerta para o WhatsApp do Canal Direto da empresa (11 97899-0034)
+  const msgParaDiretoria = 
+`🚨 *[MICA — NOVA SOLICITAÇÃO RECEBIDA]* 🚨
 
 👤 *Titular:* ${leadNome}
 🏢 *Empresa:* ${leadEmpresa}
@@ -136,13 +137,11 @@ Uma nova solicitação de Audiência Privada / Assessoria acaba de ser registrad
 ⚖️ *Prática:* ${leadPratica}
 ${leadContexto ? `📝 *Contexto:* ${leadContexto}\n` : ''}
 ───────────────────────────────────
-📋 *Link da Ficha Cadastral Gerado:*
-${linkFicha}
-
-📲 *ENVIAR FICHA DIRETO AO WHATSAPP DO CLIENTE:*
-${linkDisparoClienteWhatsApp}
+🔒 *APROVAR OU NEGAR NO CELULAR (1 TOQUE):*
+👉 ${linkAprovacaoMobile}
 ───────────────────────────────────
-_Bot de Monitoramento da Esteira — Mourato & Associados_`;
+_Mica • Atendimento Corporativo — Mourato & Associados Ltda_
+_CNPJ: 38.377.738/0001-45 | Atendimento: ${DIRETORIA_PHONE_FMT}_`;
 
   // 7. Links de acionamento para o WhatsApp do Canal Direto (5511978990034)
   const urlDiretoriaUniversal = `https://wa.me/${DIRETORIA_PHONE_CLEAN}?text=${encodeURIComponent(msgParaDiretoria)}`;
@@ -167,6 +166,7 @@ _Bot de Monitoramento da Esteira — Mourato & Associados_`;
     linkDisparoClienteWeb,
     linkSalvarWhatsAppCliente,
     linkEnviarCanalDiretoWhatsApp,
+    linkAprovacaoMobile,
     msgParaDiretoria,
     urlDiretoriaUniversal,
     urlDiretoriaApp,

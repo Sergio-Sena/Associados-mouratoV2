@@ -9,6 +9,7 @@ import { InteractiveSimulator } from './components/InteractiveSimulator';
 import { GovernanceCompliance } from './components/GovernanceCompliance';
 import { AdvisoryOnboardingModal } from './components/AdvisoryOnboardingModal';
 import { ClientManagementModal } from './components/ClientManagementModal';
+import { MicaApprovalModal } from './components/MicaApprovalModal';
 import { OnboardingModal } from './components/OnboardingModal';
 import { FichaCadastralStandalone } from './components/FichaCadastralStandalone';
 import { WikipediaArticle } from './components/WikipediaArticle';
@@ -21,6 +22,7 @@ export function App() {
   const [onboardingMode, setOnboardingMode] = useState('native');
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [clientModalInitialView, setClientModalInitialView] = useState('leads');
+  const [isMicaApprovalOpen, setIsMicaApprovalOpen] = useState(false);
 
   const rawPath = typeof window !== 'undefined' ? window.location.pathname.toLowerCase() : '';
   const cleanPath = rawPath.replace(/\/+$/, '') || '/';
@@ -98,6 +100,9 @@ export function App() {
     }
     if (s.includes('contact') || s.includes('solicitar') || s.includes('agendar') || h === '#contact' || h === '#solicitar') {
       setIsContactOpen(true);
+    }
+    if (s.includes('view=mica-aprovar') || s.includes('mica-aprovar=true') || s.includes('view=aprovar') || h === '#aprovar') {
+      setIsMicaApprovalOpen(true);
     }
   }, []);
 
@@ -303,6 +308,12 @@ export function App() {
         isOpen={isClientModalOpen}
         onClose={() => setIsClientModalOpen(false)}
         initialView={clientModalInitialView}
+      />
+
+      {/* Modal de Validação Executiva Mobile da MICA */}
+      <MicaApprovalModal 
+        isOpen={isMicaApprovalOpen}
+        onClose={() => setIsMicaApprovalOpen(false)}
       />
 
     </div>
