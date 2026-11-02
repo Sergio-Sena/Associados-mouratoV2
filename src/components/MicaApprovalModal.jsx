@@ -21,13 +21,14 @@ export const MicaApprovalModal = ({ isOpen, onClose, leadData = null }) => {
 
     try {
       const params = new URLSearchParams(window.location.search);
-      const leadId = params.get('leadId') || params.get('id');
+      const isMicaView = params.get('view') === 'mica-aprovar' || window.location.search.includes('mica-aprovar');
+      const leadId = params.get('leadId') || params.get('id') || (isMicaView ? `lead-${Date.now()}` : null);
       if (leadId) {
         setLead({
           id: leadId,
           protocolo: params.get('protocolo') || `MA-${Date.now()}`,
-          nome: params.get('nome') || 'Cliente',
-          empresa: params.get('empresa') || 'Empresa',
+          nome: params.get('nome') || 'Cliente Interessado',
+          empresa: params.get('empresa') || 'Empresa Interessada',
           telefone: params.get('telefone') || '',
           email: params.get('email') || '',
           pratica: params.get('pratica') || 'hibrido'
