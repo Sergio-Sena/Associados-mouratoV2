@@ -22,21 +22,43 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
     empresa: '', nome: '', email: '', telefone: '', pratica: 'hibrido', contexto: ''
   });
   const [submitted, setSubmitted] = useState(false);
+  const [submittedProtocol, setSubmittedProtocol] = useState('');
+  const [copiedProtocol, setCopiedProtocol] = useState(false);
   const [notificationData, setNotificationData] = useState(null);
-  const [copiedLink, setCopiedLink] = useState(false);
   const [isDuplicate, setIsDuplicate] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
-  // Controla animação de entrada/saída
+  // Controla animação de entrada/saída e intercepta o botão "Voltar" do navegador/celular
   useEffect(() => {
     if (isOpen) {
       setVisible(true);
+      try {
+        window.history.pushState({ mouratoModal: 'advisoryModal' }, '');
+      } catch (_) {}
+
+      const handlePopState = () => {
+        onClose();
+      };
+
+      const handleKeyDown = (e) => {
+        if (e.key === 'Escape') onClose();
+      };
+
+      window.addEventListener('popstate', handlePopState);
+      window.addEventListener('keydown', handleKeyDown);
+
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+        window.removeEventListener('keydown', handleKeyDown);
+      };
     } else {
       // Aguarda animação de saída antes de desmontar
       const t = setTimeout(() => {
         setVisible(false);
         setSubmitted(false);
+        setSubmittedProtocol('');
+        setCopiedProtocol(false);
         setIsDuplicate(false);
         setFormData({ empresa: '', nome: '', email: '', telefone: '', pratica: 'hibrido', contexto: '' });
       }, 300);
@@ -60,9 +82,14 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
     setIsDuplicate(false);
 
     try {
+      // Gera Protocolo Oficial Único
+      const protocol = `MA-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
+      setSubmittedProtocol(protocol);
+
       const leadPayload = {
         ...formData,
         id: 'lead-' + Date.now(),
+        protocolo: protocol,
         status: 'novo',
         criadoEm: new Date().toISOString()
       };
@@ -76,13 +103,14 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
         console.warn('Erro ao salvar lead localmente:', storErr);
       }
 
-      // 2. Conecta à API oficial da AWS (DynamoDB na nuvem) com fallback configurado
+      // 2. Conecta à API oficial da AWS (DynamoDB na nuvem) com timeout resiliente
       const remoteUrl = `${import.meta.env.VITE_API_URL || AWS_LEADS_API_URL}/leads`;
       try {
         const res = await fetch(remoteUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(leadPayload)
+          body: JSON.stringify(leadPayload),
+          signal: AbortSignal.timeout ? AbortSignal.timeout(2500) : undefined
         });
         if (res.status === 409) {
           setIsDuplicate(true);
@@ -91,17 +119,18 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
         console.warn('Sincronização em nuvem em segundo plano:', netErr.message);
       }
 
-      // 3. Fallback servidor local se ativo
+      // 3. Fallback servidor local se ativo com timeout resiliente
       try {
         await fetch('http://localhost:3000/api/leads', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(leadPayload)
+          body: JSON.stringify(leadPayload),
+          signal: AbortSignal.timeout ? AbortSignal.timeout(1500) : undefined
         });
       } catch (_) {}
 
       // 4. Dispara o Bot Oficial de Notificação para a Diretoria (11 97899-0034)
-      // com link da Ficha Cadastral e direcionamento direto ao cliente
+      // Gravando o histórico pericial e emitindo evento interno
       const notif = dispatchLeadNotification(leadPayload);
       setNotificationData(notif);
 
@@ -320,127 +349,96 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
             </div>
 
             <span className="badge-institutional" style={{ marginBottom: '0.65rem' }}>
-              SOLICITAÇÃO RECEBIDA COM SUCESSO
+              CONFIRMAÇÃO DE PROTOCOLO • MOURATO &amp; ASSOCIADOS
             </span>
 
-            <h3 style={{ fontSize: '1.45rem', color: '#FFFFFF', margin: '0.5rem 0 0.75rem' }}>
-              {isDuplicate ? 'Solicitação Já Registrada' : 'Solicitação Registrada'}
+            <h3 style={{ fontSize: '1.45rem', color: '#FFFFFF', margin: '0.5rem 0 0.75rem', fontWeight: 700 }}>
+              Solicitação Confirmada com Sucesso
             </h3>
 
-            <p style={{ color: '#CBD5E1', fontSize: '0.9rem', maxWidth: '460px', margin: '0 auto 1.25rem', lineHeight: 1.65 }}>
-              Prezado(a) <strong style={{ color: '#FFFFFF' }}>{formData.nome || 'Cliente'}</strong>, sua solicitação de assessoria estratégica para a empresa <strong style={{ color: 'var(--gold-light)' }}>{formData.empresa || 'sua empresa'}</strong> foi formalmente recebida pela Diretoria Executiva da <strong>Mourato &amp; Associados</strong>.
-            </p>
-
-            {/* BLOCO EXECUTIVO: NOTIFICAÇÃO DA DIRETORIA (11) 97899-0034 & ATALHO DE DISPARO */}
+            {/* PROTOCOLO OFICIAL DE ATENDIMENTO */}
             <div style={{
-              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(15, 23, 42, 0.95) 100%)',
-              border: '1px solid rgba(16, 185, 129, 0.35)',
+              background: 'linear-gradient(135deg, rgba(197, 168, 105, 0.12) 0%, rgba(15, 23, 42, 0.95) 100%)',
+              border: '1px solid var(--gold-primary)',
               borderRadius: 'var(--radius-sm)',
               padding: '1.15rem 1.25rem',
               maxWidth: '480px',
               margin: '0 auto 1.25rem',
-              textAlign: 'left',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.65rem'
+              textAlign: 'center',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: '#34D399', fontSize: '0.82rem', fontWeight: 700 }}>
-                  <MessageSquare size={16} />
-                  <span>Notificação do Lead para a Diretoria (11) 97899-0034</span>
-                </div>
-                <span style={{ fontSize: '0.68rem', background: 'rgba(16, 185, 129, 0.15)', color: '#34D399', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 700, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                  BOT ATIVO
-                </span>
+              <span style={{ fontSize: '0.72rem', color: '#94A3B8', letterSpacing: '0.1em', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>
+                PROTOCOLO OFICIAL DE ATENDIMENTO
+              </span>
+              <div style={{ fontSize: '1.45rem', color: 'var(--gold-light)', fontFamily: 'monospace', fontWeight: 800, letterSpacing: '0.08em', marginBottom: '0.75rem' }}>
+                {submittedProtocol}
               </div>
-
-              <p style={{ margin: 0, fontSize: '0.78rem', color: '#CBD5E1', lineHeight: 1.5 }}>
-                A solicitação foi registrada e o link da Ficha Cadastral está direcionado para envio no WhatsApp da Diretoria:
-              </p>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', marginTop: '0.2rem' }}>
-                <a
-                  href={notificationData?.urlDiretoriaUniversal || `https://wa.me/5511978990034`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+              
+              <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(submittedProtocol);
+                    setCopiedProtocol(true);
+                    setTimeout(() => setCopiedProtocol(false), 2500);
+                  }}
                   style={{
-                    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                    color: '#FFFFFF',
-                    textDecoration: 'none',
-                    padding: '0.75rem 1rem',
+                    background: copiedProtocol ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.06)',
+                    border: copiedProtocol ? '1px solid #10B981' : '1px solid rgba(197, 168, 105, 0.35)',
+                    color: copiedProtocol ? '#34D399' : 'var(--gold-light)',
+                    padding: '0.5rem 1rem',
                     borderRadius: '6px',
-                    fontWeight: 700,
-                    fontSize: '0.82rem',
-                    display: 'flex',
+                    fontSize: '0.76rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem',
-                    boxShadow: '0 4px 15px rgba(16, 185, 129, 0.35)',
+                    gap: '0.45rem',
                     transition: 'all 0.2s'
                   }}
-                  title="Abrir WhatsApp oficial da Diretoria com o aviso do lead e link da Ficha Cadastral"
                 >
-                  <MessageSquare size={16} />
-                  <span>Notificar Diretoria no WhatsApp (11) 97899-0034</span>
-                </a>
+                  {copiedProtocol ? <Check size={14} color="#10B981" /> : <Copy size={14} />}
+                  <span>{copiedProtocol ? 'Protocolo Copiado!' : 'Copiar Protocolo'}</span>
+                </button>
 
-                {notificationData?.linkDisparoClienteWhatsApp && (
+                {notificationData?.linkSalvarWhatsAppCliente && (
                   <a
-                    href={notificationData.linkDisparoClienteWhatsApp}
+                    href={notificationData.linkSalvarWhatsAppCliente}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{
-                      background: 'rgba(56, 189, 248, 0.12)',
-                      border: '1px solid rgba(56, 189, 248, 0.4)',
-                      color: '#38BDF8',
-                      textDecoration: 'none',
-                      padding: '0.65rem 1rem',
-                      borderRadius: '6px',
-                      fontWeight: 600,
-                      fontSize: '0.8rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '0.45rem',
-                      transition: 'all 0.2s'
-                    }}
-                    title="Abre conversa direta com o cliente já com a mensagem e o link seguro da Ficha Cadastral"
-                  >
-                    <ExternalLink size={14} />
-                    <span>Enviar Link Direto no WhatsApp do Cliente</span>
-                  </a>
-                )}
-
-                {notificationData?.linkFicha && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(notificationData.linkFicha);
-                      setCopiedLink(true);
-                      setTimeout(() => setCopiedLink(false), 2500);
-                    }}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      border: '1px solid rgba(255, 255, 255, 0.12)',
-                      color: '#E2E8F0',
-                      padding: '0.55rem 1rem',
+                      background: 'rgba(37, 211, 102, 0.12)',
+                      border: '1px solid rgba(37, 211, 102, 0.4)',
+                      color: '#25D366',
+                      padding: '0.5rem 1rem',
                       borderRadius: '6px',
                       fontSize: '0.76rem',
-                      cursor: 'pointer',
-                      display: 'flex',
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                      display: 'inline-flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
                       gap: '0.45rem',
                       transition: 'all 0.2s'
                     }}
                   >
-                    {copiedLink ? <Check size={14} color="#10B981" /> : <Copy size={14} />}
-                    <span>{copiedLink ? 'Link da Ficha Copiado!' : 'Copiar Link Oficial da Ficha Cadastral'}</span>
-                  </button>
+                    <MessageSquare size={14} />
+                    <span>Salvar no WhatsApp</span>
+                  </a>
                 )}
               </div>
             </div>
 
+            {/* MENSAGEM FORMAL DE CONFIRMAÇÃO & CONTINUIDADE */}
+            <div style={{ maxWidth: '480px', margin: '0 auto 1.25rem', textAlign: 'center', lineHeight: 1.65 }}>
+              <p style={{ color: '#E2E8F0', fontSize: '0.92rem', margin: '0 0 0.85rem' }}>
+                Prezado(a) <strong style={{ color: '#FFFFFF' }}>{formData.nome || 'Cliente'}</strong>, sua mensagem e solicitação para a empresa <strong style={{ color: 'var(--gold-light)' }}>{formData.empresa || 'sua empresa'}</strong> foram registradas com sucesso sob o Protocolo <strong style={{ color: 'var(--gold-light)' }}>{submittedProtocol}</strong>.
+              </p>
+              <p style={{ color: '#CBD5E1', fontSize: '0.86rem', margin: 0 }}>
+                Nossa Diretoria Executiva já foi notificada e <strong>entrará em contato em breve</strong> através do seu WhatsApp corporativo (<strong style={{ color: '#FFFFFF' }}>{formData.telefone}</strong>) ou e-mail para dar andamento ao atendimento e à auditoria pericial preliminar.
+              </p>
+            </div>
+
+            {/* BOX INSTITUCIONAL DE SUPORTE */}
             <div style={{
               background: 'rgba(15, 23, 42, 0.6)',
               border: '1px solid rgba(255, 255, 255, 0.08)',
@@ -457,10 +455,10 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--gold-light)', fontWeight: 700 }}>
                 <Shield size={14} color="var(--gold-primary)" />
-                <span>Atendimento Sob Sigilo Absoluto (NDA &amp; LGPD)</span>
+                <span>Atendimento Sob Sigilo Pericial Absoluto (NDA &amp; LGPD)</span>
               </div>
               <p style={{ margin: 0, lineHeight: 1.5 }}>
-                A Diretoria Executiva da Mourato &amp; Associados entrará em contato exclusivamente através do canal oficial: <strong style={{ color: '#FFFFFF' }}>(11) 97899-0034</strong>.
+                Canal Oficial da Diretoria via WhatsApp: <strong style={{ color: '#FFFFFF'}}>(11) 97899-0034</strong> ou e-mail institucional <strong style={{ color: '#FFFFFF' }}>mourato@mouratoassociados.com.br</strong>.
               </p>
             </div>
 
@@ -470,7 +468,7 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
               onClick={onClose}
               style={{ padding: '0.85rem 2.5rem', fontSize: '0.88rem', margin: '0 auto', gap: '0.5rem' }}
             >
-              <span>Concluir &amp; Fechar</span>
+              <span>Concluir &amp; Voltar ao Portal</span>
             </button>
           </div>
         )}

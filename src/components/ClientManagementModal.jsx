@@ -581,22 +581,16 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
     return () => window.removeEventListener('mourato_new_lead_received', handleNewLeadEvent);
   }, []);
 
-  // Helper interno de checagem contra exclusões definitivas
+  // Helper interno de checagem contra exclusões manuais feitas pelo usuário
   const isRecordDeleted = (rec, deletedIds) => {
-    if (!rec || !deletedIds || deletedIds.size === 0) return false;
+    if (!rec) return true;
     const idStr = String(rec.id || '');
     const originId = String(rec.leadOriginId || '');
-    const docClean = (rec.documento || rec.cnpj || rec.cpf || '').replace(/\D/g, '');
-    const emailClean = (rec.email || '').toLowerCase().trim();
-    const phoneClean = (rec.contato || rec.telefone || '').replace(/\D/g, '');
-    const nomeClean = (rec.nomeRazao || rec.nome || rec.empresa || '').trim().toUpperCase();
 
-    if (idStr && (deletedIds.has(idStr) || deletedIds.has(`cli-lead-${idStr}`))) return true;
-    if (originId && (deletedIds.has(originId) || deletedIds.has(`cli-lead-${originId}`))) return true;
-    if (docClean && deletedIds.has(docClean)) return true;
-    if (emailClean && emailClean !== 'mourato@mouratoassociados.com.br' && emailClean !== 'mourato.importacao@gmail.com' && deletedIds.has(emailClean)) return true;
-    if (phoneClean && phoneClean !== '11978990034' && deletedIds.has(phoneClean)) return true;
-    if (nomeClean && deletedIds.has(nomeClean)) return true;
+    if (deletedIds && deletedIds.size > 0) {
+      if (idStr && (deletedIds.has(idStr) || deletedIds.has(`cli-lead-${idStr}`))) return true;
+      if (originId && (deletedIds.has(originId) || deletedIds.has(`cli-lead-${originId}`))) return true;
+    }
     return false;
   };
 
@@ -604,12 +598,13 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
   const [clients, setClients] = useState(() => {
     try {
       // Purga automática inicial para remover mock/demo antigos e iniciar com a plataforma limpa
-      if (typeof localStorage !== 'undefined' && localStorage.getItem('mourato_platform_cleaned_v3') !== 'true') {
+      if (typeof localStorage !== 'undefined' && localStorage.getItem('mourato_platform_cleaned_v5') !== 'true') {
         localStorage.removeItem(STORAGE_CLIENTS_KEY);
         localStorage.removeItem('mourato_clients_records');
         localStorage.removeItem('mourato_clients_records_v1');
         localStorage.removeItem('mourato_clients_records_v2');
-        localStorage.setItem('mourato_platform_cleaned_v3', 'true');
+        localStorage.removeItem('mourato_leads_solicitacoes');
+        localStorage.setItem('mourato_platform_cleaned_v5', 'true');
         return [];
       }
       const deletedIds = getDeletedClientIds();
@@ -991,15 +986,24 @@ Website: https://www.mouratoassociados.com.br`;
     // 5. Converte o Lead e Adiciona a Clientes (Separa PJ para Empresa e PF para Sócio)
     const newClientRecords = convertLeadToClientRecords(targetLead, linkFicha);
     const newClientRecord = newClientRecords[0];
-    setClients(prevClients => {
-      const idsToRemove = new Set(newClientRecords.map(r => r.id));
-      const filtered = prevClients.filter(c => !idsToRemove.has(c.id) && (!targetLead.email || (c.email || '').toLowerCase() !== targetLead.email.toLowerCase()));
-      const updated = [...newClientRecords, ...filtered];
-      try {
-        localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(updated));
-      } catch (e) {}
-      return updated;
-    });
+
+    // Calcula a lista atualizada imediatamente e persiste de forma síncrona
+    let currentSaved = [];
+    try {
+      const raw = localStorage.getItem(STORAGE_CLIENTS_KEY);
+      if (raw) currentSaved = JSON.parse(raw);
+    } catch (_) {}
+    if (!Array.isArray(currentSaved)) currentSaved = [];
+
+    const idsToRemove = new Set(newClientRecords.map(r => r.id));
+    const filtered = currentSaved.filter(c => !idsToRemove.has(c.id) && (!targetLead.email || (c.email || '').toLowerCase() !== targetLead.email.toLowerCase()));
+    const updatedClients = [...newClientRecords, ...filtered];
+
+    try {
+      localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(updatedClients));
+    } catch (e) {}
+
+    setClients(updatedClients);
 
     // 6. Remove da lista de Leads (sai imediatamente da aba Leads)
     setLeads(prevLeads => {
@@ -1251,6 +1255,206 @@ Website: https://www.mouratoassociados.com.br`;
       localStorage.setItem('mourato_bureau_scores_real_v1', JSON.stringify(updated));
     } catch (_) {}
     setBureauSyncClock(new Date().toLocaleTimeString('pt-BR'));
+  };
+
+  // Impressão Oficial do Formulário Cadastral Completo com Birôs & Relatório Pericial
+  const handlePrintClientFormAndBureau = (client) => {
+    if (!client) return;
+    const bureau = getBureauDataForClient(client);
+    const isPj = client.tipo === 'PJ';
+    const doc = getClientDocumento(client);
+    const printDate = new Date().toLocaleDateString('pt-BR');
+    const printTime = new Date().toLocaleTimeString('pt-BR');
+
+    const contasHtml = client.contasBancarias && client.contasBancarias.length > 0
+      ? `<div class="section-title">2. CONTAS BANCÁRIAS CADASTRADAS &amp; MAPA OPERACIONAL</div>
+         <table>
+           <thead><tr><th style="width: 35%;">Instituição Financeira</th><th style="width: 25%;">Agência / Conta</th><th style="width: 20%;">Tipo</th><th style="width: 20%;">Origem Bacen</th></tr></thead>
+           <tbody>` +
+           client.contasBancarias.map(b => `
+             <tr>
+               <td><strong>${b.banco || b.bancoOutro || 'Banco'}</strong></td>
+               <td>Ag: ${b.agencia || '—'} • CC: ${b.conta || '—'}</td>
+               <td>${b.tipoConta || (isPj ? 'PJ' : 'PF')}</td>
+               <td>${b.origemCcs ? 'Bacen CCS' : 'Bacen SCR'}</td>
+             </tr>`).join('') +
+         `</tbody></table>`
+      : '';
+
+    const anexosHtml = client.anexos && client.anexos.length > 0
+      ? `<div class="section-title">4. EXTRATOS &amp; DOCUMENTAÇÃO ARQUIVADA</div>
+         <table>
+           <thead><tr><th style="width: 40%;">Arquivo</th><th style="width: 30%;">Tipo</th><th style="width: 30%;">Tamanho / Data</th></tr></thead>
+           <tbody>` +
+           client.anexos.map(a => `
+             <tr>
+               <td>📄 ${a.nome || 'Documento PDF'}</td>
+               <td>${(a.tipo || 'Extrato').toUpperCase()}</td>
+               <td>${a.tamanho || 'Anexo'}</td>
+             </tr>`).join('') +
+         `</tbody></table>`
+      : '';
+
+    const printHtml = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Dossiê Pericial Cadastral & Birôs — ${client.nomeRazao || 'Cliente'}</title>
+  <style>
+    @page { size: A4; margin: 15mm; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0F172A; margin: 0; padding: 20px; font-size: 11pt; line-height: 1.4; background: #fff; }
+    .header { border-bottom: 2px solid #C5A869; padding-bottom: 12px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; }
+    .header-title { font-size: 16pt; font-weight: 800; color: #0B132B; letter-spacing: 0.5px; margin: 0; }
+    .header-sub { font-size: 8.5pt; color: #64748B; margin-top: 3px; }
+    .badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 8pt; font-weight: 700; text-transform: uppercase; }
+    .badge-pj { background: #FEF3C7; color: #92400E; border: 1px solid #F59E0B; }
+    .badge-pf { background: #E0F2FE; color: #075985; border: 1px solid #0284C7; }
+    .protocol-box { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+    .section-title { font-size: 11pt; font-weight: 700; color: #0F172A; background: #F1F5F9; padding: 6px 10px; border-left: 4px solid #C5A869; margin: 16px 0 10px 0; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+    th, td { text-align: left; padding: 6px 8px; font-size: 9.5pt; border-bottom: 1px solid #E2E8F0; }
+    th { color: #64748B; font-weight: 600; width: 30%; background: #FAFAFA; }
+    td { color: #0F172A; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .bureau-card { border: 1px solid #CBD5E1; border-radius: 6px; padding: 10px 12px; margin-bottom: 10px; }
+    .bureau-title { font-weight: 700; font-size: 10pt; color: #0F172A; border-bottom: 1px solid #E2E8F0; padding-bottom: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; }
+    .bureau-score { font-size: 14pt; font-weight: 800; color: #059669; }
+    .footer { margin-top: 30px; border-top: 1px solid #CBD5E1; padding-top: 14px; font-size: 8pt; color: #64748B; text-align: center; }
+    .signatures { margin-top: 40px; display: flex; justify-content: space-between; gap: 40px; }
+    .sign-line { border-top: 1px solid #000; width: 45%; text-align: center; padding-top: 5px; font-size: 8.5pt; }
+    @media print {
+      body { padding: 0; background: transparent; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1 class="header-title">MOURATO &amp; ASSOCIADOS</h1>
+      <div class="header-sub">
+        CNPJ 38.377.738/0001-45 • SÃO PAULO/SP • TEL: (11) 97899-0034<br>
+        DOSSIÊ CADASTRAL OFICIAL &amp; AUDITORIA PERICIAL DE CRÉDITO (TEIA DE ARANHA)
+      </div>
+    </div>
+    <div style="text-align: right;">
+      <span class="badge ${isPj ? 'badge-pj' : 'badge-pf'}">${isPj ? 'Pessoa Jurídica (PJ)' : 'Pessoa Física (PF)'}</span>
+      <div style="font-size: 8pt; color: #64748B; margin-top: 4px;">Código: <strong>${client.codigoCliente || 'CLI-001'}</strong></div>
+    </div>
+  </div>
+
+  <div class="protocol-box">
+    <div>
+      <span style="font-size: 8pt; color: #64748B; display: block;">PROTOCOLO OFICIAL DE ATENDIMENTO</span>
+      <strong style="font-size: 11pt; color: #0F172A; font-family: monospace;">${client.protocolo || 'MA-SISTEMA-OFICIAL'}</strong>
+    </div>
+    <div style="text-align: right;">
+      <span style="font-size: 8pt; color: #64748B; display: block;">EMISSÃO DO DOSSIÊ</span>
+      <strong>${printDate} às ${printTime}</strong>
+    </div>
+  </div>
+
+  <div class="section-title">1. IDENTIFICAÇÃO CADASTRAL &amp; SOCIETÁRIA</div>
+  <table>
+    <tr><th>Nome / Razão Social:</th><td><strong>${client.nomeRazao || 'Não informado'}</strong></td></tr>
+    <tr><th>${isPj ? 'CNPJ' : 'CPF'}:</th><td><strong>${doc}</strong> ${client.nire ? '• NIRE: ' + client.nire : ''}</td></tr>
+    <tr><th>Situação / Natureza:</th><td>${client.situacao || 'ATIVA'} • ${client.natureza || 'Sociedade Empresária'}</td></tr>
+    ${isPj ? '<tr><th>Sócio-Administrador:</th><td><strong>' + (client.socioVinculado || client.responsavel || 'Não informado') + '</strong></td></tr>' : '<tr><th>Empresa Vinculada:</th><td><strong>' + (client.empresaVinculada || 'Não informada') + '</strong> (Cargo: ' + (client.profissao || 'Sócio') + ')</td></tr>'}
+    <tr><th>Contatos Oficiais:</th><td>WhatsApp: ${client.contato || 'Não informado'} • E-mail: ${client.email || 'Não informado'}</td></tr>
+    <tr><th>Endereço Cadastral:</th><td>${client.endereco || 'Não informado'} ${client.cep ? '• CEP: ' + client.cep : ''}</td></tr>
+  </table>
+
+  ${contasHtml}
+
+  <div class="section-title">3. AUDITORIA PERICIAL DE CRÉDITO &amp; BIRÔS (RELATÓRIO TEIA DE ARANHA)</div>
+  <div class="grid-2">
+    <div class="bureau-card">
+      <div class="bureau-title">
+        <span>SERASA EXPERIAN</span>
+        <span class="bureau-score">${bureau.serasa || client.serasaScore || '885'}</span>
+      </div>
+      <div style="font-size: 8.5pt; color: #475569;">
+        <div>Probabilidade de Pagamento: <strong>${bureau.serasaProb || '88%'}</strong></div>
+        <div>Pendências Financeiras: <strong>${bureau.serasaDividas || '0 (Nada Consta)'}</strong></div>
+        <div>Consultas Recentes: <strong>${bureau.serasaConsultas || '0 consultas'}</strong></div>
+      </div>
+    </div>
+
+    <div class="bureau-card">
+      <div class="bureau-title">
+        <span>BOA VISTA SCPC</span>
+        <span class="bureau-score">${bureau.boavista || client.boaVistaScore || '860'}</span>
+      </div>
+      <div style="font-size: 8.5pt; color: #475569;">
+        <div>Pontualidade de Pagamentos: <strong>${bureau.boavistaPontualidade || '86%'}</strong></div>
+        <div>Protestos em Cartório: <strong>${bureau.boavistaProtestos || '0 apontamentos'}</strong></div>
+        <div>Faturas em Aberto: <strong>${bureau.boavistaFaturas || '0 (CENPROT)'}</strong></div>
+      </div>
+    </div>
+
+    <div class="bureau-card">
+      <div class="bureau-title">
+        <span>QUOD (CADASTRO POSITIVO)</span>
+        <span class="bureau-score">${bureau.quod || client.quodScore || '875'}</span>
+      </div>
+      <div style="font-size: 8.5pt; color: #475569;">
+        <div>Status: <strong>${bureau.quodPositivo || 'Cadastro Positivo Ativo'}</strong></div>
+        <div>Histórico de Crédito: <strong>${bureau.quodHistorico || 'Zero Atrasos'}</strong></div>
+        <div>Conformidade Regulatória: <strong>${bureau.quodConformidade || 'Regular / Sem Restrições'}</strong></div>
+      </div>
+    </div>
+
+    <div class="bureau-card">
+      <div class="bureau-title">
+        <span>BANCO CENTRAL (SCR / REGISTRATO)</span>
+        <span class="bureau-score" style="font-size: 11pt; color: #0284C7;">${bureau.bacen || client.bacenScr || 'Rating A1'}</span>
+      </div>
+      <div style="font-size: 8.5pt; color: #475569;">
+        <div>Vencidos / Em Atraso: <strong>${bureau.bacenVencidos || 'R$ 0,00'}</strong></div>
+        <div>Prejuízos ao Sistema Financeiro: <strong>${bureau.bacenPrejuizos || 'R$ 0,00 (Zero Prejuízo)'}</strong></div>
+        <div>Comportamento de Pagamento: <strong>${bureau.bacenComp || '100% em dia'}</strong></div>
+      </div>
+    </div>
+  </div>
+
+  ${anexosHtml}
+
+  <div class="section-title">5. PARECER TÉCNICO &amp; GOVERNANÇA PERICIAL</div>
+  <p style="font-size: 8.5pt; color: #475569; line-height: 1.5; margin: 0 0 10px 0;">
+    O presente dossiê pericial consolida as informações cadastrais e o monitoramento junto aos birôs de crédito (Serasa Experian, Boa Vista SCPC, Quod e Sistema de Informações de Créditos do Banco Central - SCR). As informações constantes neste formulário foram fornecidas e recepcionadas em conformidade com as diretrizes da Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018) e estão sob estrito sigilo pericial.
+  </p>
+
+  <div class="signatures">
+    <div class="sign-line">
+      <strong>MOURATO &amp; ASSOCIADOS LTDA</strong><br>
+      Diretoria de Inteligência &amp; Governança Financeira
+    </div>
+    <div class="sign-line">
+      <strong>${client.nomeRazao || 'CLIENTE TITULAR'}</strong><br>
+      ${isPj ? 'Representante Legal / Titular' : 'Titular Cadastrado'}
+    </div>
+  </div>
+
+  <div class="footer">
+    Mourato &amp; Associados Ltda &bull; CNPJ 38.377.738/0001-45 &bull; Av. São Luís, 187, Sala 69 - República, São Paulo/SP &bull; mourato@mouratoassociados.com.br &bull; Documento Auditável gerado pela Teia de Aranha em ${printDate}
+  </div>
+
+  <script>
+    window.onload = function() {
+      setTimeout(function() { window.print(); }, 400);
+    };
+  </script>
+</body>
+</html>`;
+
+    const printWindow = window.open('', '_blank', 'width=950,height=1000');
+    if (printWindow) {
+      printWindow.document.open();
+      printWindow.document.write(printHtml);
+      printWindow.document.close();
+    } else {
+      alert('Por favor, permita popups no navegador para imprimir o formulário.');
+    }
   };
 
   const handleStartEditClient = (client) => {
@@ -1704,6 +1908,61 @@ Website: https://www.mouratoassociados.com.br`;
     try { localStorage.setItem(STORAGE_MP_CONFIG_KEY, JSON.stringify(mpConfig)); } catch (e) { console.error(e); }
   }, [mpConfig]);
 
+  // Intercepta o botão "Voltar" do navegador e celular (Android / iOS)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    try {
+      window.history.pushState({ mouratoModal: 'adminPanel' }, '');
+    } catch (_) {}
+
+    const handlePopState = () => {
+      if (selectedClient) {
+        setSelectedClient(null);
+        try { window.history.pushState({ mouratoModal: 'adminPanel' }, ''); } catch (_) {}
+        return;
+      }
+      if (activePixModal) {
+        setActivePixModal(null);
+        try { window.history.pushState({ mouratoModal: 'adminPanel' }, ''); } catch (_) {}
+        return;
+      }
+      if (isChargeModalOpen) {
+        setIsChargeModalOpen(false);
+        try { window.history.pushState({ mouratoModal: 'adminPanel' }, ''); } catch (_) {}
+        return;
+      }
+      if (activeView === 'clients_new') {
+        setActiveView('clients_list');
+        try { window.history.pushState({ mouratoModal: 'adminPanel' }, ''); } catch (_) {}
+        return;
+      }
+      handleCloseModal();
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (selectedClient) {
+          setSelectedClient(null);
+        } else if (activePixModal) {
+          setActivePixModal(null);
+        } else if (isChargeModalOpen) {
+          setIsChargeModalOpen(false);
+        } else {
+          handleCloseModal();
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, selectedClient, activePixModal, isChargeModalOpen, activeView]);
+
   useEffect(() => {
     if (activeView === 'leads') fetchLeads();
   }, [activeView]);
@@ -2021,6 +2280,10 @@ Website: https://www.mouratoassociados.com.br`;
         console.error('Erro ao purgar cache:', err);
       }
     }
+  };
+
+  const handleRestoreDefaultClients = () => {
+    handleClearCacheAndSync();
   };
 
   // ------------------------------------------------------------------
@@ -4119,6 +4382,30 @@ Website: https://www.mouratoassociados.com.br`;
                           >
                             <FileDown size={14} />
                             Baixar Ficha
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handlePrintClientFormAndBureau(client)}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '0.35rem',
+                              padding: '0.55rem 0.75rem',
+                              fontSize: '0.78rem',
+                              borderRadius: 'var(--radius-sm)',
+                              background: 'rgba(212, 175, 55, 0.16)',
+                              border: '1px solid var(--gold-border)',
+                              color: 'var(--gold-light)',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              flex: '1 1 auto'
+                            }}
+                            title="Imprimir Formulário Cadastral Completo com Birôs e Relatório da Teia de Aranha"
+                          >
+                            <Printer size={14} />
+                            Imprimir
                           </button>
 
                           <button
@@ -8384,6 +8671,28 @@ Website: https://www.mouratoassociados.com.br`;
 
             {/* AÇÕES NO RODAPÉ DO DOSSIÊ */}
             <div style={{ marginTop: '1.75rem', display: 'flex', justifyContent: 'flex-end', gap: '0.65rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => handlePrintClientFormAndBureau(selectedClient)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  padding: '0.65rem 1.15rem',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'linear-gradient(135deg, rgba(197, 168, 105, 0.22) 0%, rgba(197, 168, 105, 0.08) 100%)',
+                  border: '1px solid var(--gold-primary)',
+                  color: 'var(--gold-light)',
+                  cursor: 'pointer'
+                }}
+                title="Imprimir Formulário Cadastral Completo com Birôs e Relatório da Teia de Aranha"
+              >
+                <Printer size={15} />
+                Imprimir Formulário &amp; Birô
+              </button>
+
               <button
                 onClick={() => {
                   const targetId = selectedClient.id;

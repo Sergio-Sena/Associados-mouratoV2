@@ -45,6 +45,7 @@ export function buildLeadNotification(lead) {
     : 'https://www.mouratoassociados.com.br';
 
   const leadId = lead.id || `lead-${Date.now()}`;
+  const leadProtocolo = lead.protocolo || `MA-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
   const leadNome = (lead.nome || 'Cliente').trim();
   const leadEmpresa = (lead.empresa || 'Empresa').trim();
   const leadTelefone = (lead.telefone || '').trim();
@@ -53,16 +54,18 @@ export function buildLeadNotification(lead) {
   const leadContexto = (lead.contexto || '').trim();
 
   // 1. Link oficial exclusivo da Ficha Cadastral para este Lead
-  const linkFicha = `${baseUrl}/ficha-cadastral?nome=${encodeURIComponent(leadNome)}&empresa=${encodeURIComponent(leadEmpresa)}&telefone=${encodeURIComponent(leadTelefone)}&email=${encodeURIComponent(leadEmail)}&leadId=${encodeURIComponent(leadId)}&token=${encodeURIComponent(leadId)}&origem=lead_bot_notificacao`;
+  const linkFicha = `${baseUrl}/ficha-cadastral?nome=${encodeURIComponent(leadNome)}&empresa=${encodeURIComponent(leadEmpresa)}&telefone=${encodeURIComponent(leadTelefone)}&email=${encodeURIComponent(leadEmail)}&leadId=${encodeURIComponent(leadId)}&protocolo=${encodeURIComponent(leadProtocolo)}&token=${encodeURIComponent(leadId)}&origem=lead_bot_notificacao`;
 
   // 2. Telefone internacional do cliente
   const clientPhoneClean = formatPhoneForWhatsApp(leadTelefone);
 
-  // 3. Mensagem formal pronta que a diretoria pode enviar ao cliente com 1 toque
+  // 3. Mensagem formal pronta com protocolo que a diretoria envia ao cliente após confirmar
   const msgProntaParaCliente = 
 `Olá, *${leadNome}*!
 
 Confirmamos o recebimento da sua solicitação de assessoria na *Mourato & Associados* para a empresa *${leadEmpresa}*.
+
+📋 *Protocolo Oficial de Atendimento:* ${leadProtocolo}
 
 Para darmos início imediato à auditoria pericial preliminar e análise dos birôs (Banco Central SCR, Serasa, Boa Vista e Quod), por favor preencha sua Ficha Cadastral no link oficial abaixo:
 
@@ -74,7 +77,19 @@ _Atenciosamente,_
 CNPJ: 38.377.738/0001-45 | Atendimento: ${DIRETORIA_PHONE_FMT}
 ${DIRETORIA_EMAIL} | www.mouratoassociados.com.br`;
 
-  // 4. Link direto que abre a conversa com o CLIENTE com a mensagem e o link já digitados
+  // 4. Mensagem imediata de confirmação com protocolo que o próprio cliente pode levar consigo
+  const msgComprovanteCliente = 
+`*MOURATO & ASSOCIADOS — COMPROVANTE DE PROTOCOLO*
+Prezado(a) *${leadNome}*, confirmamos o registro da sua solicitação para a empresa *${leadEmpresa}*.
+
+📋 *Protocolo Oficial:* ${leadProtocolo}
+🔒 *Status:* Em análise pericial prioritária
+📅 *Data:* ${new Date().toLocaleDateString('pt-BR')}
+
+Canal Oficial da Diretoria: ${DIRETORIA_PHONE_FMT}
+www.mouratoassociados.com.br`;
+
+  // 5. Links diretos para disparo ao cliente
   const linkDisparoClienteWhatsApp = clientPhoneClean 
     ? `https://wa.me/${clientPhoneClean}?text=${encodeURIComponent(msgProntaParaCliente)}`
     : `https://wa.me/?text=${encodeURIComponent(msgProntaParaCliente)}`;
@@ -87,7 +102,11 @@ ${DIRETORIA_EMAIL} | www.mouratoassociados.com.br`;
     ? `https://web.whatsapp.com/send?phone=${clientPhoneClean}&text=${encodeURIComponent(msgProntaParaCliente)}`
     : `https://web.whatsapp.com/send?text=${encodeURIComponent(msgProntaParaCliente)}`;
 
-  // 5. Mensagem de Alerta para o WhatsApp da Diretoria (11 97899-0034)
+  const linkSalvarWhatsAppCliente = clientPhoneClean
+    ? `https://wa.me/${clientPhoneClean}?text=${encodeURIComponent(msgComprovanteCliente)}`
+    : `https://wa.me/?text=${encodeURIComponent(msgComprovanteCliente)}`;
+
+  // 6. Mensagem de Alerta para o WhatsApp da Diretoria (11 97899-0034)
   const msgParaDiretoria = 
 `🚨 *[NOVO LEAD RECEBIDO NO PORTAL]* 🚨
 
@@ -95,6 +114,7 @@ Uma nova solicitação de Audiência Privada / Assessoria acaba de ser registrad
 
 👤 *Titular:* ${leadNome}
 🏢 *Empresa:* ${leadEmpresa}
+📋 *Protocolo:* ${leadProtocolo}
 📱 *WhatsApp Cliente:* ${leadTelefone || 'Não informado'}
 ✉️ *E-mail:* ${leadEmail || 'Não informado'}
 ⚖️ *Prática:* ${leadPratica}
@@ -108,13 +128,14 @@ ${linkDisparoClienteWhatsApp}
 ───────────────────────────────────
 _Bot de Monitoramento da Esteira — Mourato & Associados_`;
 
-  // 6. Links de acionamento para o WhatsApp da Diretoria (5511978990034)
+  // 7. Links de acionamento para o WhatsApp da Diretoria (5511978990034)
   const urlDiretoriaUniversal = `https://wa.me/${DIRETORIA_PHONE_CLEAN}?text=${encodeURIComponent(msgParaDiretoria)}`;
   const urlDiretoriaApp = `whatsapp://send?phone=${DIRETORIA_PHONE_CLEAN}&text=${encodeURIComponent(msgParaDiretoria)}`;
   const urlDiretoriaWeb = `https://web.whatsapp.com/send?phone=${DIRETORIA_PHONE_CLEAN}&text=${encodeURIComponent(msgParaDiretoria)}`;
 
   return {
     leadId,
+    leadProtocolo,
     leadNome,
     leadEmpresa,
     leadTelefone,
@@ -123,9 +144,11 @@ _Bot de Monitoramento da Esteira — Mourato & Associados_`;
     linkFicha,
     clientPhoneClean,
     msgProntaParaCliente,
+    msgComprovanteCliente,
     linkDisparoClienteWhatsApp,
     linkDisparoClienteApp,
     linkDisparoClienteWeb,
+    linkSalvarWhatsAppCliente,
     msgParaDiretoria,
     urlDiretoriaUniversal,
     urlDiretoriaApp,

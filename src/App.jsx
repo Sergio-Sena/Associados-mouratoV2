@@ -88,13 +88,16 @@ export function App() {
     }
   }, [isLegacyStoreRoute]);
 
-  // Abre automaticamente o Birô de Crédito caso solicitado na URL (?view=bureau ou #bureau)
+  // Abre automaticamente o Birô de Crédito ou Modal de Agendamento caso solicitado na URL
   useEffect(() => {
     const s = window.location.search.toLowerCase();
     const h = window.location.hash.toLowerCase();
     if (s.includes('view=bureau') || s.includes('bureau=true') || h === '#bureau' || h === '#biros-admin') {
       setClientModalInitialView('bureau_scores');
       setIsClientModalOpen(true);
+    }
+    if (s.includes('contact') || s.includes('solicitar') || s.includes('agendar') || h === '#contact' || h === '#solicitar') {
+      setIsContactOpen(true);
     }
   }, []);
 

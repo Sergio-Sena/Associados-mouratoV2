@@ -4,7 +4,7 @@
  * Mantém apenas configurações operacionais (ex.: Mercado Pago).
  * Para zerar de novo no futuro, basta incrementar a versão.
  */
-export const PLATFORM_RESET_VERSION = 'mourato_platform_reset_v4';
+export const PLATFORM_RESET_VERSION = 'mourato_platform_reset_v5';
 
 const KEEP_KEYS = new Set([
   'mourato_mercadopago_config_v1',
@@ -27,7 +27,7 @@ export const runPlatformResetOnce = () => {
 
     try { sessionStorage.clear(); } catch (_) {}
 
-    localStorage.setItem('mourato_platform_cleaned_v3', 'true');
+    localStorage.setItem('mourato_platform_cleaned_v5', 'true');
     localStorage.setItem(PLATFORM_RESET_VERSION, 'done');
   } catch (e) {
     console.warn('Falha no reset da plataforma:', e);
