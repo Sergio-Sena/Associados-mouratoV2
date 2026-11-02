@@ -202,60 +202,6 @@ export const FichaCadastralStandalone = ({ isFullPage = false, onClose = null })
     }
   };
 
-  const handleSimularEnvioFicha = (tipo = 'PJ') => {
-    const proto = generateProtocolo();
-    const isPj = tipo === 'PJ';
-    const clientPayload = {
-      id: `cli-lead-${Date.now()}`,
-      protocolo: proto,
-      titular: {
-        nome: isPj ? 'Roberto Alencar Mourato' : 'Carlos Eduardo Peixoto',
-        cpf: isPj ? '284.912.839-44' : '312.458.789-20'
-      },
-      empresa: isPj ? {
-        razao_social: 'Alencar Mourato Logística & Transportes S/A',
-        cnpj: '45.192.384/0001-92',
-        capital_social: 'R$ 2.500.000,00',
-        cargo_socio: 'Diretor Presidente'
-      } : null,
-      contato: {
-        email: 'diretoria@alencarmourato.com.br',
-        celular: '(11) 98765-4321'
-      },
-      endereco: {
-        logradouro: 'Av. Paulista',
-        numero: '1842',
-        complemento: '14º Andar - Torre Sul',
-        bairro: 'Bela Vista',
-        cidade: 'São Paulo',
-        uf: 'SP',
-        cep: '01310-200'
-      },
-      socioeconomico: {
-        profissao: isPj ? 'Empresário' : 'Consultor Financeiro',
-        renda_mensal: 'R$ 68.000,00'
-      },
-      anexos: anexos,
-      origem: 'Ficha Cadastral Oficial Link'
-    };
-
-    const savedRecord = saveClientToOfficialSite(clientPayload, proto);
-    const savedId = savedRecord?.id || clientPayload.id;
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('mourato_active_bureau_client_id', savedId);
-    }
-
-    setSubmissionSuccess({
-      protocolo: proto,
-      cliente: isPj ? clientPayload.empresa.razao_social : clientPayload.titular.nome,
-      cpf: isPj ? clientPayload.empresa.cnpj : clientPayload.titular.cpf,
-      payload: savedRecord || clientPayload,
-      anexos: anexos
-    });
-
-
-  };
-
   const handleShareLinkWhatsApp = () => {
     const text = encodeURIComponent(
       `Prezado(a), segue o link direto da Mourato & Associados para preenchimento da Ficha Cadastral e envio dos extratos do Quod e Bacen:\n\n${directLinkUrl}`
@@ -690,8 +636,8 @@ export const FichaCadastralStandalone = ({ isFullPage = false, onClose = null })
 
             {/* BARRA DE CONCLUSÃO E DISPARO DIRETO PARA O BIRÔ DE CRÉDITO */}
             <div style={{
-              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(15, 23, 42, 0.8) 100%)',
-              border: '1px solid rgba(16, 185, 129, 0.35)',
+              background: 'linear-gradient(135deg, rgba(197, 168, 105, 0.08) 0%, rgba(15, 23, 42, 0.8) 100%)',
+              border: '1px solid var(--gold-border)',
               borderRadius: '10px',
               padding: '1.25rem 1.5rem',
               display: 'flex',
@@ -702,61 +648,18 @@ export const FichaCadastralStandalone = ({ isFullPage = false, onClose = null })
               marginTop: '0.5rem'
             }}>
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: '#34D399', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.2rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--gold-light)', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.2rem' }}>
                   <ShieldCheck size={16} />
-                  <span>Esteira Conectada ao Birô de Crédito Mourato</span>
+                  <span>Esteira Oficial Mourato &amp; Associados — Transmissão Auditável</span>
                 </div>
                 <p style={{ color: '#94A3B8', fontSize: '0.78rem', margin: 0 }}>
-                  Ao enviar, as informações cadastrais e extratos são salvos na plataforma e o Birô de Crédito é aberto para pesquisa e alimentação.
+                  Preencha os campos obrigatórios e marque o Termo de Autorização no formulário acima para concluir a transmissão oficial com segurança jurídica.
                 </p>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  onClick={() => handleSimularEnvioFicha('PJ')}
-                  style={{
-                    padding: '0.75rem 1.4rem',
-                    borderRadius: '8px',
-                    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                    border: '1px solid #34D399',
-                    color: '#FFFFFF',
-                    fontSize: '0.84rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    boxShadow: '0 4px 15px rgba(16, 185, 129, 0.35)',
-                    transition: 'all 0.2s'
-                  }}
-                  title="Concluir o preenchimento, salvar no banco de dados e abrir o Birô de Crédito imediatamente"
-                >
-                  <ShieldCheck size={16} />
-                  Enviar Ficha &amp; Abrir Birô (PJ)
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleSimularEnvioFicha('PF')}
-                  style={{
-                    padding: '0.75rem 1.2rem',
-                    borderRadius: '8px',
-                    background: 'rgba(56, 189, 248, 0.15)',
-                    border: '1px solid rgba(56, 189, 248, 0.4)',
-                    color: '#38BDF8',
-                    fontSize: '0.84rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.45rem',
-                    transition: 'all 0.2s'
-                  }}
-                  title="Concluir o preenchimento como sócio PF e abrir o Birô"
-                >
-                  Enviar Ficha (PF)
-                </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#10B981', fontSize: '0.78rem', fontWeight: 600 }}>
+                <CheckCircle2 size={16} />
+                <span>Criptografia Ponta a Ponta Ativa</span>
               </div>
             </div>
           </div>

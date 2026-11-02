@@ -60,6 +60,7 @@ import {
 import { createPixCharge, createCheckoutProPreference, validateAntifraudPayer } from '../services/mercadoPagoService';
 import { TEIA_INITIAL_CLIENTS } from '../data/teiaDatabase';
 import { getNextClientSequence, maskCPF, maskCNPJ } from '../services/onboardingService';
+import { buildLeadNotification, DIRETORIA_PHONE_FMT } from '../services/leadNotificationBot';
 
 const STORAGE_CLIENTS_KEY = 'mourato_clients_records_v2';
 const STORAGE_DELETED_CLIENTS_KEY = 'mourato_deleted_clients_v2';
@@ -3406,24 +3407,68 @@ Website: https://www.mouratoassociados.com.br`;
                             </div>
                           </div>
                         ) : (
-                          <div style={{ display: 'flex', gap: '0.65rem' }}>
-                            <button
-                              onClick={() => handleApproveLead(lead.id, lead)}
-                              className="btn-primary-gold"
-                              style={{ flex: 1, padding: '0.65rem', fontSize: '0.82rem', justifyContent: 'center', fontWeight: 700 }}
-                            >
-                              <UserCheck size={15} /> APROVAR & ENVIAR PLANILHA
-                            </button>
-                            <button
-                              onClick={() => handleDeleteLead(lead.id)}
-                              style={{
-                                background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)',
-                                color: '#F87171', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', cursor: 'pointer'
-                              }}
-                              title="Remover Lead"
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            {(() => {
+                              const notif = buildLeadNotification(lead);
+                              return (
+                                <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap' }}>
+                                  <a
+                                    href={notif?.urlDiretoriaUniversal || 'https://wa.me/5511978990034'}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{
+                                      flex: 1, minWidth: '150px', padding: '0.55rem 0.75rem',
+                                      background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.05) 100%)',
+                                      border: '1px solid rgba(16, 185, 129, 0.35)', color: '#34D399',
+                                      fontSize: '0.74rem', fontWeight: 700, borderRadius: '4px',
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem',
+                                      textDecoration: 'none'
+                                    }}
+                                    title="Notificar Diretoria no WhatsApp Oficial (11) 97899-0034"
+                                  >
+                                    📲 Notificar 97899-0034
+                                  </a>
+
+                                  {notif?.linkDisparoClienteWhatsApp && (
+                                    <a
+                                      href={notif.linkDisparoClienteWhatsApp}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{
+                                        flex: 1, minWidth: '150px', padding: '0.55rem 0.75rem',
+                                        background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.35)',
+                                        color: '#38BDF8', fontSize: '0.74rem', fontWeight: 700, borderRadius: '4px',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem',
+                                        textDecoration: 'none'
+                                      }}
+                                      title="Enviar link seguro da Ficha Cadastral direto no WhatsApp do Cliente"
+                                    >
+                                      💬 Enviar Link Cliente
+                                    </a>
+                                  )}
+                                </div>
+                              );
+                            })()}
+
+                            <div style={{ display: 'flex', gap: '0.65rem' }}>
+                              <button
+                                onClick={() => handleApproveLead(lead.id, lead)}
+                                className="btn-primary-gold"
+                                style={{ flex: 1, padding: '0.65rem', fontSize: '0.82rem', justifyContent: 'center', fontWeight: 700 }}
+                              >
+                                <UserCheck size={15} /> APROVAR &amp; ENVIAR PLANILHA
+                              </button>
+                              <button
+                                onClick={() => handleDeleteLead(lead.id)}
+                                style={{
+                                  background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)',
+                                  color: '#F87171', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', cursor: 'pointer'
+                                }}
+                                title="Remover Lead"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -7950,7 +7995,7 @@ Website: https://www.mouratoassociados.com.br`;
                   </div>
                   <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
                     <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>NACIONALIDADE &amp; NATURALIDADE</span>
-                    <strong style={{ color: '#FFFFFF' }}>{selectedClient.nacionalidade || 'Brasileira'} • {selectedClient.naturalidade || 'São Paulo/SP'}</strong>
+                    <strong style={{ color: '#FFFFFF' }}>{selectedClient.nacionalidade || 'Brasileira'}{selectedClient.naturalidade ? ` • ${selectedClient.naturalidade}` : ''}</strong>
                   </div>
                 </div>
               </div>
@@ -7979,11 +8024,11 @@ Website: https://www.mouratoassociados.com.br`;
                   </div>
                   <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
                     <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>NATUREZA JURÍDICA</span>
-                    <strong style={{ color: '#CBD5E1' }}>{selectedClient.natureza || 'Sociedade Empresária Limitada'}</strong>
+                    <strong style={{ color: '#CBD5E1' }}>{selectedClient.natureza || 'Sociedade Empresária'}</strong>
                   </div>
                   <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
                     <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>SÓCIO ADMINISTRADOR</span>
-                    <strong style={{ color: '#FFFFFF' }}>{selectedClient.socioVinculado || selectedClient.responsavel || 'José Jailson Mourato da Silva'}</strong>
+                    <strong style={{ color: '#FFFFFF' }}>{selectedClient.socioVinculado || selectedClient.responsavel || 'Não informado'}</strong>
                   </div>
                 </div>
               </div>
@@ -8007,7 +8052,9 @@ Website: https://www.mouratoassociados.com.br`;
                 </div>
                 <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
                   <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>CIDADE / UF</span>
-                  <strong style={{ color: '#FFFFFF' }}>{selectedClient.cidade || 'São Paulo'} / {selectedClient.uf || 'SP'}</strong>
+                  <strong style={{ color: '#FFFFFF' }}>
+                    {selectedClient.cidade ? `${selectedClient.cidade}${selectedClient.uf ? ` / ${selectedClient.uf}` : ''}` : (selectedClient.uf ? selectedClient.uf : 'Não informado')}
+                  </strong>
                 </div>
                 <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
                   <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>CEP</span>
@@ -8015,7 +8062,7 @@ Website: https://www.mouratoassociados.com.br`;
                 </div>
                 <div style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)' }}>
                   <span style={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>TIPO DO IMÓVEL &amp; TEMPO</span>
-                  <strong style={{ color: '#CBD5E1' }}>{selectedClient.tipoImovel || 'Próprio Quitado'} {selectedClient.tempoResidencia ? `• ${selectedClient.tempoResidencia}` : ''}</strong>
+                  <strong style={{ color: '#CBD5E1' }}>{selectedClient.tipoImovel || 'Não informado'}{selectedClient.tempoResidencia ? ` • ${selectedClient.tempoResidencia}` : ''}</strong>
                 </div>
               </div>
             </div>

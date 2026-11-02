@@ -497,10 +497,61 @@ export function saveClientToOfficialSite(payload, protocolo) {
       });
     }
 
-    // Evita duplicatas removendo registros com os mesmos documentos salvos
-    const docsToAdd = new Set(recordsToSave.map(r => (r.documento || '').replace(/\D/g, '')).filter(Boolean));
-    const filtered = existing.filter(c => !docsToAdd.has((c.documento || '').replace(/\D/g, '')));
-    const updated = [...recordsToSave, ...filtered];
+    // Unificação Inteligente (Merge): atualiza cards preliminares criados na aprovação do lead
+    const updated = [...existing];
+    const incomingPhone = (payload.contato?.celular || payload.telefone || '').replace(/\D/g, '');
+    const incomingEmail = (payload.contato?.email || payload.email || '').toLowerCase().trim();
+    const leadOriginId = String(payload.leadId || payload.id || '');
+
+    recordsToSave.forEach((newRec) => {
+      const newDocClean = (newRec.documento || '').replace(/\D/g, '');
+      const newNameClean = (newRec.nomeRazao || '').toLowerCase().trim();
+
+      // Busca registro correspondente na base atual
+      const matchIndex = updated.findIndex((c) => {
+        // 1. Mesmo ID de origem do lead (se compatível com o tipo PF ou PJ)
+        if (leadOriginId && (c.leadOriginId === leadOriginId || c.id === `cli-lead-${leadOriginId}` || c.id === `cli-${newRec.tipo.toLowerCase()}-${leadOriginId}`)) {
+          return c.tipo === newRec.tipo;
+        }
+
+        // 2. Mesmo CPF ou CNPJ válido
+        const cDoc = (c.documento || '').replace(/\D/g, '');
+        if (newDocClean && cDoc && newDocClean === cDoc) return true;
+
+        // 3. Cruzamento por contato quando o card preliminar ainda não possuía documento
+        const cPhone = (c.contato || c.celular || c.telefone || '').replace(/\D/g, '');
+        const cEmail = (c.email || '').toLowerCase().trim();
+        const sameType = c.tipo === newRec.tipo;
+
+        if (sameType) {
+          if (incomingPhone && incomingPhone.length >= 10 && cPhone && incomingPhone === cPhone) return true;
+          if (incomingEmail && incomingEmail.includes('@') && cEmail === incomingEmail && !incomingEmail.includes('mouratoassociados')) return true;
+          if (newNameClean && c.nomeRazao && c.nomeRazao.toLowerCase().trim() === newNameClean) return true;
+        }
+
+        return false;
+      });
+
+      if (matchIndex !== -1) {
+        // Encontrou o card preliminar (ex: CLI-019 ou CLI-020): Preserva ID e Código, atualiza todos os dados
+        const existingCard = updated[matchIndex];
+        newRec.id = existingCard.id;
+        newRec.codigoCliente = existingCard.codigoCliente || newRec.codigoCliente;
+        newRec.dataCadastro = existingCard.dataCadastro || newRec.dataCadastro;
+        newRec.statusConta = 'Cadastro Completo (Ficha Preenchida)';
+        newRec.statusValidacao = newRec.tipo === 'PJ' ? 'Validado como PJ' : 'Validado como PF';
+        newRec.fichaTransmitida = true;
+        newRec.dataAtualizacao = new Date().toISOString();
+
+        updated[matchIndex] = { ...existingCard, ...newRec };
+      } else {
+        // Novo registro
+        newRec.statusConta = 'Cadastro Completo (Ficha Preenchida)';
+        newRec.statusValidacao = newRec.tipo === 'PJ' ? 'Validado como PJ' : 'Validado como PF';
+        newRec.fichaTransmitida = true;
+        updated.unshift(newRec);
+      }
+    });
 
     const primaryRecord = recordsToSave[0];
 
@@ -523,8 +574,8 @@ export function saveClientToOfficialSite(payload, protocolo) {
       try {
         const rawScores = localStorage.getItem('mourato_bureau_scores_real_v1');
         const scoresMap = rawScores ? JSON.parse(rawScores) : {};
-        if (!scoresMap[newRecord.id]) {
-          scoresMap[newRecord.id] = {
+        if (!scoresMap[primaryRecord.id]) {
+          scoresMap[primaryRecord.id] = {
             serasa: 0,
             serasaDividas: '0 (Nada Consta)',
             serasaConsultas: '0 consultas',
@@ -544,10 +595,10 @@ export function saveClientToOfficialSite(payload, protocolo) {
     }
 
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('mourato_client_saved', { detail: newRecord }));
+      window.dispatchEvent(new CustomEvent('mourato_client_saved', { detail: primaryRecord }));
     }
 
-    return newRecord;
+    return primaryRecord;
   } catch (err) {
     console.error('Erro ao salvar cliente no banco do site oficial:', err);
     return null;

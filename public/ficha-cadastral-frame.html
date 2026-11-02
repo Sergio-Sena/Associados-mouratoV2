@@ -1597,6 +1597,24 @@
       }
     }
 
+    // Reset único da plataforma (mesma versão de src/utils/platformReset.js)
+    (function resetPlataformaUmaVez() {
+      try {
+        const VERSAO = 'mourato_platform_reset_v4';
+        if (localStorage.getItem(VERSAO) === 'done') return;
+        const manter = new Set(['mourato_mercadopago_config_v1', VERSAO]);
+        const remover = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.toLowerCase().startsWith('mourato_') && !manter.has(k)) remover.push(k);
+        }
+        remover.forEach(k => localStorage.removeItem(k));
+        try { sessionStorage.clear(); } catch (_) {}
+        localStorage.setItem('mourato_platform_cleaned_v3', 'true');
+        localStorage.setItem(VERSAO, 'done');
+      } catch (_) {}
+    })();
+
     // Anti-cache: se o navegador restaurar a página da memória (botão voltar), recarrega limpa
     window.addEventListener('pageshow', (ev) => {
       if (ev.persisted) window.location.reload();
