@@ -139,6 +139,16 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
         });
       } catch (_) {}
 
+      // 3.1. Aciona o robô autônomo da Mica para disparar diretamente no WhatsApp da empresa (11 97899-0034)
+      try {
+        fetch('http://localhost:3005/api/mica/notify-lead', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(leadPayload),
+          signal: AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined
+        }).catch(() => {});
+      } catch (_) {}
+
       // 4. Dispara o Bot Oficial de Notificação para a Diretoria (11 97899-0034)
       // Gravando o histórico pericial e emitindo evento interno
       const notif = dispatchLeadNotification(leadPayload);
