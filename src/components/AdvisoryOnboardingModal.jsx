@@ -29,6 +29,16 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
+  const handleCopyProtocol = () => {
+    if (submittedProtocol) {
+      try {
+        navigator.clipboard.writeText(submittedProtocol);
+        setCopiedProtocol(true);
+        setTimeout(() => setCopiedProtocol(false), 2500);
+      } catch (_) {}
+    }
+  };
+
   // Controla animação de entrada/saída e intercepta o botão "Voltar" do navegador/celular
   useEffect(() => {
     if (isOpen) {
@@ -183,7 +193,7 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
                 Agendamento de Advisory Executivo
               </h3>
               <p style={{ fontSize: '0.85rem', color: '#94A3B8', marginTop: '0.2rem' }}>
-                Atendimento direto com a diretoria da Mourato &amp; Associados.
+                Atendimento via Canal Direto da Mourato &amp; Associados.
               </p>
             </div>
 
@@ -375,20 +385,43 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
               </div>
               
               <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                {/* BOTÃO PRINCIPAL: ENVIAR PROTOCOLO AO CANAL DIRETO (11 97899-0034) */}
+                {notificationData?.linkEnviarCanalDiretoWhatsApp && (
+                  <a
+                    href={notificationData.linkEnviarCanalDiretoWhatsApp}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+                      border: '1px solid rgba(255, 255, 255, 0.25)',
+                      color: '#FFFFFF',
+                      padding: '0.6rem 1.15rem',
+                      borderRadius: '6px',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      boxShadow: '0 4px 12px rgba(37, 211, 102, 0.25)',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <MessageSquare size={16} />
+                    <span>Enviar ao Canal Direto (WhatsApp)</span>
+                  </a>
+                )}
+
                 <button
                   type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(submittedProtocol);
-                    setCopiedProtocol(true);
-                    setTimeout(() => setCopiedProtocol(false), 2500);
-                  }}
+                  onClick={handleCopyProtocol}
                   style={{
                     background: copiedProtocol ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.06)',
-                    border: copiedProtocol ? '1px solid #10B981' : '1px solid rgba(197, 168, 105, 0.35)',
-                    color: copiedProtocol ? '#34D399' : 'var(--gold-light)',
-                    padding: '0.5rem 1rem',
+                    border: copiedProtocol ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(255, 255, 255, 0.12)',
+                    color: copiedProtocol ? '#10B981' : '#E2E8F0',
+                    padding: '0.55rem 0.95rem',
                     borderRadius: '6px',
-                    fontSize: '0.76rem',
+                    fontSize: '0.78rem',
                     fontWeight: 600,
                     cursor: 'pointer',
                     display: 'inline-flex',
@@ -407,10 +440,10 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{
-                      background: 'rgba(37, 211, 102, 0.12)',
-                      border: '1px solid rgba(37, 211, 102, 0.4)',
-                      color: '#25D366',
-                      padding: '0.5rem 1rem',
+                      background: 'rgba(255, 255, 255, 0.04)',
+                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                      color: '#94A3B8',
+                      padding: '0.55rem 0.95rem',
                       borderRadius: '6px',
                       fontSize: '0.76rem',
                       fontWeight: 600,
@@ -422,7 +455,7 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
                     }}
                   >
                     <MessageSquare size={14} />
-                    <span>Salvar no WhatsApp</span>
+                    <span>Salvar Comprovante</span>
                   </a>
                 )}
               </div>
@@ -434,7 +467,7 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
                 Prezado(a) <strong style={{ color: '#FFFFFF' }}>{formData.nome || 'Cliente'}</strong>, sua mensagem e solicitação para a empresa <strong style={{ color: 'var(--gold-light)' }}>{formData.empresa || 'sua empresa'}</strong> foram registradas com sucesso sob o Protocolo <strong style={{ color: 'var(--gold-light)' }}>{submittedProtocol}</strong>.
               </p>
               <p style={{ color: '#CBD5E1', fontSize: '0.86rem', margin: 0 }}>
-                Nossa Diretoria Executiva já foi notificada e <strong>entrará em contato em breve</strong> através do seu WhatsApp corporativo (<strong style={{ color: '#FFFFFF' }}>{formData.telefone}</strong>) ou e-mail para dar andamento ao atendimento e à auditoria pericial preliminar.
+                Nosso Canal Direto já recebeu sua solicitação e <strong>entrará em contato em breve</strong> através do seu WhatsApp corporativo (<strong style={{ color: '#FFFFFF' }}>{formData.telefone}</strong>) ou e-mail para dar andamento ao atendimento e à auditoria pericial preliminar.
               </p>
             </div>
 
@@ -458,7 +491,7 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
                 <span>Atendimento Sob Sigilo Pericial Absoluto (NDA &amp; LGPD)</span>
               </div>
               <p style={{ margin: 0, lineHeight: 1.5 }}>
-                Canal Oficial da Diretoria via WhatsApp: <strong style={{ color: '#FFFFFF'}}>(11) 97899-0034</strong> ou e-mail institucional <strong style={{ color: '#FFFFFF' }}>mourato@mouratoassociados.com.br</strong>.
+                Canal Direto via WhatsApp: <strong style={{ color: '#FFFFFF'}}>(11) 97899-0034</strong> ou e-mail institucional <strong style={{ color: '#FFFFFF' }}>mourato@mouratoassociados.com.br</strong>.
               </p>
             </div>
 

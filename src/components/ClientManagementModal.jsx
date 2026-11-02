@@ -759,21 +759,47 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
     const pendingLeads = [];
     const approvedLeadsToMigrate = [];
     const deletedIds = getDeletedClientIds();
+    const currentClients = (clients && clients.length > 0) ? clients : (() => {
+      try {
+        const raw = localStorage.getItem(STORAGE_CLIENTS_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (_) { return []; }
+    })();
 
     (items || []).forEach(lead => {
+      if (!lead) return;
       // Trava de exclusão: se foi deletado, NUNCA sobe para a aba Leads e NUNCA migra para Clientes
-      if (isRecordDeleted(lead, deletedIds)) return;
+      if (isRecordDeleted(lead, deletedIds)) {
+        if (lead.id) {
+          fetch(`${apiUrl}/leads/${lead.id}`, {
+            method: 'DELETE',
+            headers: { 'x-admin-password': adminPassword }
+          }).catch(() => {});
+        }
+        return;
+      }
 
       const email = (lead.email || '').toLowerCase().trim();
       const phone = (lead.telefone || '').replace(/\D/g, '');
+      const leadId = String(lead.id || '');
+      const alreadyClient = isClientAlreadyInList(currentClients, lead);
+
       const isApproved = 
-        (lead.id && approvedSet.has(String(lead.id))) ||
-        (email && email !== 'mourato@mouratoassociados.com.br' && email !== 'mourato.importacao@gmail.com' && approvedSet.has(email)) ||
-        (phone && phone !== '11978990034' && approvedSet.has(phone)) ||
+        alreadyClient ||
+        (leadId && approvedSet.has(leadId)) ||
+        (email && approvedSet.has(email)) ||
+        (phone && phone.length >= 8 && approvedSet.has(phone)) ||
         lead.status === 'aprovado';
 
       if (isApproved) {
         approvedLeadsToMigrate.push({ ...lead, status: 'aprovado' });
+        // Se já é cliente/aprovado, expurga da esteira de leads na nuvem AWS para não poluir
+        if (lead.id) {
+          fetch(`${apiUrl}/leads/${lead.id}`, {
+            method: 'DELETE',
+            headers: { 'x-admin-password': adminPassword }
+          }).catch(() => {});
+        }
       } else {
         pendingLeads.push({ ...lead, status: lead.status || 'novo' });
       }
@@ -861,7 +887,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
     const linkFicha = `${baseUrl}/ficha-cadastral?nome=${encodeURIComponent(targetLead.nome || '')}&empresa=${encodeURIComponent(targetLead.empresa || '')}&telefone=${encodeURIComponent(targetLead.telefone || '')}&email=${encodeURIComponent(targetLead.email || '')}&token=${encodeURIComponent(token)}&leadId=${encodeURIComponent(targetLead.id || '')}&origem=audiencia_aprovada`;
 
     // 3. Monta o texto oficial para WhatsApp com a Ficha Cadastral Oficial
-    const wppMsg = `Olá, *${targetLead.nome || 'Cliente'}* (${targetLead.empresa || 'Empresa'})!\n\nSua solicitação de assessoria na *Mourato & Associados* foi *APROVADA* com sucesso pela diretoria pericial.\n\nPara darmos início imediato à sua auditoria de crédito e calibragem de rating junto aos birôs oficiais (Banco Central SCR, Serasa, Boa Vista e Quod), por favor acesse sua Ficha Cadastral Oficial no link seguro abaixo:\n\n📋 *Acesse sua Ficha Cadastral:* ${linkFicha}\n\n_Mourato & Associados Ltda — CNPJ: 38.377.738/0001-45_\nAtendimento Oficial WhatsApp: (11) 97899-0034 | mourato@mouratoassociados.com.br`;
+    const wppMsg = `Olá, *${targetLead.nome || 'Cliente'}* (${targetLead.empresa || 'Empresa'})!\n\nSua solicitação de assessoria na *Mourato & Associados* foi *APROVADA* com sucesso pelo Canal Direto pericial.\n\nPara darmos início imediato à sua auditoria de crédito e calibragem de rating junto aos birôs oficiais (Banco Central SCR, Serasa, Boa Vista e Quod), por favor acesse sua Ficha Cadastral Oficial no link seguro abaixo:\n\n📋 *Acesse sua Ficha Cadastral:* ${linkFicha}\n\n_Mourato & Associados Ltda — CNPJ: 38.377.738/0001-45_\nCanal Direto: (11) 97899-0034 | mourato@mouratoassociados.com.br`;
 
     // Telefone do CLIENTE destinatário (NUNCA usar o telefone corporativo da Mourato como destinatário)
     let rawDigits = (targetLead.telefone || '').replace(/\D/g, '');
@@ -900,7 +926,7 @@ Assessoria Corporativa & Auditoria Pericial de Crédito
 
 Prezado(a) ${targetLead.nome || 'Cliente'} (${targetLead.empresa || 'Empresa'}),
 
-É com satisfação que informamos que sua solicitação de assessoria corporativa foi formalmente APROVADA pela Diretoria Pericial da Mourato & Associados.
+É com satisfação que informamos que sua solicitação de assessoria corporativa foi formalmente APROVADA pelo Canal Direto Pericial da Mourato & Associados.
 
 Para darmos início imediato à auditoria de crédito e calibragem de rating junto aos birôs oficiais (Banco Central SCR, Serasa, Boa Vista e Quod), por favor acesse e preencha sua Ficha Cadastral Oficial no link abaixo:
 
@@ -912,13 +938,13 @@ ${linkFicha}
 ────────────────────────────────────────────────────────────────────
 ⚠️ ATENÇÃO: ESTA É UMA MENSAGEM AUTOMÁTICA. FAVOR NÃO RESPONDER A ESTE E-MAIL.
 Todos os esclarecimentos, alinhamentos e agendamentos serão realizados
-exclusivamente via telefone oficial: (11) 97899-0034.
+exclusivamente via Canal Direto: (11) 97899-0034.
 ────────────────────────────────────────────────────────────────────
 
 Atenciosamente,
 
 MOURATO & ASSOCIADOS LTDA
-Diretoria de Governança e Inteligência Pericial
+Canal Direto de Governança e Inteligência Pericial
 CNPJ: 38.377.738/0001-45 • São Paulo/SP
 Atendimento Telefônico Oficial: (11) 97899-0034
 Website: https://www.mouratoassociados.com.br`;
@@ -1052,27 +1078,13 @@ Website: https://www.mouratoassociados.com.br`;
     const apiUrl = import.meta.env.VITE_API_URL || 'https://0bwr64p3ie.execute-api.us-east-1.amazonaws.com/prod';
     const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'admin2026';
 
+    // Remove imediatamente da esteira remota da AWS para que nunca mais reapareça como lead pendente
     try {
       await fetch(`${apiUrl}/leads/${id}`, {
-        method: 'PATCH',
-        headers: { 
-          'Content-Type': 'application/json', 
-          'x-admin-password': adminPassword 
-        },
-        body: JSON.stringify({ status: 'aprovado' })
+        method: 'DELETE',
+        headers: { 'x-admin-password': adminPassword }
       });
-    } catch (e) {
-      try {
-        await fetch(`${apiUrl}/leads/${id}`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json', 
-            'x-admin-password': adminPassword 
-          },
-          body: JSON.stringify({ status: 'aprovado' })
-        });
-      } catch (_) {}
-    }
+    } catch (_) {}
 
     // 11. Disparo imediato do e-mail oficial no Google Workspace ao aprovar
     if (googleWorkspaceUrl) {

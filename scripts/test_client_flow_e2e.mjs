@@ -40,8 +40,11 @@ async function run() {
     const hasClientMsg = bodyText.includes('Prezado(a)') && bodyText.includes('José Carlos da Silva') && bodyText.includes('registradas com sucesso sob o Protocolo');
     console.log('✓ Mensagem formal com protocolo para o cliente presente:', hasClientMsg);
 
-    const hasSaveWpp = await page.locator('a:has-text("Salvar no WhatsApp")').isVisible();
-    console.log('✓ Botão para salvar no WhatsApp presente:', hasSaveWpp);
+    const hasCanalDiretoWpp = await page.locator('a:has-text("Enviar ao Canal Direto")').isVisible();
+    console.log('✓ Botão para Enviar ao Canal Direto via WhatsApp presente:', hasCanalDiretoWpp);
+
+    const hasSaveWpp = await page.locator('a:has-text("Salvar Comprovante"), a:has-text("Salvar no WhatsApp")').isVisible();
+    console.log('✓ Botão para salvar comprovante presente:', hasSaveWpp);
 
     await page.screenshot({ path: 'client_confirmation_protocol.png' });
     console.log('✓ Screenshot da tela do cliente salva: client_confirmation_protocol.png');

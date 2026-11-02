@@ -59,7 +59,7 @@ export function buildLeadNotification(lead) {
   // 2. Telefone internacional do cliente
   const clientPhoneClean = formatPhoneForWhatsApp(leadTelefone);
 
-  // 3. Mensagem formal pronta com protocolo que a diretoria envia ao cliente após confirmar
+  // 3. Mensagem formal pronta com protocolo que o Canal Direto envia ao cliente após confirmar
   const msgProntaParaCliente = 
 `Olá, *${leadNome}*!
 
@@ -73,7 +73,7 @@ Para darmos início imediato à auditoria pericial preliminar e análise dos bir
 ${linkFicha}
 
 _Atenciosamente,_
-*Diretoria Executiva — Mourato & Associados Ltda*
+*Canal Direto — Mourato & Associados Ltda*
 CNPJ: 38.377.738/0001-45 | Atendimento: ${DIRETORIA_PHONE_FMT}
 ${DIRETORIA_EMAIL} | www.mouratoassociados.com.br`;
 
@@ -86,7 +86,7 @@ Prezado(a) *${leadNome}*, confirmamos o registro da sua solicitação para a emp
 🔒 *Status:* Em análise pericial prioritária
 📅 *Data:* ${new Date().toLocaleDateString('pt-BR')}
 
-Canal Oficial da Diretoria: ${DIRETORIA_PHONE_FMT}
+Canal Direto: ${DIRETORIA_PHONE_FMT}
 www.mouratoassociados.com.br`;
 
   // 5. Links diretos para disparo ao cliente
@@ -106,7 +106,23 @@ www.mouratoassociados.com.br`;
     ? `https://wa.me/${clientPhoneClean}?text=${encodeURIComponent(msgComprovanteCliente)}`
     : `https://wa.me/?text=${encodeURIComponent(msgComprovanteCliente)}`;
 
-  // 6. Mensagem de Alerta para o WhatsApp da Diretoria (11 97899-0034)
+  // 5.1. Mensagem de envio do CLIENTE diretamente para o Canal Direto (11 97899-0034)
+  const msgClienteParaCanalDireto = 
+`Olá, *Canal Direto* da Mourato & Associados!
+
+Acabei de registrar minha solicitação no portal oficial e gostaria de confirmar o recebimento do meu protocolo:
+
+👤 *Titular:* ${leadNome}
+🏢 *Empresa:* ${leadEmpresa}
+📋 *Protocolo Oficial:* ${leadProtocolo}
+📱 *WhatsApp:* ${leadTelefone || 'Informado no cadastro'}
+⚖️ *Prática Solicitada:* ${leadPratica}
+
+Solicito confirmação do início da análise pericial e da Ficha Cadastral nos birôs.`;
+
+  const linkEnviarCanalDiretoWhatsApp = `https://wa.me/${DIRETORIA_PHONE_CLEAN}?text=${encodeURIComponent(msgClienteParaCanalDireto)}`;
+
+  // 6. Mensagem de Alerta para o WhatsApp do Canal Direto (11 97899-0034)
   const msgParaDiretoria = 
 `🚨 *[NOVO LEAD RECEBIDO NO PORTAL]* 🚨
 
@@ -128,7 +144,7 @@ ${linkDisparoClienteWhatsApp}
 ───────────────────────────────────
 _Bot de Monitoramento da Esteira — Mourato & Associados_`;
 
-  // 7. Links de acionamento para o WhatsApp da Diretoria (5511978990034)
+  // 7. Links de acionamento para o WhatsApp do Canal Direto (5511978990034)
   const urlDiretoriaUniversal = `https://wa.me/${DIRETORIA_PHONE_CLEAN}?text=${encodeURIComponent(msgParaDiretoria)}`;
   const urlDiretoriaApp = `whatsapp://send?phone=${DIRETORIA_PHONE_CLEAN}&text=${encodeURIComponent(msgParaDiretoria)}`;
   const urlDiretoriaWeb = `https://web.whatsapp.com/send?phone=${DIRETORIA_PHONE_CLEAN}&text=${encodeURIComponent(msgParaDiretoria)}`;
@@ -145,10 +161,12 @@ _Bot de Monitoramento da Esteira — Mourato & Associados_`;
     clientPhoneClean,
     msgProntaParaCliente,
     msgComprovanteCliente,
+    msgClienteParaCanalDireto,
     linkDisparoClienteWhatsApp,
     linkDisparoClienteApp,
     linkDisparoClienteWeb,
     linkSalvarWhatsAppCliente,
+    linkEnviarCanalDiretoWhatsApp,
     msgParaDiretoria,
     urlDiretoriaUniversal,
     urlDiretoriaApp,
