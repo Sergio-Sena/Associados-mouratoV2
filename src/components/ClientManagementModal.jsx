@@ -59,7 +59,7 @@ import {
 } from 'lucide-react';
 import { createPixCharge, createCheckoutProPreference, validateAntifraudPayer } from '../services/mercadoPagoService';
 import { TEIA_INITIAL_CLIENTS } from '../data/teiaDatabase';
-import { getNextClientSequence, maskCPF, maskCNPJ } from '../services/onboardingService';
+import { getNextClientSequence, maskCPF, maskCNPJ, generateProtocolo } from '../services/onboardingService';
 import { buildLeadNotification, DIRETORIA_PHONE_FMT } from '../services/leadNotificationBot';
 
 const STORAGE_CLIENTS_KEY = 'mourato_clients_records_v2';
@@ -270,12 +270,12 @@ const convertLeadToClientRecords = (lead, linkFicha = '') => {
       contasBancarias: lead.contasBancarias || [],
       portais: lead.portais || {},
       anexos: lead.anexos || [],
-      protocolo: lead.protocolo || `MA-${Date.now()}`,
-      bacenScr: 'Rating A1',
-      serasaScore: 'Regular',
-      boaVistaScore: 'Regular',
-      quodScore: 0,
-      govNivel: 'Ouro'
+      protocolo: lead.protocolo || generateProtocolo(),
+      bacenScr: lead.bacenScr || 'Pendente',
+      serasaScore: lead.serasaScore || 'Pendente',
+      boaVistaScore: lead.boaVistaScore || 'Pendente',
+      quodScore: lead.quodScore || 'Pendente',
+      govNivel: lead.govNivel || 'Pendente'
     });
   }
 
@@ -326,12 +326,12 @@ const convertLeadToClientRecords = (lead, linkFicha = '') => {
       contasBancarias: (lead.contasBancarias || []).filter(b => b.tipoConta === 'PF'),
       portais: lead.portais || {},
       anexos: lead.anexos || [],
-      protocolo: lead.protocolo || `MA-${Date.now()}`,
-      bacenScr: 'Rating A1',
-      serasaScore: 'Regular',
-      boaVistaScore: 'Regular',
-      quodScore: 0,
-      govNivel: 'Ouro'
+      protocolo: lead.protocolo || generateProtocolo(),
+      bacenScr: lead.bacenScr || 'Pendente',
+      serasaScore: lead.serasaScore || 'Pendente',
+      boaVistaScore: lead.boaVistaScore || 'Pendente',
+      quodScore: lead.quodScore || 'Pendente',
+      govNivel: lead.govNivel || 'Pendente'
     });
   }
 

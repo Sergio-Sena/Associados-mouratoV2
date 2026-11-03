@@ -34,3 +34,7 @@ screenshots/
 
 # gstack (global install)
 .amazonq/rules/gstack.md
+
+# WhatsApp Session & Temp
+auth_info_baileys/
+*.png
