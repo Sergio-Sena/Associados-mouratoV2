@@ -1,6 +1,6 @@
 /**
  * Base Oficial da Teia de Aranha - Mourato & Associados
- * Sincronizado automaticamente por scripts/sync_from_teia.mjs em 2026-11-03T01:45:43.772Z
+ * Sincronizado automaticamente por scripts/sync_from_teia.mjs em 2026-11-03T20:30:26.454Z
  * Origem Pericial: C:\Projetos\Empreas\data
  * Diretriz: ZERO DADOS INVENTADOS (Scores não periciados constam como "Pendente")
  */
@@ -86,6 +86,7 @@ export const TEIA_INITIAL_CLIENTS = [
     "responsavel": "Titular",
     "contato": "(97) 98427-1060",
     "email": "depaulaangela03@gmail.com",
+    "protocolo": "",
     "endereco": "São Paulo - SP",
     "cep": "",
     "rendaPatrimonio": {
@@ -118,6 +119,55 @@ export const TEIA_INITIAL_CLIENTS = [
     "dataCadastro": "2026-10-19"
   },
   {
+    "id": "cli-pj-erivaldo",
+    "tipo": "PJ",
+    "nomeRazao": "COMERCIAL NESPE CONSTRUTORA LTDA",
+    "documento": "19.706.900/0001-87",
+    "documentoTipo": "CNPJ",
+    "natureza": "Sociedade Empresária",
+    "nire": "",
+    "situacao": "ATIVA",
+    "dataAbertura": "2026-10-19",
+    "socioVinculado": "ERIVALDO DOS SANTOS CAMILO",
+    "responsavel": "ERIVALDO DOS SANTOS CAMILO (Sócio-Titular)",
+    "contato": "(11) 91496-5601",
+    "email": "erivaldosc0397@gmail.com",
+    "endereco": "Rua Ana Paulina, 171, Vila Comercial - São Paulo - SP",
+    "cep": "05139-060",
+    "protocolo": "",
+    "balanco": {
+      "exercicio": "2026 (Auditando)",
+      "ativo": "Aguardando DRE/Balanço",
+      "patrimonioLiquido": "Aguardando DRE/Balanço",
+      "capitalSocial": "Aguardando DRE/Balanço",
+      "faturamentoAnual": "Aguardando DRE/Balanço",
+      "contadorResponsavel": "Em auditoria"
+    },
+    "contasBancarias": [
+      {
+        "id": 1,
+        "banco": "Conta Corporativa PJ",
+        "bancoOutro": "",
+        "agencia": "0001",
+        "conta": "Conta de Pagamento PJ",
+        "senhaAcesso": "",
+        "statusConta": "Aberta e Operando (CCS Bacen Ativo)"
+      }
+    ],
+    "serasaScore": "Pendente",
+    "serasaStatus": "Em Análise Pericial",
+    "boaVistaScore": "Pendente",
+    "boaVistaStatus": "Em Análise Pericial",
+    "quodScore": "Pendente",
+    "quodStatus": "Em Análise Pericial",
+    "bacenScr": "CCS Bacen em Auditoria",
+    "govNivel": "Pendente",
+    "govProtocolo": "Validação Gov.br em andamento",
+    "limiteAprovado": "Sob auditoria de capacidade de pagamento",
+    "observacoesSigilosas": "Cartão PJ vinculado ao sócio titular ERIVALDO DOS SANTOS CAMILO. Monitorado pela Teia de Aranha.",
+    "dataCadastro": "2026-10-19"
+  },
+  {
     "id": "cli-pf-erivaldo",
     "tipo": "PF",
     "nomeRazao": "ERIVALDO DOS SANTOS CAMILO",
@@ -128,6 +178,7 @@ export const TEIA_INITIAL_CLIENTS = [
     "responsavel": "Titular",
     "contato": "(11) 91496-5601",
     "email": "erivaldosc0397@gmail.com",
+    "protocolo": "",
     "endereco": "Rua Ana Paulina, 171, Vila Comercial - São Paulo - SP",
     "cep": "05139-060",
     "rendaPatrimonio": {
@@ -170,6 +221,7 @@ export const TEIA_INITIAL_CLIENTS = [
     "responsavel": "Titular",
     "contato": "(11) 98187-9798",
     "email": "heliamouratoo@gmail.com",
+    "protocolo": "",
     "endereco": "São Paulo - SP",
     "cep": "",
     "rendaPatrimonio": {
@@ -212,6 +264,7 @@ export const TEIA_INITIAL_CLIENTS = [
     "responsavel": "Titular",
     "contato": "(11) 97899-0034",
     "email": "mourato.importacao@gmail.com",
+    "protocolo": "",
     "endereco": "Av. São Luís, 187, Sala 69 - República - São Paulo - SP",
     "cep": "01045-001",
     "rendaPatrimonio": {
@@ -254,6 +307,7 @@ export const TEIA_INITIAL_CLIENTS = [
     "responsavel": "Titular",
     "contato": "Não informado",
     "email": "",
+    "protocolo": "",
     "endereco": "São Paulo - SP",
     "cep": "",
     "rendaPatrimonio": {
@@ -296,6 +350,7 @@ export const TEIA_INITIAL_CLIENTS = [
     "responsavel": "Titular",
     "contato": "Não informado",
     "email": "",
+    "protocolo": "",
     "endereco": "São Paulo - SP",
     "cep": "",
     "rendaPatrimonio": {
@@ -328,6 +383,55 @@ export const TEIA_INITIAL_CLIENTS = [
     "dataCadastro": "2026-10-17"
   },
   {
+    "id": "cli-pj-nilson",
+    "tipo": "PJ",
+    "nomeRazao": "Y7 SERVICE LTDA",
+    "documento": "PENDENTE_HOMOLOGACAO",
+    "documentoTipo": "CNPJ",
+    "natureza": "Sociedade Empresária",
+    "nire": "",
+    "situacao": "ATIVA",
+    "dataAbertura": "2026-10-19",
+    "socioVinculado": "NILSON OLIVEIRA DOS SANTOS",
+    "responsavel": "NILSON OLIVEIRA DOS SANTOS (Sócio-Titular)",
+    "contato": "(11) 98246-6092",
+    "email": "nilson.contador@yahoo.com",
+    "endereco": "Rua da Caminhadeira, 91, Casa - Vila Nova Mazzei - São Paulo - SP",
+    "cep": "02313-030",
+    "protocolo": "",
+    "balanco": {
+      "exercicio": "2026 (Auditando)",
+      "ativo": "Aguardando DRE/Balanço",
+      "patrimonioLiquido": "Aguardando DRE/Balanço",
+      "capitalSocial": "Aguardando DRE/Balanço",
+      "faturamentoAnual": "Aguardando DRE/Balanço",
+      "contadorResponsavel": "Em auditoria"
+    },
+    "contasBancarias": [
+      {
+        "id": 1,
+        "banco": "Conta Corporativa PJ",
+        "bancoOutro": "",
+        "agencia": "0001",
+        "conta": "Conta de Pagamento PJ",
+        "senhaAcesso": "",
+        "statusConta": "Aberta e Operando (CCS Bacen Ativo)"
+      }
+    ],
+    "serasaScore": "Pendente",
+    "serasaStatus": "Em Análise Pericial",
+    "boaVistaScore": "Pendente",
+    "boaVistaStatus": "Em Análise Pericial",
+    "quodScore": "Pendente",
+    "quodStatus": "Em Análise Pericial",
+    "bacenScr": "CCS Bacen em Auditoria",
+    "govNivel": "Pendente",
+    "govProtocolo": "Validação Gov.br em andamento",
+    "limiteAprovado": "Sob auditoria de capacidade de pagamento",
+    "observacoesSigilosas": "Cartão PJ vinculado ao sócio titular NILSON OLIVEIRA DOS SANTOS. Monitorado pela Teia de Aranha.",
+    "dataCadastro": "2026-10-19"
+  },
+  {
     "id": "cli-pf-nilson",
     "tipo": "PF",
     "nomeRazao": "NILSON OLIVEIRA DOS SANTOS",
@@ -338,6 +442,7 @@ export const TEIA_INITIAL_CLIENTS = [
     "responsavel": "Titular",
     "contato": "(11) 98246-6092",
     "email": "nilson.contador@yahoo.com",
+    "protocolo": "",
     "endereco": "Rua da Caminhadeira, 91, Casa - Vila Nova Mazzei - São Paulo - SP",
     "cep": "02313-030",
     "rendaPatrimonio": {
@@ -380,6 +485,7 @@ export const TEIA_INITIAL_CLIENTS = [
     "responsavel": "Titular",
     "contato": "Não informado",
     "email": "",
+    "protocolo": "",
     "endereco": "São Paulo - SP",
     "cep": "",
     "rendaPatrimonio": {
@@ -412,16 +518,66 @@ export const TEIA_INITIAL_CLIENTS = [
     "dataCadastro": "2026-10-19"
   },
   {
+    "id": "cli-pj-f1da80d8-6dba-46e7-97f4-bcce70019d2d",
+    "tipo": "PJ",
+    "nomeRazao": "MM ITDA",
+    "documento": "",
+    "documentoTipo": "CNPJ",
+    "natureza": "Sociedade Empresária",
+    "nire": "",
+    "situacao": "ATIVA",
+    "dataAbertura": "2026-11-03",
+    "socioVinculado": "jose jaiton mourato",
+    "responsavel": "jose jaiton mourato (Sócio-Titular)",
+    "contato": "1100000000",
+    "email": "mourato@mouratoassociados.com.br",
+    "endereco": "São Paulo - SP",
+    "cep": "",
+    "protocolo": "",
+    "balanco": {
+      "exercicio": "2026 (Auditando)",
+      "ativo": "Aguardando DRE/Balanço",
+      "patrimonioLiquido": "Aguardando DRE/Balanço",
+      "capitalSocial": "Aguardando DRE/Balanço",
+      "faturamentoAnual": "Aguardando DRE/Balanço",
+      "contadorResponsavel": "Em auditoria"
+    },
+    "contasBancarias": [
+      {
+        "id": 1,
+        "banco": "Conta Corporativa PJ",
+        "bancoOutro": "",
+        "agencia": "0001",
+        "conta": "Conta de Pagamento PJ",
+        "senhaAcesso": "",
+        "statusConta": "Aberta e Operando (CCS Bacen Ativo)"
+      }
+    ],
+    "serasaScore": "Pendente",
+    "serasaStatus": "Em Análise Pericial",
+    "boaVistaScore": "Pendente",
+    "boaVistaStatus": "Em Análise Pericial",
+    "quodScore": "Pendente",
+    "quodStatus": "Em Análise Pericial",
+    "bacenScr": "CCS Bacen em Auditoria",
+    "govNivel": "Pendente",
+    "govProtocolo": "Validação Gov.br em andamento",
+    "limiteAprovado": "Sob auditoria de capacidade de pagamento",
+    "observacoesSigilosas": "Cartão PJ vinculado ao sócio titular jose jaiton mourato. Monitorado pela Teia de Aranha.",
+    "dataCadastro": "2026-11-03"
+  },
+  {
     "id": "cli-pf-f1da80d8-6dba-46e7-97f4-bcce70019d2d",
     "tipo": "PF",
     "nomeRazao": "jose jaiton mourato",
     "documento": "",
     "documentoTipo": "CPF",
     "profissao": "Profissional / Sócio",
-    "empresaVinculada": "Vínculo Pericial Mourato & Associados",
+    "empresaVinculada": "MM ITDA",
     "responsavel": "Titular",
     "contato": "1100000000",
     "email": "mourato@mouratoassociados.com.br",
+    "protocolo": "",
     "endereco": "São Paulo - SP",
     "cep": "",
     "rendaPatrimonio": {
@@ -452,6 +608,98 @@ export const TEIA_INITIAL_CLIENTS = [
     "limiteAprovado": "Sob auditoria de capacidade de pagamento",
     "observacoesSigilosas": "Cadastro pericial sob monitoramento da Teia de Aranha.",
     "dataCadastro": "2026-11-03T01:31:18.408Z"
+  },
+  {
+    "id": "cli-pj-sergio",
+    "tipo": "PJ",
+    "nomeRazao": "SS TECHNOLOGIES CLOUD",
+    "documento": "",
+    "documentoTipo": "CNPJ",
+    "natureza": "Sociedade Empresária",
+    "nire": "",
+    "situacao": "ATIVA",
+    "dataAbertura": "2026-11-03",
+    "socioVinculado": "SERGIO PEREIRA SENA",
+    "responsavel": "SERGIO PEREIRA SENA (Sócio-Titular)",
+    "contato": "(11) 98269-9176",
+    "email": "senanetworker@gmail.com",
+    "endereco": "São Paulo - SP",
+    "cep": "",
+    "protocolo": "MA-20261103-8269",
+    "balanco": {
+      "exercicio": "2026 (Auditando)",
+      "ativo": "Aguardando DRE/Balanço",
+      "patrimonioLiquido": "Aguardando DRE/Balanço",
+      "capitalSocial": "Aguardando DRE/Balanço",
+      "faturamentoAnual": "Aguardando DRE/Balanço",
+      "contadorResponsavel": "Em auditoria"
+    },
+    "contasBancarias": [
+      {
+        "id": 1,
+        "banco": "Conta Corporativa PJ",
+        "bancoOutro": "",
+        "agencia": "0001",
+        "conta": "Conta de Pagamento PJ",
+        "senhaAcesso": "",
+        "statusConta": "Aberta e Operando (CCS Bacen Ativo)"
+      }
+    ],
+    "serasaScore": "Pendente",
+    "serasaStatus": "Em Análise Pericial",
+    "boaVistaScore": "Pendente",
+    "boaVistaStatus": "Em Análise Pericial",
+    "quodScore": "Pendente",
+    "quodStatus": "Em Análise Pericial",
+    "bacenScr": "CCS Bacen em Auditoria",
+    "govNivel": "Pendente",
+    "govProtocolo": "Validação Gov.br em andamento",
+    "limiteAprovado": "Sob auditoria de capacidade de pagamento",
+    "observacoesSigilosas": "Cartão PJ vinculado ao sócio titular SERGIO PEREIRA SENA. Monitorado pela Teia de Aranha.",
+    "dataCadastro": "2026-11-03"
+  },
+  {
+    "id": "cli-pf-sergio",
+    "tipo": "PF",
+    "nomeRazao": "SERGIO PEREIRA SENA",
+    "documento": "",
+    "documentoTipo": "CPF",
+    "profissao": "Diretor de Tecnologia / Sócio-Administrador",
+    "empresaVinculada": "SS TECHNOLOGIES CLOUD (CNPJ Em cadastramento)",
+    "responsavel": "Titular",
+    "contato": "(11) 98269-9176",
+    "email": "senanetworker@gmail.com",
+    "protocolo": "MA-20261103-8269",
+    "endereco": "São Paulo - SP",
+    "cep": "",
+    "rendaPatrimonio": {
+      "proLabore": "Aguardando DRE/Balanço",
+      "bens": "Ativos e quotas societárias",
+      "veiculos": ""
+    },
+    "contasBancarias": [
+      {
+        "id": 1,
+        "banco": "Itaú / Nubank",
+        "bancoOutro": "",
+        "agencia": "0001",
+        "conta": "Conta Corrente",
+        "senhaAcesso": "",
+        "statusConta": "Aberta e Operando"
+      }
+    ],
+    "serasaScore": "Pendente",
+    "serasaStatus": "Em Análise Pericial",
+    "boaVistaScore": "Pendente",
+    "boaVistaStatus": "Em Análise Pericial",
+    "quodScore": "Pendente",
+    "quodStatus": "Em Análise Pericial",
+    "bacenScr": "Pendente",
+    "govNivel": "Pendente",
+    "govProtocolo": "Validação Gov.br em andamento",
+    "limiteAprovado": "Sob auditoria de capacidade de pagamento",
+    "observacoesSigilosas": "Lead aprovado pelo portal oficial. Par ordenado PJ e PF gerado.",
+    "dataCadastro": "2026-11-03"
   }
 ];
 

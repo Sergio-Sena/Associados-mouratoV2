@@ -3,8 +3,8 @@ import { ShieldCheck, CheckCircle2, XCircle, Send, User, Building, Phone, Mail, 
 import { buildLeadNotification, DIRETORIA_PHONE_FMT } from '../services/leadNotificationBot';
 
 const AWS_LEADS_API_URL = 'https://0bwr64p3ie.execute-api.us-east-1.amazonaws.com/prod';
-const STORAGE_CLIENTS_KEY = 'mourato_associados_clients_v2';
-const STORAGE_APPROVED_LEADS = 'mourato_approved_leads';
+const STORAGE_CLIENTS_KEY = 'mourato_clients_records_v2';
+const STORAGE_APPROVED_LEADS = 'mourato_approved_leads_ids';
 
 export const MicaApprovalModal = ({ isOpen, onClose, leadData = null }) => {
   const [lead, setLead] = useState(leadData);

@@ -282,13 +282,62 @@ if (isPushMode) {
       // Vínculo empresarial
       let empresaVinculada = '';
       if (f.empresas_vinculadas && f.empresas_vinculadas.length > 0) {
-        empresaVinculada = f.empresas_vinculadas.map(ev => `${ev.razao_social} (CNPJ ${ev.cnpj_formatado})`).join(' | ');
+        empresaVinculada = f.empresas_vinculadas.map(ev => `${ev.razao_social} (CNPJ ${ev.cnpj_formatado || 'Em cadastramento'})`).join(' | ');
+      } else if (f.empresa_solicitada) {
+        empresaVinculada = f.empresa_solicitada;
       } else if (f.id_alias === 'mourato') {
         empresaVinculada = 'MOURATO E ASSOCIADOS LTDA (CNPJ 38.377.738/0001-45)';
       } else if (f.id_alias === 'nilson') {
         empresaVinculada = 'Y7 Service Ltda / Perícias Contábeis Mourato';
       } else if (f.id_alias === 'erivaldo') {
         empresaVinculada = 'COMERCIAL NESPE CONSTRUTORA';
+      }
+
+      // GERAÇÃO DO PAR ORDENADO: Cartão PJ se houver empresa solicitada
+      const empresaNome = (f.empresa_solicitada || (f.empresas_vinculadas && f.empresas_vinculadas[0]?.razao_social) || '').trim();
+      if (empresaNome && !empresaNome.toUpperCase().includes('MOURATO E ASSOCIADOS')) {
+        const pjId = `cli-pj-${f.id_alias || f.id || rawCpf}`;
+        clients.push({
+          id: pjId,
+          tipo: 'PJ',
+          nomeRazao: empresaNome.toUpperCase(),
+          documento: f.empresas_vinculadas?.[0]?.cnpj_formatado || f.cnpj_formatado || '',
+          documentoTipo: 'CNPJ',
+          natureza: 'Sociedade Empresária',
+          nire: '',
+          situacao: 'ATIVA',
+          dataAbertura: f.dataAbertura || (f.created_at ? (f.created_at.includes('/') ? f.created_at.split(' ')[0].split('/').reverse().join('-') : f.created_at.split('T')[0]) : new Date().toISOString().split('T')[0]),
+          socioVinculado: f.nome_completo,
+          responsavel: `${f.nome_completo} (Sócio-Titular)`,
+          contato: f.telefone_principal || 'Não informado',
+          email: f.email_principal || '',
+          endereco: f.endereco_principal || 'São Paulo - SP',
+          cep: f.cep || '',
+          protocolo: f.protocolo || '',
+          balanco: {
+            exercicio: '2026 (Auditando)',
+            ativo: 'Aguardando DRE/Balanço',
+            patrimonioLiquido: 'Aguardando DRE/Balanço',
+            capitalSocial: 'Aguardando DRE/Balanço',
+            faturamentoAnual: 'Aguardando DRE/Balanço',
+            contadorResponsavel: 'Em auditoria'
+          },
+          contasBancarias: [
+            { id: 1, banco: 'Conta Corporativa PJ', bancoOutro: '', agencia: '0001', conta: 'Conta de Pagamento PJ', senhaAcesso: '', statusConta: 'Aberta e Operando (CCS Bacen Ativo)' }
+          ],
+          serasaScore: 'Pendente',
+          serasaStatus: 'Em Análise Pericial',
+          boaVistaScore: 'Pendente',
+          boaVistaStatus: 'Em Análise Pericial',
+          quodScore: 'Pendente',
+          quodStatus: 'Em Análise Pericial',
+          bacenScr: 'CCS Bacen em Auditoria',
+          govNivel: 'Pendente',
+          govProtocolo: 'Validação Gov.br em andamento',
+          limiteAprovado: 'Sob auditoria de capacidade de pagamento',
+          observacoesSigilosas: `Cartão PJ vinculado ao sócio titular ${f.nome_completo}. Monitorado pela Teia de Aranha.`,
+          dataCadastro: f.created_at ? (f.created_at.includes('/') ? f.created_at.split(' ')[0].split('/').reverse().join('-') : f.created_at.split('T')[0]) : new Date().toISOString().split('T')[0]
+        });
       }
 
       // Veículos
@@ -309,13 +358,14 @@ if (isPushMode) {
         id: `cli-pf-${f.id_alias || f.id || rawCpf}`,
         tipo: 'PF',
         nomeRazao: f.nome_completo,
-        documento: f.cpf_formatado || f.cpf_raw,
+        documento: f.cpf_formatado || f.cpf_raw || '',
         documentoTipo: 'CPF',
         profissao: f.profissao || 'Profissional / Sócio',
         empresaVinculada: empresaVinculada || 'Vínculo Pericial Mourato & Associados',
         responsavel: 'Titular',
         contato: f.telefone_principal || 'Não informado',
         email: f.email_principal || '',
+        protocolo: f.protocolo || '',
         endereco: f.endereco_principal || 'São Paulo - SP',
         cep: f.cep || '',
         rendaPatrimonio: {

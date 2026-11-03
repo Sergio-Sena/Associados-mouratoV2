@@ -372,11 +372,15 @@ const isClientAlreadyInList = (clientList, lead) => {
   }
 
   const leadEmpresa = (lead.empresa || '').toLowerCase().trim();
+  const leadEmail = (lead.email || '').toLowerCase().trim();
+  const leadPhone = (lead.telefone || '').replace(/\D/g, '');
 
   return clientList.some(c => {
     if (c.id === `cli-lead-${leadId}` || c.leadOriginId === leadId) return true;
     if (leadDoc && leadDoc.length >= 11 && (c.documento || '').replace(/\D/g, '') === leadDoc) return true;
     if (leadEmpresa && (c.nomeRazao || '').toLowerCase().trim() === leadEmpresa && c.tipo === 'PJ') return true;
+    if (leadEmail && leadEmail !== 'mourato@mouratoassociados.com.br' && (c.email || '').toLowerCase().trim() === leadEmail) return true;
+    if (leadPhone && leadPhone.length >= 10 && (c.contato || '').replace(/\D/g, '').endsWith(leadPhone.slice(-8))) return true;
     return false;
   });
 };
@@ -589,46 +593,73 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
     return false;
   };
 
-  // 1. Clients Database State (Carregamento Inteligente: Base Limpa com persistência local)
+  // 1. Clients Database State (Carregamento Inteligente: Base Teia de Aranha + persistência local)
   const [clients, setClients] = useState(() => {
     try {
-      // Purga automática inicial para remover mock/demo antigos e iniciar com a plataforma limpa
-      if (typeof localStorage !== 'undefined' && localStorage.getItem('mourato_platform_cleaned_v5') !== 'true') {
-        localStorage.removeItem(STORAGE_CLIENTS_KEY);
-        localStorage.removeItem('mourato_clients_records');
-        localStorage.removeItem('mourato_clients_records_v1');
-        localStorage.removeItem('mourato_clients_records_v2');
-        localStorage.removeItem('mourato_leads_solicitacoes');
-        localStorage.setItem('mourato_platform_cleaned_v5', 'true');
-        return [];
-      }
       const deletedIds = getDeletedClientIds();
+      let combined = [];
+
+      // A. Carrega do storage primário
       const saved = localStorage.getItem(STORAGE_CLIENTS_KEY);
       if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          let hasFix = false;
-          const cleaned = parsed.filter(c => !isRecordDeleted(c, deletedIds)).map(c => {
-            const isPj = c.tipo === 'PJ';
-            const resolvedDoc = getClientDocumento(c);
-            if (!isPj && (!c.documento || c.documento === 'Não informado' || !c.documento.trim()) && resolvedDoc && resolvedDoc !== 'Não informado') {
-              hasFix = true;
-              return { ...c, documento: resolvedDoc, documentoTipo: 'CPF' };
-            }
-            return c;
-          });
-          if (hasFix && typeof localStorage !== 'undefined') {
-            try {
-              localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(cleaned));
-            } catch (_) {}
-          }
-          return cleaned;
-        }
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) combined = [...parsed];
+        } catch (_) {}
       }
-      return [];
+
+      // B. Resgata eventuais registros gravados na chave alternativa da Mica
+      const altSaved = localStorage.getItem('mourato_associados_clients_v2');
+      if (altSaved) {
+        try {
+          const altParsed = JSON.parse(altSaved);
+          if (Array.isArray(altParsed)) {
+            const existingIds = new Set(combined.map(c => c.id));
+            altParsed.forEach(c => {
+              if (c && c.id && !existingIds.has(c.id)) {
+                combined.push(c);
+                existingIds.add(c.id);
+              }
+            });
+          }
+        } catch (_) {}
+      }
+
+      // C. Mescla com os clientes oficiais auditados da Teia de Aranha (TEIA_INITIAL_CLIENTS)
+      if (Array.isArray(TEIA_INITIAL_CLIENTS) && TEIA_INITIAL_CLIENTS.length > 0) {
+        const existingDocs = new Set(combined.map(c => (c.documento || '').replace(/\D/g, '')).filter(Boolean));
+        const existingIds = new Set(combined.map(c => c.id));
+        TEIA_INITIAL_CLIENTS.forEach(teiaCli => {
+          const docClean = (teiaCli.documento || '').replace(/\D/g, '');
+          if (!existingIds.has(teiaCli.id) && (!docClean || !existingDocs.has(docClean))) {
+            combined.push(teiaCli);
+            if (teiaCli.id) existingIds.add(teiaCli.id);
+            if (docClean) existingDocs.add(docClean);
+          }
+        });
+      }
+
+      // D. Limpeza, resolução de CPF/CNPJ e trava de exclusão
+      let hasFix = false;
+      const cleaned = combined.filter(c => !isRecordDeleted(c, deletedIds)).map(c => {
+        const isPj = c.tipo === 'PJ';
+        const resolvedDoc = getClientDocumento(c);
+        if (!isPj && (!c.documento || c.documento === 'Não informado' || !c.documento.trim()) && resolvedDoc && resolvedDoc !== 'Não informado') {
+          hasFix = true;
+          return { ...c, documento: resolvedDoc, documentoTipo: 'CPF' };
+        }
+        return c;
+      });
+
+      if (typeof localStorage !== 'undefined') {
+        try {
+          localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(cleaned));
+        } catch (_) {}
+      }
+      return cleaned;
     } catch (e) {
       console.error('Erro ao recuperar clientes do storage:', e);
-      return [];
+      return Array.isArray(TEIA_INITIAL_CLIENTS) ? TEIA_INITIAL_CLIENTS : [];
     }
   });
 
