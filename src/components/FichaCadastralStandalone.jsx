@@ -36,7 +36,7 @@ const getQueryParams = () => {
     telefone: p.get('telefone') || '',
     email: p.get('email') || '',
     token: p.get('token') || '',
-    leadId: p.get('leadId') || ''
+    leadId: p.get('leadId') || p.get('id') || ''
   };
 };
 
@@ -58,9 +58,32 @@ export const FichaCadastralStandalone = ({ isFullPage = false, onClose = null })
   const [submissionSuccess, setSubmissionSuccess] = useState(null);
   const [copiedProtocolo, setCopiedProtocolo] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [resolvedLead, setResolvedLead] = useState(null);
   const leadParams = getQueryParams();
-  const isDuplicate = checkDuplicate(leadParams.email, leadParams.telefone);
+  const isDuplicate = checkDuplicate(resolvedLead?.email || leadParams.email, resolvedLead?.telefone || leadParams.telefone);
   const usedLinkInfo = checkFichaLinkIsUsed(leadParams);
+
+  // Auto-recupera dados do lead na nuvem/local caso tenha sido acessado por link curto (apenas token ou id)
+  useEffect(() => {
+    const targetId = leadParams.leadId || leadParams.token;
+    if (targetId && !leadParams.nome) {
+      try {
+        const savedLeads = JSON.parse(localStorage.getItem('mourato_leads_solicitacoes') || '[]');
+        const found = savedLeads.find(l => l.id === targetId || l.token === targetId);
+        if (found) {
+          setResolvedLead(found);
+          return;
+        }
+      } catch (_) {}
+
+      const apiUrl = 'https://0bwr64p3ie.execute-api.us-east-1.amazonaws.com/prod/leads';
+      fetch(`${apiUrl}/${targetId}`, { headers: { 'x-admin-password': 'admin2026' } })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data) setResolvedLead(data);
+        }).catch(() => {});
+    }
+  }, [leadParams.leadId, leadParams.token, leadParams.nome]);
 
   // Escuta o evento oficial emitido pela Ficha ao concluir a submissão no iframe
   useEffect(() => {
@@ -396,16 +419,6 @@ export const FichaCadastralStandalone = ({ isFullPage = false, onClose = null })
               <button
                 type="button"
                 className="btn-secondary-subtle"
-                onClick={() => handleOpenWhatsApp(submissionSuccess.protocolo, submissionSuccess.cliente)}
-                style={{ padding: '0.9rem 1.8rem', fontSize: '0.9rem', borderColor: 'rgba(37, 211, 102, 0.4)', color: '#25D366' }}
-              >
-                <Send size={16} />
-                Confirmar no WhatsApp da Diretoria
-              </button>
-
-              <button
-                type="button"
-                className="btn-secondary-subtle"
                 onClick={() => window.print()}
                 style={{
                   padding: '0.9rem 1.8rem',
@@ -535,12 +548,18 @@ export const FichaCadastralStandalone = ({ isFullPage = false, onClose = null })
                 id="iframe-ficha-mourato"
                 src={(() => {
                   const url = new URL(TEIA_IFRAME_URL, window.location.origin);
-                  if (leadParams.nome) url.searchParams.set('nome', leadParams.nome);
-                  if (leadParams.empresa) url.searchParams.set('empresa', leadParams.empresa);
-                  if (leadParams.telefone) url.searchParams.set('telefone', leadParams.telefone);
-                  if (leadParams.email) url.searchParams.set('email', leadParams.email);
-                  if (leadParams.token) url.searchParams.set('token', leadParams.token);
-                  if (leadParams.leadId) url.searchParams.set('leadId', leadParams.leadId);
+                  const currentNome = resolvedLead?.nome || leadParams.nome;
+                  const currentEmpresa = resolvedLead?.empresa || leadParams.empresa;
+                  const currentTelefone = resolvedLead?.telefone || leadParams.telefone;
+                  const currentEmail = resolvedLead?.email || leadParams.email;
+                  const currentToken = resolvedLead?.token || leadParams.token;
+                  const currentLeadId = resolvedLead?.id || leadParams.leadId;
+                  if (currentNome) url.searchParams.set('nome', currentNome);
+                  if (currentEmpresa) url.searchParams.set('empresa', currentEmpresa);
+                  if (currentTelefone) url.searchParams.set('telefone', currentTelefone);
+                  if (currentEmail) url.searchParams.set('email', currentEmail);
+                  if (currentToken) url.searchParams.set('token', currentToken);
+                  if (currentLeadId) url.searchParams.set('leadId', currentLeadId);
                   return url.toString();
                 })()}
                 title="Ficha Cadastral Mourato & Associados"

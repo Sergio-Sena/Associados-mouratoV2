@@ -76,6 +76,7 @@ function formatNotificationText(lead) {
   const leadTel = lead.telefone || 'Não informado';
   const leadEmail = lead.email || 'Não informado';
   const leadPratica = lead.pratica || 'Assessoria & Rating';
+  const leadMsg = (lead.contexto || lead.mensagem || lead.msg || lead.observacoes || '').trim();
 
   const linkAprovacaoMobile = `https://www.mouratoassociados.com.br/?view=mica-aprovar&leadId=${encodeURIComponent(lead.id || '')}&protocolo=${encodeURIComponent(leadProto)}&nome=${encodeURIComponent(leadNome)}&empresa=${encodeURIComponent(leadEmpresa)}&telefone=${encodeURIComponent(leadTel)}&email=${encodeURIComponent(leadEmail)}&pratica=${encodeURIComponent(leadPratica)}&token=mrt_sec_${(lead.id || 'sec').slice(0, 8)}`;
 
@@ -88,6 +89,8 @@ function formatNotificationText(lead) {
 📱 *WhatsApp Cliente:* ${leadTel}
 ✉️ *E-mail:* ${leadEmail}
 ⚖️ *Prática:* ${leadPratica}
+💬 *Mensagem Deixada pelo Cliente:*
+"${leadMsg || 'Sem mensagem adicional descrita.'}"
 ───────────────────────────────────
 🔒 *APROVAR NO CELULAR (1 TOQUE):*
 👉 ${linkAprovacaoMobile}
@@ -205,7 +208,7 @@ async function approveAndSendFichaToClient(lead, customLinkFicha = '') {
 
   const baseUrl = 'https://www.mouratoassociados.com.br';
   const leadToken = lead.token || leadId;
-  const linkFicha = customLinkFicha || `${baseUrl}/ficha-cadastral?nome=${encodeURIComponent(leadNome)}&empresa=${encodeURIComponent(leadEmpresa)}&telefone=${encodeURIComponent(leadTel)}&email=${encodeURIComponent(leadEmail)}&token=${encodeURIComponent(leadToken)}&leadId=${encodeURIComponent(leadId)}&protocolo=${encodeURIComponent(leadProto)}&origem=audiencia_aprovada`;
+  const shortLinkFicha = `${baseUrl}/ficha-cadastral?token=${encodeURIComponent(leadToken)}&id=${encodeURIComponent(leadId)}`;
 
   writeMicaLog(`⚡ [APROVAÇÃO] Processando liberação de Ficha para ${leadNome} (${leadEmpresa})...`);
 
@@ -213,10 +216,12 @@ async function approveAndSendFichaToClient(lead, customLinkFicha = '') {
   const msgCliente = 
 `Prezado(a) *${leadNome}* (${leadEmpresa}),
 
-Sua solicitação de atendimento corporativo foi formalmente *aprovada pela diretoria da Mourato & Associados*.
+Sua solicitação de assessoria foi formalmente *aprovada pela diretoria da Mourato & Associados*.
 
-Para darmos início à estruturação pericial e análise cadastral, acesse sua Ficha Cadastral Blindada pelo link oficial abaixo:
-👉 ${linkFicha}
+Para preencher sua Ficha Cadastral Blindada, acesse o link oficial abaixo:
+
+👉 *[ CLIQUE AQUI PARA PREENCHER SUA FICHA ]*
+${shortLinkFicha}
 
 📋 *Protocolo Oficial:* ${leadProto}
 🔒 *Sigilo Pericial:* Seus dados e relatórios são protegidos por criptografia de ponta a ponta e estrito sigilo pericial.

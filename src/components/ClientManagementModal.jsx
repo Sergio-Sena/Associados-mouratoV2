@@ -599,6 +599,16 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
       const deletedIds = getDeletedClientIds();
       let combined = [];
 
+      // Diretriz Suprema: Reset de memórias semente (16 clientes fictícios/antigos removidos)
+      if (typeof localStorage !== 'undefined') {
+        if (!localStorage.getItem('mourato_zero_seed_cleared_v1')) {
+          localStorage.removeItem(STORAGE_CLIENTS_KEY);
+          localStorage.removeItem('mourato_associados_clients_v2');
+          localStorage.setItem('mourato_zero_seed_cleared_v1', 'true');
+          return [];
+        }
+      }
+
       // A. Carrega do storage primário
       const saved = localStorage.getItem(STORAGE_CLIENTS_KEY);
       if (saved) {
@@ -639,21 +649,32 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
         });
       }
 
-      // D. Limpeza, resolução de CPF/CNPJ e trava de exclusão
+      // D. Limpeza radical: Expurgo de memórias semente / legadas para garantir 0 clientes iniciais
+      const LEGACY_SEED_IDS = new Set([
+        'cli-pj-mourato', 'cli-pf-angela', 'cli-pf-erivaldo', 'cli-pf-helia',
+        'cli-pf-mourato', 'cli-pf-luiz', 'cli-pf-marcos', 'cli-pf-nilson',
+        'cli-pf-silvanei', 'cli-pf-f1da80d8-6dba-46e7-97f4-bcce70019d2d',
+        'cli-pf-sergio', 'cli-pj-sergio', 'cli-pj-erivaldo', 'cli-pj-nilson',
+        'cli-pj-f1da80d8-6dba-46e7-97f4-bcce70019d2d'
+      ]);
+
       let hasFix = false;
-      const cleaned = combined.filter(c => !isRecordDeleted(c, deletedIds)).map(c => {
-        const isPj = c.tipo === 'PJ';
-        const resolvedDoc = getClientDocumento(c);
-        if (!isPj && (!c.documento || c.documento === 'Não informado' || !c.documento.trim()) && resolvedDoc && resolvedDoc !== 'Não informado') {
-          hasFix = true;
-          return { ...c, documento: resolvedDoc, documentoTipo: 'CPF' };
-        }
-        return c;
-      });
+      const cleaned = combined
+        .filter(c => c && c.id && !LEGACY_SEED_IDS.has(c.id) && !isRecordDeleted(c, deletedIds))
+        .map(c => {
+          const isPj = c.tipo === 'PJ';
+          const resolvedDoc = getClientDocumento(c);
+          if (!isPj && (!c.documento || c.documento === 'Não informado' || !c.documento.trim()) && resolvedDoc && resolvedDoc !== 'Não informado') {
+            hasFix = true;
+            return { ...c, documento: resolvedDoc, documentoTipo: 'CPF' };
+          }
+          return c;
+        });
 
       if (typeof localStorage !== 'undefined') {
         try {
           localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(cleaned));
+          localStorage.removeItem('mourato_associados_clients_v2');
         } catch (_) {}
       }
       return cleaned;
