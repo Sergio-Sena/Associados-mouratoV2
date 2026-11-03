@@ -577,17 +577,17 @@ export function saveClientToOfficialSite(payload, protocolo) {
         if (!scoresMap[primaryRecord.id]) {
           scoresMap[primaryRecord.id] = {
             serasa: 0,
-            serasaDividas: '0 (Nada Consta)',
+            serasaDividas: 'Em Análise Pericial',
             serasaConsultas: '0 consultas',
             boavista: 0,
-            boavistaFaturas: '0 (CENPROT)',
-            boavistaProtestos: '0 apontamentos',
+            boavistaFaturas: 'Em Análise',
+            boavistaProtestos: 'Em Análise Pericial',
             quod: 0,
-            quodPositivo: 'Cadastro Positivo Ativo',
-            quodHistorico: 'Zero Atrasos',
-            bacen: 'Rating A1',
-            bacenVencidos: 'R$ 0,00',
-            bacenPrejuizos: 'R$ 0,00 (Zero Prejuízo)'
+            quodPositivo: 'Pendente de Ativação / Consulta',
+            quodHistorico: 'Em Análise',
+            bacen: 'Pendente de Auditoria',
+            bacenVencidos: 'Em Auditoria',
+            bacenPrejuizos: 'Em Auditoria'
           };
           localStorage.setItem('mourato_bureau_scores_real_v1', JSON.stringify(scoresMap));
         }

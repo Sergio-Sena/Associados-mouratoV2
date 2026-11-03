@@ -1273,6 +1273,21 @@ Website: https://www.mouratoassociados.com.br`;
     const printDate = new Date().toLocaleDateString('pt-BR');
     const printTime = new Date().toLocaleTimeString('pt-BR');
 
+    const formatScore = (val) => {
+      if (val === undefined || val === null || val === '') return null;
+      const num = parseInt(val, 10);
+      if (!isNaN(num) && num > 0) return num;
+      if (typeof val === 'string' && val.trim() && val !== '0' && val !== 'Regular' && !val.toLowerCase().includes('excelente')) return val;
+      return null;
+    };
+
+    const serasaScoreVal = formatScore(bureau.serasa) || formatScore(client.serasaScore);
+    const boaVistaScoreVal = formatScore(bureau.boavista) || formatScore(client.boaVistaScore);
+    const quodScoreVal = formatScore(bureau.quod) || formatScore(client.quodScore);
+    const bacenScoreVal = (client.bacenScr && client.bacenScr !== 'Rating A1' && client.bacenScr !== '0 (Não Auditado)') 
+      ? client.bacenScr 
+      : (bureau.bacen && bureau.bacen !== 'Rating A1' && bureau.bacen !== '0 (Não Auditado)' ? bureau.bacen : null);
+
     const contasHtml = client.contasBancarias && client.contasBancarias.length > 0
       ? `<div class="section-title">2. CONTAS BANCÁRIAS CADASTRADAS &amp; MAPA OPERACIONAL</div>
          <table>
@@ -1365,8 +1380,16 @@ Website: https://www.mouratoassociados.com.br`;
   <table>
     <tr><th>Nome / Razão Social:</th><td><strong>${client.nomeRazao || 'Não informado'}</strong></td></tr>
     <tr><th>${isPj ? 'CNPJ' : 'CPF'}:</th><td><strong>${doc}</strong> ${client.nire ? '• NIRE: ' + client.nire : ''}</td></tr>
-    <tr><th>Situação / Natureza:</th><td>${client.situacao || 'ATIVA'} • ${client.natureza || 'Sociedade Empresária'}</td></tr>
-    ${isPj ? '<tr><th>Sócio-Administrador:</th><td><strong>' + (client.socioVinculado || client.responsavel || 'Não informado') + '</strong></td></tr>' : '<tr><th>Empresa Vinculada:</th><td><strong>' + (client.empresaVinculada || 'Não informada') + '</strong> (Cargo: ' + (client.profissao || 'Sócio') + ')</td></tr>'}
+    <tr><th>Situação / Natureza:</th><td>${client.situacao || 'ATIVA'} • ${client.natureza || (isPj ? 'Sociedade Empresária' : 'Pessoa Física')}</td></tr>
+    ${isPj 
+      ? '<tr><th>Sócio-Administrador:</th><td><strong>' + (client.socioVinculado || client.responsavel || 'Não informado') + '</strong></td></tr>' 
+      : '<tr><th>Empresa Vinculada:</th><td><strong>' + (client.empresaVinculada || 'Não informada') + '</strong> (Cargo: ' + (client.profissao || 'Sócio Administrador') + ')</td></tr>'}
+    ${isPj && (client.capitalSocial || client.faturamentoMedio) 
+      ? `<tr><th>Porte Financeiro PJ:</th><td>Capital Social: <strong>${client.capitalSocial ? 'R$ ' + client.capitalSocial : 'Não informado'}</strong> • Faturamento Médio: <strong>${client.faturamentoMedio ? 'R$ ' + client.faturamentoMedio : 'Não informado'}</strong></td></tr>` 
+      : ''}
+    ${!isPj && (client.prolabore || client.rendaMensal || client.dataNascimento || client.estadoCivil) 
+      ? `<tr><th>Perfil Civil &amp; Renda PF:</th><td>Renda/Pró-Labore: <strong>${client.prolabore || client.rendaMensal ? 'R$ ' + (client.prolabore || client.rendaMensal) : 'Não informado'}</strong> • Nascimento: <strong>${client.dataNascimento || '—'}</strong> • Estado Civil: <strong>${client.estadoCivil || '—'}</strong></td></tr>` 
+      : ''}
     <tr><th>Contatos Oficiais:</th><td>WhatsApp: ${client.contato || 'Não informado'} • E-mail: ${client.email || 'Não informado'}</td></tr>
     <tr><th>Endereço Cadastral:</th><td>${client.endereco || 'Não informado'} ${client.cep ? '• CEP: ' + client.cep : ''}</td></tr>
   </table>
@@ -1378,48 +1401,56 @@ Website: https://www.mouratoassociados.com.br`;
     <div class="bureau-card">
       <div class="bureau-title">
         <span>SERASA EXPERIAN</span>
-        <span class="bureau-score">${bureau.serasa || client.serasaScore || '885'}</span>
+        ${serasaScoreVal 
+          ? `<span class="bureau-score">${serasaScoreVal}</span>` 
+          : `<span class="bureau-score" style="font-size: 10.5pt; color: #94A3B8; font-weight: 700;">Pendente</span>`}
       </div>
       <div style="font-size: 8.5pt; color: #475569;">
-        <div>Probabilidade de Pagamento: <strong>${bureau.serasaProb || '88%'}</strong></div>
-        <div>Pendências Financeiras: <strong>${bureau.serasaDividas || '0 (Nada Consta)'}</strong></div>
-        <div>Consultas Recentes: <strong>${bureau.serasaConsultas || '0 consultas'}</strong></div>
+        <div>Probabilidade de Pagamento: <strong>${serasaScoreVal ? (bureau.serasaProb || '88%') : 'Aguardando Consulta'}</strong></div>
+        <div>Pendências Financeiras: <strong>${serasaScoreVal ? (bureau.serasaDividas || '0 (Nada Consta)') : 'Em Análise Pericial'}</strong></div>
+        <div>Consultas Recentes: <strong>${serasaScoreVal ? (bureau.serasaConsultas || '0 consultas') : '0 consultas'}</strong></div>
       </div>
     </div>
 
     <div class="bureau-card">
       <div class="bureau-title">
         <span>BOA VISTA SCPC</span>
-        <span class="bureau-score">${bureau.boavista || client.boaVistaScore || '860'}</span>
+        ${boaVistaScoreVal 
+          ? `<span class="bureau-score">${boaVistaScoreVal}</span>` 
+          : `<span class="bureau-score" style="font-size: 10.5pt; color: #94A3B8; font-weight: 700;">Pendente</span>`}
       </div>
       <div style="font-size: 8.5pt; color: #475569;">
-        <div>Pontualidade de Pagamentos: <strong>${bureau.boavistaPontualidade || '86%'}</strong></div>
-        <div>Protestos em Cartório: <strong>${bureau.boavistaProtestos || '0 apontamentos'}</strong></div>
-        <div>Faturas em Aberto: <strong>${bureau.boavistaFaturas || '0 (CENPROT)'}</strong></div>
+        <div>Pontualidade de Pagamentos: <strong>${boaVistaScoreVal ? (bureau.boavistaPontualidade || '86%') : 'Aguardando Consulta'}</strong></div>
+        <div>Protestos em Cartório: <strong>${boaVistaScoreVal ? (bureau.boavistaProtestos || '0 apontamentos') : 'Em Análise Pericial'}</strong></div>
+        <div>Faturas em Aberto: <strong>${boaVistaScoreVal ? (bureau.boavistaFaturas || '0 (CENPROT)') : 'Em Análise'}</strong></div>
       </div>
     </div>
 
     <div class="bureau-card">
       <div class="bureau-title">
         <span>QUOD (CADASTRO POSITIVO)</span>
-        <span class="bureau-score">${bureau.quod || client.quodScore || '875'}</span>
+        ${quodScoreVal 
+          ? `<span class="bureau-score">${quodScoreVal}</span>` 
+          : `<span class="bureau-score" style="font-size: 10.5pt; color: #94A3B8; font-weight: 700;">Pendente</span>`}
       </div>
       <div style="font-size: 8.5pt; color: #475569;">
-        <div>Status: <strong>${bureau.quodPositivo || 'Cadastro Positivo Ativo'}</strong></div>
-        <div>Histórico de Crédito: <strong>${bureau.quodHistorico || 'Zero Atrasos'}</strong></div>
-        <div>Conformidade Regulatória: <strong>${bureau.quodConformidade || 'Regular / Sem Restrições'}</strong></div>
+        <div>Status: <strong>${quodScoreVal ? (bureau.quodPositivo || 'Cadastro Positivo Ativo') : 'Pendente de Ativação / Consulta'}</strong></div>
+        <div>Histórico de Crédito: <strong>${quodScoreVal ? (bureau.quodHistorico || 'Zero Atrasos') : 'Em Análise'}</strong></div>
+        <div>Conformidade Regulatória: <strong>${quodScoreVal ? (bureau.quodConformidade || 'Regular / Sem Restrições') : 'Aguardando Laudo'}</strong></div>
       </div>
     </div>
 
     <div class="bureau-card">
       <div class="bureau-title">
         <span>BANCO CENTRAL (SCR / REGISTRATO)</span>
-        <span class="bureau-score" style="font-size: 11pt; color: #0284C7;">${bureau.bacen || client.bacenScr || 'Rating A1'}</span>
+        ${bacenScoreVal 
+          ? `<span class="bureau-score" style="font-size: 11pt; color: #0284C7;">${bacenScoreVal}</span>` 
+          : `<span class="bureau-score" style="font-size: 10pt; color: #94A3B8; font-weight: 700;">Pendente</span>`}
       </div>
       <div style="font-size: 8.5pt; color: #475569;">
-        <div>Vencidos / Em Atraso: <strong>${bureau.bacenVencidos || 'R$ 0,00'}</strong></div>
-        <div>Prejuízos ao Sistema Financeiro: <strong>${bureau.bacenPrejuizos || 'R$ 0,00 (Zero Prejuízo)'}</strong></div>
-        <div>Comportamento de Pagamento: <strong>${bureau.bacenComp || '100% em dia'}</strong></div>
+        <div>Vencidos / Em Atraso: <strong>${bacenScoreVal ? (bureau.bacenVencidos || 'R$ 0,00') : 'Em Auditoria'}</strong></div>
+        <div>Prejuízos ao Sistema Financeiro: <strong>${bacenScoreVal ? (bureau.bacenPrejuizos || 'R$ 0,00 (Zero Prejuízo)') : 'Em Auditoria'}</strong></div>
+        <div>Comportamento de Pagamento: <strong>${bacenScoreVal ? (bureau.bacenComp || '100% em dia') : 'Aguardando Registrato'}</strong></div>
       </div>
     </div>
   </div>
@@ -1509,15 +1540,15 @@ Website: https://www.mouratoassociados.com.br`;
               origemCcs: ''
             }
           ],
-      serasaScore: client.serasaScore || (client.tipo === 'PJ' ? '885 (Excelente)' : '654 (Bom)'),
-      serasaStatus: client.serasaStatus || 'Sem Apontamentos',
-      boaVistaScore: client.boaVistaScore || 'Sem Restrições',
-      boaVistaStatus: client.boaVistaStatus || 'Sem Restrições',
-      govNivel: client.govNivel || 'Ouro',
+      serasaScore: client.serasaScore || '',
+      serasaStatus: client.serasaStatus || 'Aguardando Consulta',
+      boaVistaScore: client.boaVistaScore || '',
+      boaVistaStatus: client.boaVistaStatus || 'Aguardando Consulta',
+      govNivel: client.govNivel || 'Pendente',
       govProtocolo: client.govProtocolo || '',
-      quodStatus: client.quodStatus || 'Positivo / Sem Restrição',
-      quodScore: client.quodScore || '682',
-      bacenScr: client.bacenScr || 'Rating A1',
+      quodStatus: client.quodStatus || 'Aguardando Consulta',
+      quodScore: client.quodScore || '',
+      bacenScr: client.bacenScr || '',
       senhaSerasa: client.senhaSerasa || '',
       senhaBacen: client.senhaBacen || '',
       senhaGovBr: client.senhaGovBr || '',
@@ -2156,15 +2187,15 @@ Website: https://www.mouratoassociados.com.br`;
           origemCcs: ''
         }
       ],
-      serasaScore: '885 (Excelente)',
-      serasaStatus: 'Sem Apontamentos',
-      boaVistaScore: 'Sem Restrições',
-      boaVistaStatus: 'Sem Restrições',
-      govNivel: 'Ouro',
+      serasaScore: '',
+      serasaStatus: 'Aguardando Consulta',
+      boaVistaScore: '',
+      boaVistaStatus: 'Aguardando Consulta',
+      govNivel: 'Pendente',
       govProtocolo: '',
-      quodStatus: 'Positivo / Sem Restrição',
+      quodStatus: 'Aguardando Consulta',
       quodScore: '',
-      bacenScr: 'Rating A1',
+      bacenScr: '',
       senhaSerasa: '',
       senhaBacen: '',
       senhaGovBr: '',

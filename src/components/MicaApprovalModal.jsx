@@ -75,11 +75,11 @@ export const MicaApprovalModal = ({ isOpen, onClose, leadData = null }) => {
           pratica: lead.pratica || 'hibrido',
           linkFicha: notif.linkFicha,
           protocolo: notif.leadProtocolo,
-          bacenScr: 'Rating A1',
-          serasaScore: 'Regular',
-          boaVistaScore: 'Regular',
-          quodScore: 0,
-          govNivel: 'Ouro'
+          bacenScr: '',
+          serasaScore: '',
+          boaVistaScore: '',
+          quodScore: '',
+          govNivel: 'Pendente'
         };
 
         // Registro PF (com mesmo email e telefone permitidos)
@@ -103,11 +103,11 @@ export const MicaApprovalModal = ({ isOpen, onClose, leadData = null }) => {
           pratica: lead.pratica || 'hibrido',
           linkFicha: notif.linkFicha,
           protocolo: notif.leadProtocolo,
-          bacenScr: 'Rating A1',
-          serasaScore: 'Regular',
-          boaVistaScore: 'Regular',
-          quodScore: 0,
-          govNivel: 'Ouro'
+          bacenScr: '',
+          serasaScore: '',
+          boaVistaScore: '',
+          quodScore: '',
+          govNivel: 'Pendente'
         };
 
         const updated = [pjRec, pfRec, ...clientsList.filter(c => c.leadOriginId !== leadId)];
