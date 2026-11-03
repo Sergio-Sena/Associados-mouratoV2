@@ -551,6 +551,77 @@ const server = http.createServer(async (req, res) => {
     return res.end('<p>Gerando QR Code... Aguarde alguns segundos e recarregue a página.</p>');
   }
 
+  // Endpoint Oficial: Ficha Cadastral preenchida e concluída pelo cliente
+  if (url.pathname === '/api/mica/ficha-completed' && req.method === 'POST') {
+    let bodyRaw = '';
+    req.on('data', chunk => { bodyRaw += chunk; });
+    req.on('end', async () => {
+      try {
+        const data = JSON.parse(bodyRaw || '{}');
+        const nome = (data.nome || 'Cliente').trim();
+        const empresa = (data.empresa || '').trim();
+        const protocolo = data.protocolo || 'MA-OFICIAL';
+        const telefone = (data.telefone || '').trim();
+        const email = (data.email || '').trim();
+
+        writeMicaLog(`🎉 [FICHA CONCLUÍDA] Cadastro concluído por ${nome} (${empresa}) Protocolo ${protocolo}`);
+
+        // Rotina de envio oficial: 0034 para 2275 avisando que o cadastro foi concluído
+        const alertaConclusao = 
+`📋 *[MICA — CADASTRO CONCLUÍDO]* 📋
+
+👤 *Titular:* ${nome}
+🏢 *Empresa:* ${empresa || 'Não informada'}
+📋 *Protocolo:* ${protocolo}
+📱 *WhatsApp:* ${telefone || 'Não informado'}
+✉️ *E-mail:* ${email || 'Não informado'}
+───────────────────────────────────
+✅ Ficha cadastral transmitida pelo cliente!
+Par ordenado PJ e PF integrado à esteira pericial.
+A equipe humana e a Teia já podem iniciar a análise dos birôs.
+───────────────────────────────────
+_Mica • Atendimento Corporativo — Mourato & Associados_`;
+
+        let ok = false;
+        if (isConnected && sock) {
+          try {
+            let dirJid = `${DIRECTOR_PHONE}@s.whatsapp.net`;
+            try {
+              const checkDir = await sock.onWhatsApp(DIRECTOR_PHONE);
+              if (Array.isArray(checkDir) && checkDir[0]?.exists && checkDir[0]?.jid) {
+                dirJid = checkDir[0].jid;
+              }
+            } catch (_) {}
+            await sock.sendMessage(dirJid, { text: alertaConclusao });
+            writeMicaLog(`🔔 [AVISO DIRETORIA] Alerta de cadastro concluído entregue para ${DIRECTOR_PHONE}!`);
+            ok = true;
+          } catch (errSend) {
+            writeMicaLog(`⚠️ Falha ao avisar diretoria: ${errSend.message}`);
+          }
+        }
+
+        // Atualiza banco oficial da Teia
+        try {
+          saveApprovedLeadToTeia({
+            nome,
+            empresa,
+            protocolo,
+            telefone,
+            email,
+            documento: data.payload?.documento || data.payload?.titular?.cpf || ''
+          }, '');
+        } catch (_) {}
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: true, sent: ok }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
   // Endpoint Oficial: Aprovação de Lead disparada pelo Painel / Modal Web
   if (url.pathname === '/api/mica/approve-lead' && req.method === 'POST') {
     let bodyRaw = '';

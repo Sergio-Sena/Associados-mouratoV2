@@ -455,33 +455,6 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
               </div>
               
               <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                {/* BOTÃO PRINCIPAL: ENVIAR PROTOCOLO AO CANAL DIRETO (11 97899-0034) */}
-                {notificationData?.linkEnviarCanalDiretoWhatsApp && (
-                  <a
-                    href={notificationData.linkEnviarCanalDiretoWhatsApp}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
-                      border: '1px solid rgba(255, 255, 255, 0.25)',
-                      color: '#FFFFFF',
-                      padding: '0.6rem 1.15rem',
-                      borderRadius: '6px',
-                      fontSize: '0.82rem',
-                      fontWeight: 700,
-                      textDecoration: 'none',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      boxShadow: '0 4px 12px rgba(37, 211, 102, 0.25)',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <MessageSquare size={16} />
-                    <span>Enviar ao Canal Direto (WhatsApp)</span>
-                  </a>
-                )}
-
                 <button
                   type="button"
                   onClick={handleCopyProtocol}
@@ -489,45 +462,41 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
                     background: copiedProtocol ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.06)',
                     border: copiedProtocol ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(255, 255, 255, 0.12)',
                     color: copiedProtocol ? '#10B981' : '#E2E8F0',
-                    padding: '0.55rem 0.95rem',
+                    padding: '0.65rem 1.25rem',
                     borderRadius: '6px',
-                    fontSize: '0.78rem',
+                    fontSize: '0.82rem',
                     fontWeight: 600,
                     cursor: 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '0.45rem',
+                    gap: '0.5rem',
                     transition: 'all 0.2s'
                   }}
                 >
-                  {copiedProtocol ? <Check size={14} color="#10B981" /> : <Copy size={14} />}
+                  {copiedProtocol ? <Check size={15} color="#10B981" /> : <Copy size={15} />}
                   <span>{copiedProtocol ? 'Protocolo Copiado!' : 'Copiar Protocolo'}</span>
                 </button>
 
-                {notificationData?.linkSalvarWhatsAppCliente && (
-                  <a
-                    href={notificationData.linkSalvarWhatsAppCliente}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.04)',
-                      border: '1px solid rgba(255, 255, 255, 0.12)',
-                      color: '#94A3B8',
-                      padding: '0.55rem 0.95rem',
-                      borderRadius: '6px',
-                      fontSize: '0.76rem',
-                      fontWeight: 600,
-                      textDecoration: 'none',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.45rem',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <MessageSquare size={14} />
-                    <span>Salvar Comprovante</span>
-                  </a>
-                )}
+                <button
+                  type="button"
+                  onClick={onClose}
+                  style={{
+                    background: 'linear-gradient(135deg, var(--gold-primary) 0%, #AA820A 100%)',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                    color: '#07090E',
+                    padding: '0.65rem 1.25rem',
+                    borderRadius: '6px',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <span>Concluir</span>
+                </button>
               </div>
             </div>
 

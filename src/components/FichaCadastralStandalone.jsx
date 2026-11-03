@@ -99,6 +99,23 @@ export const FichaCadastralStandalone = ({ isFullPage = false, onClose = null })
           localStorage.setItem('mourato_active_bureau_client_id', savedId);
         }
 
+        // 1.1 Notifica a Mica para cadastrar e avisar a Diretoria (0034 -> 2275) que o cadastro foi concluído
+        try {
+          fetch('http://localhost:3005/api/mica/ficha-completed', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              nome: clientName,
+              empresa: clientData.empresa?.razaoSocial || clientData.empresa || leadParams.empresa || '',
+              protocolo: proto,
+              codigoCliente: clientCodigo,
+              telefone: clientData.contato?.celular || clientData.telefone || leadParams.telefone || '',
+              email: clientData.contato?.email || clientData.email || leadParams.email || '',
+              payload: savedRecord || clientData
+            })
+          }).catch(() => {});
+        } catch (_) {}
+
         // 2. Exibe tela de confirmação oficial com protocolo e opção de impressão
         setSubmissionSuccess({
           protocolo: proto,
