@@ -226,17 +226,33 @@ async function connectToWhatsApp() {
 
   sock.ev.on('creds.update', saveCreds);
 
-  // Escuta comandos recebidos no WhatsApp (ex: quando responder "APROVAR" ou "OK")
+  // Mapa de controle de conversas ativas para evitar flood
+  const clientChatState = new Map();
+
+  // Escuta mensagens recebidas no WhatsApp da Mica
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
     for (const msg of messages) {
       if (!msg.message || msg.key.fromMe) continue;
-      const text = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
       const sender = msg.key.remoteJid || '';
 
-      writeMicaLog(`📩 Mensagem recebida de ${sender}: "${text}"`);
+      // Ignora mensagens de grupos e status broadcast
+      if (sender.includes('@g.us') || sender === 'status@broadcast') continue;
 
-      // Se a mensagem vier de um dos canais autorizados da diretoria
+      const text = (
+        msg.message.conversation ||
+        msg.message.extendedTextMessage?.text ||
+        msg.message.imageMessage?.caption ||
+        msg.message.documentMessage?.caption ||
+        ''
+      ).trim();
+
+      const pushName = (msg.pushName || '').trim() || 'Cliente';
+      const senderDigits = sender.replace(/\D/g, '');
+
+      writeMicaLog(`📩 Mensagem recebida de ${pushName} (${sender}): "${text}"`);
+
+      // 1. Se a mensagem vier de um canal autorizado da DIRETORIA
       const isAuthSender = NOTIFY_TARGETS.some(t => sender.includes(t.phone.slice(-8)));
       if (isAuthSender) {
         const cleanCmd = text.trim().toUpperCase();
@@ -245,7 +261,125 @@ async function connectToWhatsApp() {
           await sock.sendMessage(sender, {
             text: '✅ *[MICA]* Solicitação aprovada com sucesso! Esteira pericial atualizada.'
           });
+        } else if (cleanCmd === 'STATUS') {
+          await sock.sendMessage(sender, {
+            text: `🤖 *[MICA STATUS 24/7]*\n\n🟢 Conectada ao WhatsApp: Sim\n☁️ Vigilância Nuvem AWS: Ativa\n📱 Destinatários Configurados: ${NOTIFY_TARGETS.map(t => t.label).join(', ')}\n📋 Leads Notificados no Cache: ${notifiedIds.size}`
+          });
         }
+        continue;
+      }
+
+      // 2. Se a mensagem vier de QUALQUER OUTRO NÚMERO (Lead / Cliente / Terceiro):
+
+      // PASSO 1: AVISAR A DIRETORIA IMEDIATAMENTE NO WHATSAPP
+      const alertaDiretoria = 
+`🚨 *[MICA — NOVA MENSAGEM RECEBIDA NO WHATSAPP]* 🚨
+
+👤 *Remetente:* ${pushName}
+📱 *WhatsApp:* +${senderDigits}
+💬 *Mensagem:* "${text || '[Mídia / Anexo]'}"
+⏰ *Horário:* ${new Date().toLocaleTimeString('pt-BR')}
+───────────────────────────────────
+👉 *Conversar diretamente com o Cliente:*
+https://wa.me/${senderDigits}
+───────────────────────────────────
+_A Mica já enviou a resposta inicial de acolhimento e triagem corporativa._`;
+
+      for (const target of NOTIFY_TARGETS) {
+        // Não envia o alerta para o próprio remetente
+        if (sender.includes(target.phone.slice(-8))) continue;
+        try {
+          let resolvedTarget = `${target.phone}@s.whatsapp.net`;
+          try {
+            const check = await sock.onWhatsApp(target.phone);
+            if (Array.isArray(check) && check[0]?.exists && check[0]?.jid) {
+              resolvedTarget = check[0].jid;
+            }
+          } catch (_) {}
+
+          await sock.sendMessage(resolvedTarget, { text: alertaDiretoria });
+          writeMicaLog(`🔔 [ALERTA DIRETORIA] Mensagem de +${senderDigits} repassada para ${target.label}!`);
+        } catch (errTarget) {
+          writeMicaLog(`⚠️ Falha ao avisar ${target.label}: ${errTarget.message}`);
+        }
+      }
+
+      // PASSO 2: RESPONDER AO CLIENTE SEGUINDO A ROTINA INSTITUCIONAL
+      try {
+        // Intervalo humanizado de 1.2s
+        await new Promise(r => setTimeout(r, 1200));
+
+        const lastState = clientChatState.get(sender) || { lastReplyTime: 0, count: 0 };
+        const now = Date.now();
+        const minutesSinceLastReply = (now - lastState.lastReplyTime) / (1000 * 60);
+
+        let replyToClient = '';
+        const cleanUpper = text.trim().toUpperCase();
+
+        if (cleanUpper === '1') {
+          replyToClient = 
+`📊 *[AUDITORIA DE CRÉDITO & RATING BANCÁRIO]*
+
+Nossa auditoria pericial analisa minuciosamente seu histórico nos 4 birôs oficiais e Banco Central:
+• *Bacen SCR:* Identificação de apontamentos e prejuízos no Registrato.
+• *Serasa, Boa Vista e Quod:* Saneamento cadastral, expurgo de dívidas prescritas e rating.
+
+📋 *Para iniciarmos a triagem oficial dos seus birôs, acesse nossa Ficha Cadastral Blindada:*
+👉 https://www.mouratoassociados.com.br/ficha-cadastral
+
+_Nossa diretoria já foi notificada e dará continuidade ao seu atendimento em instantes._`;
+        } else if (cleanUpper === '2') {
+          replyToClient = 
+`⚖️ *[GOVERNANÇA & REESTRUTURAÇÃO FINANCEIRA]*
+
+Atuamos na defesa patrimonial de sócios, expurgo de dívidas prescritas e repactuação de spread bancário corporativo sob estrito protocolo de sigilo (NDA).
+
+📋 *Para submeter sua empresa à triagem preliminar:*
+👉 https://www.mouratoassociados.com.br/ficha-cadastral
+
+_Nossa diretoria executiva entrará em contato em instantes por este canal._`;
+        } else if (cleanUpper === '3' || cleanUpper.includes('FICHA') || cleanUpper.includes('LINK')) {
+          replyToClient = 
+`📋 *[FICHA CADASTRAL OFICIAL — MOURATO & ASSOCIADOS]*
+
+Para preencher seus dados cadastrais e anexar seus relatórios sob sigilo pericial:
+👉 https://www.mouratoassociados.com.br/ficha-cadastral
+
+_Seus dados são protegidos por criptografia de ponta a ponta e sigilo pericial (LGPD)._`;
+        } else if (minutesSinceLastReply > 15) {
+          // Saudação Institucional de Abertura
+          replyToClient = 
+`Olá, *${pushName}*! Seja bem-vindo(a) à *Mourato & Associados*.
+
+Sou a *Mica*, assistente virtual de inteligência e governança pericial.
+
+Sua mensagem já foi entregue diretamente à nossa diretoria em tempo real.
+
+⚖️ *Como podemos apoiar você ou sua empresa hoje?*
+1️⃣ Auditoria de Crédito & Rating (Bacen SCR, Serasa, Boa Vista e Quod)
+2️⃣ Governança, Reestruturação Financeira e Spread Bancário
+3️⃣ Acesso à Ficha Cadastral Oficial e Onboarding
+
+📋 *Caso deseje adiantar sua triagem pericial, acesse nossa Ficha Cadastral Blindada:*
+👉 https://www.mouratoassociados.com.br/ficha-cadastral
+
+_Um de nossos consultores seniores responderá diretamente a você por este canal em instantes._
+
+───────────────────────────────────
+_Mourato & Associados Ltda — CNPJ: 38.377.738/0001-45_
+_Canal Oficial: (11) 97899-0034 | mourato@mouratoassociados.com.br_`;
+        } else {
+          // Resposta de acompanhamento humanizado para mensagens subsequentes
+          replyToClient = `✅ Mensagem recebida, *${pushName}*! Já atualizei nossa diretoria com seu recado. Estamos verificando sua solicitação e já vamos responder.`;
+        }
+
+        if (replyToClient) {
+          await sock.sendMessage(sender, { text: replyToClient });
+          clientChatState.set(sender, { lastReplyTime: now, count: lastState.count + 1 });
+          writeMicaLog(`💬 [RESPOSTA MICA ENVIADA AO CLIENTE] Entregue com sucesso para ${pushName} (${sender})!`);
+        }
+      } catch (errReply) {
+        writeMicaLog(`❌ Erro ao responder ao cliente ${sender}: ${errReply.message}`);
       }
     }
   });
