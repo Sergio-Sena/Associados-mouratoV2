@@ -135,9 +135,21 @@ export const MicaApprovalModal = ({ isOpen, onClose, leadData = null }) => {
         });
       } catch (_) {}
 
+      // 3. Dispara o envio oficial da Ficha Cadastral pelo robô da Mica no WhatsApp
+      try {
+        await fetch('http://localhost:3005/api/mica/approve-lead', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lead: lead,
+            linkFicha: notif?.linkFicha || ''
+          })
+        });
+      } catch (_) {}
+
       setStatus('approved');
 
-      // 3. Abre a caixa de diálogo com o cliente no WhatsApp com a mensagem pronta
+      // 4. Se estiver no celular, também abre a conversa para o diretor se ele desejar
       if (notif?.linkDisparoClienteWhatsApp) {
         setTimeout(() => {
           window.location.href = notif.linkDisparoClienteWhatsApp;

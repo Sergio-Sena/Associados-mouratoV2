@@ -1084,9 +1084,20 @@ Website: https://www.mouratoassociados.com.br`;
       clientCreated: newClientRecord
     });
 
-    // 8. Notifica criação do cliente para ouvintes do sistema
+    // 8. Notifica criação do cliente para ouvintes do sistema e dispara envio automático pela Mica
     try {
       window.dispatchEvent(new CustomEvent('mourato_client_saved', { detail: newClientRecord }));
+    } catch (_) {}
+
+    try {
+      fetch('http://localhost:3005/api/mica/approve-lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lead: targetLead,
+          linkFicha: linkFicha
+        })
+      }).catch(() => {});
     } catch (_) {}
 
     // 9. Toast de sucesso claro e imediato
