@@ -720,12 +720,12 @@ export const FichaCadastralStandalone = ({ isFullPage = false, onClose = null })
                 <th style={{ width: '15%' }}>CPF:</th>
                 <td style={{ width: '15%' }}>{titularInfo.cpf ? maskCPF(titularInfo.cpf) : 'Não informado'}</td>
               </tr>
-              {titularInfo.rg && (
+              {titularInfo.nascimento && (
                 <tr>
-                  <th>RG / Órgão:</th>
-                  <td>{titularInfo.rg} ({titularInfo.orgao_expedidor || ''})</td>
                   <th>Nascimento:</th>
-                  <td>{titularInfo.nascimento || ''}</td>
+                  <td>{titularInfo.nascimento}</td>
+                  <th>Estado Civil:</th>
+                  <td>{titularInfo.estado_civil || 'Não informado'}</td>
                 </tr>
               )}
             </tbody>

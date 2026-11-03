@@ -8571,59 +8571,129 @@ Website: https://www.mouratoassociados.com.br`;
                 <span style={{ fontSize: '0.7rem', color: '#64748B' }}>Acesso Opcional • Sem Trava Obrigatória</span>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', fontSize: '0.78rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', fontSize: '0.78rem' }}>
                 {[
-                  { label: 'SERASA EXPERIAN', val: selectedClient.senhaSerasa, key: 'serasa' },
+                  { 
+                    label: 'SERASA EXPERIAN', 
+                    val: selectedClient.senhaSerasa || selectedClient.portais?.serasa?.senha || selectedClient.senhas_biros?.serasa_senha, 
+                    login: selectedClient.portais?.serasa?.usuario || selectedClient.senhas_biros?.serasa_usuario,
+                    key: 'serasa',
+                    url: 'https://www.serasa.com.br'
+                  },
+                  { 
+                    label: 'BOA VISTA SCPC', 
+                    val: selectedClient.senhaBoaVista || selectedClient.portais?.boaVista?.senha || selectedClient.senhas_biros?.boavista_senha, 
+                    login: selectedClient.portais?.boaVista?.usuario || selectedClient.senhas_biros?.boavista_usuario,
+                    key: 'boavista',
+                    url: 'https://www.consumidorpositivo.com.br'
+                  },
+                  { 
+                    label: 'QUOD', 
+                    val: selectedClient.senhaQuod || selectedClient.portais?.quod?.senha || selectedClient.senhas_biros?.quod_senha, 
+                    login: selectedClient.portais?.quod?.usuario || selectedClient.senhas_biros?.quod_usuario,
+                    key: 'quod',
+                    url: 'https://consumidor.quod.com.br'
+                  },
+                  { 
+                    label: 'GOV.BR (FEDERAL)', 
+                    val: selectedClient.senhaGovBr || selectedClient.portais?.gov?.senha || selectedClient.senhas_biros?.gov_senha, 
+                    login: selectedClient.portais?.gov?.usuario || selectedClient.senhas_biros?.gov_usuario,
+                    key: 'gov',
+                    url: 'https://acesso.gov.br'
+                  },
                   { label: 'BACEN / SCR', val: selectedClient.senhaBacen, key: 'bacen' },
-                  { label: 'GOV.BR / PIN', val: selectedClient.senhaGovBr, key: 'gov' },
-                  { label: 'QUOD', val: selectedClient.senhaQuod, key: 'quod' },
-                  { label: 'BOA VISTA', val: selectedClient.senhaBoaVista, key: 'boavista' },
                   { label: 'CHAVE MESTRA / E-CAC', val: selectedClient.senhaMestraConsultas, key: 'master' },
-                  { label: 'PIN CERTIFICADO A1', val: selectedClient.pinCertificadoA1, key: 'pinA1' }
-                ].filter(item => item.val).length === 0 ? (
+                  { label: 'PIN CERTIFICADO A1', val: selectedClient.pinCertificadoA1 || selectedClient.portais?.certificadoDigital?.senha, key: 'pinA1' }
+                ].filter(item => item.val || item.login).length === 0 ? (
                   <div style={{ color: '#64748B', fontSize: '0.76rem', fontStyle: 'italic', gridColumn: '1 / -1' }}>
-                    Nenhuma senha registrada para este cliente (as senhas são 100% opcionais e sem trava obrigatória).
+                    Nenhuma credencial registrada para este cliente (o preenchimento é voluntário).
                   </div>
                 ) : (
                   [
-                    { label: 'SERASA EXPERIAN', val: selectedClient.senhaSerasa, key: 'serasa' },
+                    { 
+                      label: 'SERASA EXPERIAN', 
+                      val: selectedClient.senhaSerasa || selectedClient.portais?.serasa?.senha || selectedClient.senhas_biros?.serasa_senha, 
+                      login: selectedClient.portais?.serasa?.usuario || selectedClient.senhas_biros?.serasa_usuario,
+                      key: 'serasa',
+                      url: 'https://www.serasa.com.br'
+                    },
+                    { 
+                      label: 'BOA VISTA SCPC', 
+                      val: selectedClient.senhaBoaVista || selectedClient.portais?.boaVista?.senha || selectedClient.senhas_biros?.boavista_senha, 
+                      login: selectedClient.portais?.boaVista?.usuario || selectedClient.senhas_biros?.boavista_usuario,
+                      key: 'boavista',
+                      url: 'https://www.consumidorpositivo.com.br'
+                    },
+                    { 
+                      label: 'QUOD', 
+                      val: selectedClient.senhaQuod || selectedClient.portais?.quod?.senha || selectedClient.senhas_biros?.quod_senha, 
+                      login: selectedClient.portais?.quod?.usuario || selectedClient.senhas_biros?.quod_usuario,
+                      key: 'quod',
+                      url: 'https://consumidor.quod.com.br'
+                    },
+                    { 
+                      label: 'GOV.BR (FEDERAL)', 
+                      val: selectedClient.senhaGovBr || selectedClient.portais?.gov?.senha || selectedClient.senhas_biros?.gov_senha, 
+                      login: selectedClient.portais?.gov?.usuario || selectedClient.senhas_biros?.gov_usuario,
+                      key: 'gov',
+                      url: 'https://acesso.gov.br'
+                    },
                     { label: 'BACEN / SCR', val: selectedClient.senhaBacen, key: 'bacen' },
-                    { label: 'GOV.BR / PIN', val: selectedClient.senhaGovBr, key: 'gov' },
-                    { label: 'QUOD', val: selectedClient.senhaQuod, key: 'quod' },
-                    { label: 'BOA VISTA', val: selectedClient.senhaBoaVista, key: 'boavista' },
                     { label: 'CHAVE MESTRA / E-CAC', val: selectedClient.senhaMestraConsultas, key: 'master' },
-                    { label: 'PIN CERTIFICADO A1', val: selectedClient.pinCertificadoA1, key: 'pinA1' }
-                  ].filter(item => item.val).map((item, idx) => {
+                    { label: 'PIN CERTIFICADO A1', val: selectedClient.pinCertificadoA1 || selectedClient.portais?.certificadoDigital?.senha, key: 'pinA1' }
+                  ].filter(item => item.val || item.login).map((item, idx) => {
                     const isVisible = showDetailPasswords[`bureau-${selectedClient.id}-${item.key}`];
                     return (
                       <div key={idx} style={{ background: '#0D121D', padding: '0.65rem 0.8rem', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                        <span style={{ color: '#94A3B8', display: 'block', fontSize: '0.66rem', fontWeight: 600 }}>{item.label}</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                          <span style={{ color: '#94A3B8', fontSize: '0.66rem', fontWeight: 600 }}>{item.label}</span>
+                          {item.url && (
+                            <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ color: '#38BDF8', display: 'flex', alignItems: 'center', padding: '1px' }}
+                              title={`Abrir portal oficial de ${item.label}`}
+                            >
+                              <ExternalLink size={12} />
+                            </a>
+                          )}
+                        </div>
+                        {item.login && (
+                          <div style={{ fontSize: '0.68rem', color: '#38BDF8', marginBottom: '3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <span style={{ color: '#64748B' }}>Login:</span> {item.login}
+                          </div>
+                        )}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.4rem', marginTop: '3px' }}>
                           <span style={{ fontFamily: isVisible ? 'inherit' : 'monospace', color: 'var(--gold-light)', fontWeight: 600, fontSize: '0.8rem' }}>
-                            {isVisible ? item.val : '••••••••'}
+                            {isVisible ? (item.val || 'Sem senha') : (item.val ? '••••••••' : 'Sem senha')}
                           </span>
                           <div style={{ display: 'flex', gap: '2px' }}>
-                            <button
-                              type="button"
-                              onClick={() => setShowDetailPasswords(prev => ({ ...prev, [`bureau-${selectedClient.id}-${item.key}`]: !isVisible }))}
-                              style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: '2px' }}
-                              title={isVisible ? 'Ocultar' : 'Exibir senha'}
-                            >
-                              {isVisible ? <EyeOff size={13} /> : <Eye size={13} />}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (navigator.clipboard && navigator.clipboard.writeText) {
-                                  navigator.clipboard.writeText(item.val);
-                                  showToast('📋 Senha Copiada!', `Senha de ${item.label} copiada para a área de transferência.`);
-                                }
-                              }}
-                              style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: '2px' }}
-                              title="Copiar senha"
-                            >
-                              <Copy size={13} />
-                            </button>
+                            {item.val && (
+                              <button
+                                type="button"
+                                onClick={() => setShowDetailPasswords(prev => ({ ...prev, [`bureau-${selectedClient.id}-${item.key}`]: !isVisible }))}
+                                style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: '2px' }}
+                                title={isVisible ? 'Ocultar' : 'Exibir senha'}
+                              >
+                                {isVisible ? <EyeOff size={13} /> : <Eye size={13} />}
+                              </button>
+                            )}
+                            {item.val && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (navigator.clipboard && navigator.clipboard.writeText) {
+                                    navigator.clipboard.writeText(item.val);
+                                    showToast('📋 Senha Copiada!', `Senha de ${item.label} copiada para a área de transferência.`);
+                                  }
+                                }}
+                                style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: '2px' }}
+                                title="Copiar senha"
+                              >
+                                <Copy size={13} />
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>

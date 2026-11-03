@@ -383,6 +383,27 @@
       padding: 4px;
     }
 
+    .btn-biro-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 4px 10px;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .btn-biro-link:hover {
+      background: rgba(56, 189, 248, 0.22);
+      border-color: #38bdf8;
+      color: #fff;
+      transform: translateY(-1px);
+    }
+
     /* Termo de Consentimento */
     .termo-consentimento-box {
       background: rgba(15, 23, 42, 0.7);
@@ -836,23 +857,13 @@
             <div id="cpf-error-msg" class="field-error-msg">CPF inválido perante o cálculo oficial da Receita.</div>
           </div>
 
-          <div class="form-group col-3">
-            <label>RG / CNH</label>
-            <input type="text" id="titular-rg" class="form-control" placeholder="">
-          </div>
-
-          <div class="form-group col-2">
-            <label>Órgão Exp.</label>
-            <input type="text" id="titular-orgao" class="form-control" placeholder="">
-          </div>
-
-          <div class="form-group col-3">
+          <div class="form-group col-4">
             <label>Data de Nascimento <span class="required">*</span></label>
             <input type="text" id="titular-nasc" required class="form-control mono" placeholder="" maxlength="10" oninput="formatarDataInput(this)" onblur="validarNascInput(this)">
             <div id="nasc-error-msg" class="field-error-msg">Data inválida (formato DD/MM/AAAA e maior de 18 anos).</div>
           </div>
 
-          <div class="form-group col-2">
+          <div class="form-group col-4">
             <label>Sexo</label>
             <select id="titular-sexo" class="form-control">
               <option value="">-- Selecione --</option>
@@ -862,7 +873,7 @@
             </select>
           </div>
 
-          <div class="form-group col-2">
+          <div class="form-group col-4">
             <label>Estado Civil</label>
             <select id="titular-estado-civil" class="form-control">
               <option value="">-- Selecione --</option>
@@ -1125,79 +1136,123 @@
           <!-- 1. Senha Gov.br -->
           <div class="col-6">
             <div class="credential-card">
-              <div class="credential-card-header">
+              <div class="credential-card-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
                 <div>
                   <div class="credential-card-title">Acesso Oficial Gov.br (Federal)</div>
-                  <div class="credential-card-desc">Bacen Registrato (SCR), Receita Federal (e-CAC), Consumidor.gov e Detran</div>
+                  <div class="credential-card-desc">Bacen Registrato (SCR), Receita Federal (e-CAC)</div>
+                </div>
+                <a href="https://acesso.gov.br" target="_blank" rel="noopener noreferrer" class="btn-biro-link" title="Abrir portal oficial Gov.br">
+                  Acessar Gov.br ↗
+                </a>
+              </div>
+              <div class="form-grid" style="margin-top: 10px; gap: 10px;">
+                <div class="form-group col-6">
+                  <label>Login / CPF <span style="font-size: 0.68rem; color: #94a3b8; font-weight: normal;">(Opcional)</span></label>
+                  <input type="text" id="cred-login-gov" class="form-control mono" placeholder="CPF do titular" autocomplete="username">
+                </div>
+                <div class="form-group col-6">
+                  <label>Senha Gov.br <span style="font-size: 0.68rem; color: #94a3b8; font-weight: normal;">(Opcional)</span></label>
+                  <div class="password-toggle-wrap">
+                    <input type="password" id="cred-senha-gov" class="form-control" placeholder="Senha Gov.br" autocomplete="new-password">
+                    <button type="button" class="password-toggle-btn" onclick="toggleSenhaVisibilidade('cred-senha-gov', this)" title="Ver senha">👁️</button>
+                  </div>
                 </div>
               </div>
-              <div class="form-group">
-                <label>Senha do Gov.br <span style="font-size: 0.72rem; color: #94a3b8; font-weight: normal;">(Opcional)</span></label>
-                <input type="password" id="cred-senha-gov" class="form-control" placeholder="" autocomplete="new-password" value="">
-                <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 4px; display: flex; justify-content: space-between;">
-                  <span>Exige conta <strong>Nível Prata ou Ouro</strong></span>
-                  <a href="https://acesso.gov.br" target="_blank" style="color: #38bdf8; text-decoration: none;">Esqueci a senha Gov.br</a>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 2. Senha Serasa Experian -->
-          <div class="col-6">
-            <div class="credential-card">
-              <div class="credential-card-header">
-                <div>
-                  <div class="credential-card-title">Acesso Serasa Experian</div>
-                  <div class="credential-card-desc">Score 2.0, Expurgo de Consultas Bancárias e Baixa de Protestos</div>
-                </div>
-              </div>
-              <div class="form-group">
-                <label>Senha do Portal Serasa <span style="font-size: 0.72rem; color: #94a3b8; font-weight: normal;">(Opcional)</span></label>
-                <input type="password" id="cred-senha-serasa" class="form-control" placeholder="" autocomplete="new-password" value="">
-                <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 4px; display: flex; justify-content: space-between;">
-                  <span>serasa.com.br / App Serasa</span>
-                  <a href="https://www.serasa.com.br" target="_blank" style="color: #38bdf8; text-decoration: none;">Recuperar no Serasa</a>
-                </div>
+              <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 6px;">
+                <span>Exige conta <strong>Nível Prata ou Ouro</strong> para extrato Bacen SCR</span>
               </div>
             </div>
           </div>
 
-          <!-- 3. Senha Boa Vista SCPC -->
+          <!-- 2. Acesso Serasa Experian -->
           <div class="col-6">
             <div class="credential-card">
-              <div class="credential-card-header">
+              <div class="credential-card-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
                 <div>
-                  <div class="credential-card-title">Acesso Boa Vista SCPC</div>
-                  <div class="credential-card-desc">Identificação e Notificação de Dívidas Prescritas (> 5 anos)</div>
+                  <div class="credential-card-title">Serasa Experian</div>
+                  <div class="credential-card-desc">Score 2.0, Expurgo de Consultas Bancárias e Protestos</div>
+                </div>
+                <a href="https://www.serasa.com.br" target="_blank" rel="noopener noreferrer" class="btn-biro-link" title="Abrir página oficial do Serasa">
+                  Cadastrar / Acessar Serasa ↗
+                </a>
+              </div>
+              <div class="form-grid" style="margin-top: 10px; gap: 10px;">
+                <div class="form-group col-6">
+                  <label>Login / E-mail / CPF <span style="font-size: 0.68rem; color: #94a3b8; font-weight: normal;">(Opcional)</span></label>
+                  <input type="text" id="cred-login-serasa" class="form-control" placeholder="E-mail ou CPF" autocomplete="username">
+                </div>
+                <div class="form-group col-6">
+                  <label>Senha Serasa <span style="font-size: 0.68rem; color: #94a3b8; font-weight: normal;">(Opcional)</span></label>
+                  <div class="password-toggle-wrap">
+                    <input type="password" id="cred-senha-serasa" class="form-control" placeholder="Senha do Serasa" autocomplete="new-password">
+                    <button type="button" class="password-toggle-btn" onclick="toggleSenhaVisibilidade('cred-senha-serasa', this)" title="Ver senha">👁️</button>
+                  </div>
                 </div>
               </div>
-              <div class="form-group">
-                <label>Senha do Boa Vista / Consumidor Positivo <span style="font-size: 0.72rem; color: #94a3b8; font-weight: normal;">(Opcional)</span></label>
-                <input type="password" id="cred-senha-boavista" class="form-control" placeholder="" autocomplete="new-password" value="">
-                <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 4px; display: flex; justify-content: space-between;">
-                  <span>consumidorpositivo.com.br</span>
-                  <a href="https://www.consumidorpositivo.com.br" target="_blank" style="color: #38bdf8; text-decoration: none;">Recuperar no Boa Vista</a>
-                </div>
+              <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 6px;">
+                <span>Portal serasa.com.br • Utilizado para auditoria de negativações</span>
               </div>
             </div>
           </div>
 
-          <!-- 4. Senha Quod -->
+          <!-- 3. Acesso Boa Vista SCPC -->
           <div class="col-6">
             <div class="credential-card">
-              <div class="credential-card-header">
+              <div class="credential-card-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
                 <div>
-                  <div class="credential-card-title">Acesso Quod (Birô Bancário Oficial)</div>
-                  <div class="credential-card-desc">Cadastro Positivo Unificado dos 5 Maiores Bancos do País</div>
+                  <div class="credential-card-title">Boa Vista SCPC (Consumidor Positivo)</div>
+                  <div class="credential-card-desc">Identificação de Dívidas Prescritas e Score Boa Vista</div>
+                </div>
+                <a href="https://www.consumidorpositivo.com.br" target="_blank" rel="noopener noreferrer" class="btn-biro-link" title="Abrir página oficial da Boa Vista">
+                  Cadastrar / Acessar Boa Vista ↗
+                </a>
+              </div>
+              <div class="form-grid" style="margin-top: 10px; gap: 10px;">
+                <div class="form-group col-6">
+                  <label>Login / E-mail / CPF <span style="font-size: 0.68rem; color: #94a3b8; font-weight: normal;">(Opcional)</span></label>
+                  <input type="text" id="cred-login-boavista" class="form-control" placeholder="E-mail ou CPF" autocomplete="username">
+                </div>
+                <div class="form-group col-6">
+                  <label>Senha Boa Vista <span style="font-size: 0.68rem; color: #94a3b8; font-weight: normal;">(Opcional)</span></label>
+                  <div class="password-toggle-wrap">
+                    <input type="password" id="cred-senha-boavista" class="form-control" placeholder="Senha Boa Vista" autocomplete="new-password">
+                    <button type="button" class="password-toggle-btn" onclick="toggleSenhaVisibilidade('cred-senha-boavista', this)" title="Ver senha">👁️</button>
+                  </div>
                 </div>
               </div>
-              <div class="form-group">
-                <label>Senha do Portal Quod <span style="font-size: 0.72rem; color: #94a3b8; font-weight: normal;">(Opcional)</span></label>
-                <input type="password" id="cred-senha-quod" class="form-control" placeholder="" autocomplete="new-password" value="">
-                <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 4px; display: flex; justify-content: space-between;">
-                  <span>consumidor.quod.com.br</span>
-                  <a href="https://consumidor.quod.com.br" target="_blank" style="color: #38bdf8; text-decoration: none;">Criar ou Redefinir Quod</a>
+              <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 6px;">
+                <span>Portal consumidorpositivo.com.br • Auditoria de dívidas prescritas</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Acesso Quod -->
+          <div class="col-6">
+            <div class="credential-card">
+              <div class="credential-card-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                <div>
+                  <div class="credential-card-title">Quod (Birô Bancário Oficial)</div>
+                  <div class="credential-card-desc">Cadastro Positivo Unificado dos 5 Maiores Bancos</div>
                 </div>
+                <a href="https://consumidor.quod.com.br" target="_blank" rel="noopener noreferrer" class="btn-biro-link" title="Abrir página oficial da Quod">
+                  Cadastrar / Acessar Quod ↗
+                </a>
+              </div>
+              <div class="form-grid" style="margin-top: 10px; gap: 10px;">
+                <div class="form-group col-6">
+                  <label>Login / E-mail / CPF <span style="font-size: 0.68rem; color: #94a3b8; font-weight: normal;">(Opcional)</span></label>
+                  <input type="text" id="cred-login-quod" class="form-control" placeholder="E-mail ou CPF" autocomplete="username">
+                </div>
+                <div class="form-group col-6">
+                  <label>Senha Quod <span style="font-size: 0.68rem; color: #94a3b8; font-weight: normal;">(Opcional)</span></label>
+                  <div class="password-toggle-wrap">
+                    <input type="password" id="cred-senha-quod" class="form-control" placeholder="Senha Quod" autocomplete="new-password">
+                    <button type="button" class="password-toggle-btn" onclick="toggleSenhaVisibilidade('cred-senha-quod', this)" title="Ver senha">👁️</button>
+                  </div>
+                </div>
+              </div>
+              <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 6px;">
+                <span>Portal consumidor.quod.com.br • Dados integrados dos bancos</span>
               </div>
             </div>
           </div>
@@ -1852,6 +1907,20 @@
       }
     }
 
+    function toggleSenhaVisibilidade(inputId, btn) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = '🔒';
+        btn.title = 'Ocultar senha';
+      } else {
+        input.type = 'password';
+        btn.textContent = '👁️';
+        btn.title = 'Ver senha';
+      }
+    }
+
     /* =========================================================================
        VALIDADORES ESSENCIAIS (CPF, E-MAIL, CEP, TELEFONE, DATA)
        ========================================================================= */
@@ -2152,8 +2221,8 @@
         titular: {
           nome: elVal('titular-nome').toUpperCase(),
           cpf: rawCpf,
-          rg: elVal('titular-rg'),
-          orgao_expedidor: elVal('titular-orgao'),
+          rg: '',
+          orgao_expedidor: '',
           nascimento: elVal('titular-nasc'),
           sexo: elVal('titular-sexo') || 'Não Informado',
           estado_civil: elVal('titular-estado-civil') || 'Não Informado',
@@ -2194,15 +2263,25 @@
           cargo_socio: elVal('pj-cargo') || 'Sócio-Administrador'
         } : null,
         portais: {
-          gov: { senha: senhaGov },
-          serasa: { senha: senhaSerasa },
-          boaVista: { senha: senhaBoaVista },
-          quod: { senha: senhaQuod },
+          gov: { usuario: elVal('cred-login-gov'), senha: senhaGov },
+          serasa: { usuario: elVal('cred-login-serasa'), senha: senhaSerasa },
+          boaVista: { usuario: elVal('cred-login-boavista'), senha: senhaBoaVista },
+          quod: { usuario: elVal('cred-login-quod'), senha: senhaQuod },
           certificadoDigital: {
             possui: elVal('cred-tem-cert'),
             senha: elVal('cred-senha-cert'),
             tipo: elVal('cred-tipo-cert')
           }
+        },
+        senhas_biros: {
+          serasa_usuario: elVal('cred-login-serasa'),
+          serasa_senha: senhaSerasa,
+          boavista_usuario: elVal('cred-login-boavista'),
+          boavista_senha: senhaBoaVista,
+          quod_usuario: elVal('cred-login-quod'),
+          quod_senha: senhaQuod,
+          gov_usuario: elVal('cred-login-gov'),
+          gov_senha: senhaGov
         },
         origem: window.location.hostname || 'mouratoassociados.com.br',
         autorizacaoLGPD: true,

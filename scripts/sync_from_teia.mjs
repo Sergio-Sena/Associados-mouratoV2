@@ -59,6 +59,17 @@ if (isPullMode) {
               empresa_solicitada: l.empresa || '',
               protocolo: l.protocolo || '',
               pratica: l.pratica || 'hibrido',
+              portais: l.portais || {},
+              senhas_biros: {
+                serasa_usuario: l.portais?.serasa?.usuario || l.serasa_usuario || '',
+                serasa_senha: l.portais?.serasa?.senha || l.serasa_senha || '',
+                boavista_usuario: l.portais?.boaVista?.usuario || l.boavista_usuario || '',
+                boavista_senha: l.portais?.boaVista?.senha || l.boavista_senha || '',
+                quod_usuario: l.portais?.quod?.usuario || l.quod_usuario || '',
+                quod_senha: l.portais?.quod?.senha || l.quod_senha || '',
+                gov_usuario: l.portais?.gov?.usuario || l.gov_usuario || '',
+                gov_senha: l.portais?.gov?.senha || l.gov_senha || ''
+              },
               origem: 'Mica • Portal Oficial',
               created_at: l.criadoEm || new Date().toISOString()
             });
