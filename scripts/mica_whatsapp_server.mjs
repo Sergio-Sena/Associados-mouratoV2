@@ -11,11 +11,14 @@ const __dirname = path.dirname(__filename);
 const PORT = process.env.MICA_PORT || 3005;
 const AUTH_DIR = path.resolve(__dirname, '../auth_info_baileys');
 const CACHE_FILE = path.resolve(AUTH_DIR, 'notified_lead_ids.json');
+const LOG_FILE = path.resolve(AUTH_DIR, 'mica_history.log');
 
-// Número que receberá os alertas em tempo real no celular (Hesiuel)
-const NOTIFY_PHONE = '5511914572275@s.whatsapp.net';
-// Número de backup da empresa
-const BACKUP_PHONE = '5511978990034@s.whatsapp.net';
+// Destinatários Oficiais de Alertas da Diretoria em Tempo Real
+const NOTIFY_TARGETS = [
+  { label: 'Diretoria Executiva (Hesiuel)', phone: '5511914572275' },
+  { label: 'Canal Oficial Mourato & Associados', phone: '5511978990034' },
+  { label: 'Sérgio Sena (Tecnologia/Diretoria)', phone: '5511982699176' }
+];
 
 // Configuração da API AWS para monitoramento contínuo em nuvem
 const AWS_LEADS_URL = 'https://0bwr64p3ie.execute-api.us-east-1.amazonaws.com/prod/leads';
@@ -25,6 +28,18 @@ let sock = null;
 let currentQr = null;
 let isConnected = false;
 let isPollingAws = false;
+let lastDispatches = [];
+
+// Logger persistente em arquivo
+function writeMicaLog(msg) {
+  const ts = new Date().toISOString();
+  const line = `[${ts}] ${msg}\n`;
+  console.log(msg);
+  try {
+    if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
+    fs.appendFileSync(LOG_FILE, line, 'utf8');
+  } catch (_) {}
+}
 
 // Carrega cache de leads já notificados para nunca duplicar
 let notifiedIds = new Set();
@@ -45,7 +60,7 @@ function saveNotifiedCache() {
 
 console.log('====================================================');
 console.log('🤖  INICIANDO MOTOR OFICIAL DA MICA • WHATSAPP BOT 24/7');
-console.log('📱  Destino dos Alertas:', NOTIFY_PHONE);
+console.log('📱  Destinatários dos Alertas:', NOTIFY_TARGETS.map(t => `${t.label} (${t.phone})`).join(' | '));
 console.log('☁️  Vigilância Nuvem AWS: ATIVA');
 console.log('====================================================');
 
@@ -77,32 +92,65 @@ _CNPJ: 38.377.738/0001-45 | Atendimento: (11) 97899-0034_`
   );
 }
 
+// Disparo com resolução inteligente de JID no WhatsApp e broadcast para a diretoria
 async function dispatchAlertToWhatsApp(lead, source = 'NUVEM_AWS') {
   if (!isConnected || !sock) {
-    console.warn(`⚠️ [${source}] Mica não conectada ao WhatsApp no momento. Tentando reconectar...`);
+    writeMicaLog(`⚠️ [${source}] Mica não conectada ao WhatsApp no momento.`);
     return false;
   }
 
   const messageText = formatNotificationText(lead);
+  let anySuccess = false;
+  const dispatchRecord = {
+    leadId: lead.id,
+    empresa: lead.empresa || lead.nome,
+    timestamp: new Date().toISOString(),
+    results: []
+  };
 
-  try {
-    // 1. Envia prioritariamente ao número de destino configurado (11 91457-2275)
-    await sock.sendMessage(NOTIFY_PHONE, { text: messageText });
-    console.log(`✅ [${source}] Alerta entregue com sucesso para ${NOTIFY_PHONE}!`);
+  for (const target of NOTIFY_TARGETS) {
+    try {
+      let resolvedJid = `${target.phone}@s.whatsapp.net`;
 
-    // 2. Registra no cache persistente
-    if (lead.id) {
-      notifiedIds.add(lead.id);
-      saveNotifiedCache();
+      // 1. Tenta validar no WhatsApp se o número existe e qual é o JID real da conta
+      try {
+        const check = await sock.onWhatsApp(target.phone);
+        if (Array.isArray(check) && check[0]?.exists && check[0]?.jid) {
+          resolvedJid = check[0].jid;
+        } else if (target.phone.startsWith('55119') && target.phone.length === 13) {
+          // Se falhar a verificação com o 9, tenta sem o nono dígito (padrão antigo SP)
+          const altPhone = target.phone.slice(0, 4) + target.phone.slice(5);
+          const checkAlt = await sock.onWhatsApp(altPhone);
+          if (Array.isArray(checkAlt) && checkAlt[0]?.exists && checkAlt[0]?.jid) {
+            resolvedJid = checkAlt[0].jid;
+          }
+        }
+      } catch (errCheck) {
+        // Fallback para o JID padrão
+      }
+
+      await sock.sendMessage(resolvedJid, { text: messageText });
+      writeMicaLog(`✅ [${source}] Alerta entregue com sucesso para ${target.label} [${resolvedJid}]!`);
+      dispatchRecord.results.push({ target: target.label, jid: resolvedJid, ok: true });
+      anySuccess = true;
+    } catch (err) {
+      writeMicaLog(`❌ [${source}] Falha ao enviar para ${target.label} (${target.phone}): ${err.message}`);
+      dispatchRecord.results.push({ target: target.label, error: err.message, ok: false });
     }
-    return true;
-  } catch (err) {
-    console.error(`❌ [${source}] Falha ao enviar para ${NOTIFY_PHONE}:`, err.message);
-    return false;
   }
+
+  lastDispatches.unshift(dispatchRecord);
+  if (lastDispatches.length > 20) lastDispatches.pop();
+
+  if (anySuccess && lead.id) {
+    notifiedIds.add(lead.id);
+    saveNotifiedCache();
+  }
+
+  return anySuccess;
 }
 
-// ☁️ Monitoramento contínuo da nuvem AWS em tempo real (vigilância a cada 5 segundos)
+// ☁️ Monitoramento contínuo da nuvem AWS em tempo real (vigilância a cada 4 segundos)
 async function pollAwsLeadsQueue() {
   if (isPollingAws) return;
   isPollingAws = true;
@@ -119,14 +167,14 @@ async function pollAwsLeadsQueue() {
         for (const lead of leads) {
           const leadId = lead.id;
           if (leadId && !notifiedIds.has(leadId)) {
-            console.log(`🔔 [VIGIA AWS] Novo cadastro detectado na nuvem: "${lead.empresa || lead.nome}" (${leadId})`);
+            writeMicaLog(`🔔 [VIGIA AWS] Novo cadastro detectado na nuvem: "${lead.empresa || lead.nome}" (${leadId})`);
             await dispatchAlertToWhatsApp(lead, 'VIGIA_AWS');
           }
         }
       }
     }
-  } catch (err) {
-    // Erros transitórios de rede ignorados silenciosamente para estabilidade 24/7
+  } catch (_) {
+    // Erros transitórios de rede ignorados silenciosamente
   } finally {
     isPollingAws = false;
   }
@@ -158,18 +206,18 @@ async function connectToWhatsApp() {
     if (connection === 'close') {
       const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
       isConnected = false;
-      console.log('⚠️ Conexão da Mica fechada. Motivo:', lastDisconnect?.error?.message || 'Desconhecido');
+      writeMicaLog(`⚠️ Conexão da Mica fechada. Motivo: ${lastDisconnect?.error?.message || 'Desconhecido'}`);
       if (shouldReconnect) {
-        console.log('🔄 Reconectando Mica automaticamente em 3 segundos...');
+        writeMicaLog('🔄 Reconectando Mica automaticamente em 3 segundos...');
         setTimeout(connectToWhatsApp, 3000);
       } else {
-        console.log('❌ Sessão deslogada. Exclua auth_info_baileys para ler novo QR Code.');
+        writeMicaLog('❌ Sessão deslogada. Exclua auth_info_baileys para ler novo QR Code.');
       }
     } else if (connection === 'open') {
       isConnected = true;
       currentQr = null;
-      console.log('✅ [MICA CONECTADA COM SUCESSO AO WHATSAPP!]');
-      console.log(`🚀 Autorizada para disparar alertas diretamente para ${NOTIFY_PHONE}`);
+      writeMicaLog('✅ [MICA CONECTADA COM SUCESSO AO WHATSAPP!]');
+      writeMicaLog(`🚀 Autorizada para disparar alertas para: ${NOTIFY_TARGETS.map(t => t.phone).join(', ')}`);
       
       // Inicia verificação imediata dos leads pendentes na nuvem
       pollAwsLeadsQueue();
@@ -186,15 +234,16 @@ async function connectToWhatsApp() {
       const text = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
       const sender = msg.key.remoteJid || '';
 
-      console.log(`📩 Mensagem recebida de ${sender}: "${text}"`);
+      writeMicaLog(`📩 Mensagem recebida de ${sender}: "${text}"`);
 
-      // Se a mensagem vier de um dos canais autorizados (11 91457-2275 ou 11 97899-0034)
-      if (sender.includes('914572275') || sender.includes('978990034')) {
+      // Se a mensagem vier de um dos canais autorizados da diretoria
+      const isAuthSender = NOTIFY_TARGETS.some(t => sender.includes(t.phone.slice(-8)));
+      if (isAuthSender) {
         const cleanCmd = text.trim().toUpperCase();
         if (cleanCmd.startsWith('APROVAR') || cleanCmd === 'OK') {
-          console.log('⚡ [COMANDO EXECUTIVO] Autorização confirmada via WhatsApp!');
+          writeMicaLog('⚡ [COMANDO EXECUTIVO] Autorização confirmada via WhatsApp!');
           await sock.sendMessage(sender, {
-            text: '✅ *[MICA]* Solicitação aprovada com sucesso! Esteira atualizada.'
+            text: '✅ *[MICA]* Solicitação aprovada com sucesso! Esteira pericial atualizada.'
           });
         }
       }
@@ -202,7 +251,7 @@ async function connectToWhatsApp() {
   });
 }
 
-// Inicia servidor HTTP da Mica para endpoints internos
+// Servidor HTTP interno da Mica
 const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
@@ -215,27 +264,31 @@ const server = http.createServer(async (req, res) => {
 
   const url = new URL(req.url, `http://localhost:${PORT}`);
 
-  // Status da Mica
+  // Status da Mica com lista de destinatários e histórico
   if (url.pathname === '/status') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({
       online: true,
       whatsappConnected: isConnected,
-      targetPhone: NOTIFY_PHONE,
+      targets: NOTIFY_TARGETS,
       awsQueueWatcher: true,
-      notifiedLeadsCount: notifiedIds.size
-    }));
+      notifiedLeadsCount: notifiedIds.size,
+      recentDispatches: lastDispatches.slice(0, 5)
+    }, null, 2));
   }
 
-  // Visualizar QR Code no navegador (caso precise parear)
+  // Visualizar QR Code no navegador
   if (url.pathname === '/qrcode') {
     if (isConnected) {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       return res.end(`
         <div style="font-family: sans-serif; text-align: center; padding: 50px; background: #0B0F19; color: #fff;">
           <h2 style="color: #10B981;">✅ MICA CONECTADA E OPERACIONAL 24/7!</h2>
-          <p>Alertas sendo encaminhados para: <strong>${NOTIFY_PHONE}</strong></p>
-          <p style="color: #94A3B8;">Vigilância da nuvem AWS ativa.</p>
+          <p>Alertas sendo encaminhados para a Diretoria:</p>
+          <ul style="list-style: none; padding: 0;">
+            ${NOTIFY_TARGETS.map(t => `<li style="padding: 4px; color: #C5A869;">• <strong>${t.label}:</strong> ${t.phone}</li>`).join('')}
+          </ul>
+          <p style="color: #94A3B8;">Vigilância da nuvem AWS ativa a cada 4s.</p>
         </div>
       `);
     }
@@ -260,6 +313,28 @@ const server = http.createServer(async (req, res) => {
     return res.end('<p>Gerando QR Code... Aguarde alguns segundos e recarregue a página.</p>');
   }
 
+  // Força re-verificação imediata na nuvem AWS e limpa lead específico do cache para reenviar
+  if (url.pathname === '/api/mica/resend-lead' && req.method === 'POST') {
+    let bodyRaw = '';
+    req.on('data', chunk => { bodyRaw += chunk; });
+    req.on('end', async () => {
+      try {
+        const { leadId } = JSON.parse(bodyRaw || '{}');
+        if (leadId) {
+          notifiedIds.delete(leadId);
+          saveNotifiedCache();
+        }
+        await pollAwsLeadsQueue();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: true, message: `Lead ${leadId || 'todos'} colocado na fila de reenvio!` }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
   // Disparo manual ou via webhook local
   if (url.pathname === '/api/mica/notify-lead' && req.method === 'POST') {
     let bodyRaw = '';
@@ -270,7 +345,7 @@ const server = http.createServer(async (req, res) => {
         const ok = await dispatchAlertToWhatsApp(lead, 'WEBHOOK_LOCAL');
         if (ok) {
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ ok: true, message: 'Alerta enviado via WhatsApp!' }));
+          return res.end(JSON.stringify({ ok: true, message: 'Alerta enviado via WhatsApp para a Diretoria!' }));
         } else {
           res.writeHead(503, { 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({ error: 'Mica desconectada do WhatsApp.' }));
