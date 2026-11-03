@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, ArrowRight, CheckCircle2, Shield, Loader2, Copy, Check, MessageSquare, ExternalLink } from 'lucide-react';
 import { dispatchLeadNotification, DIRETORIA_PHONE_FMT } from '../services/leadNotificationBot';
 
@@ -28,6 +28,8 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
   const [isDuplicate, setIsDuplicate] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [botTrap, setBotTrap] = useState('');
+  const formOpenTimeRef = useRef(Date.now());
 
   const handleCopyProtocol = () => {
     if (submittedProtocol) {
@@ -43,6 +45,8 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
   useEffect(() => {
     if (isOpen) {
       setVisible(true);
+      formOpenTimeRef.current = Date.now();
+      setBotTrap('');
       try {
         window.history.pushState({ mouratoModal: 'advisoryModal' }, '');
       } catch (_) {}
@@ -70,6 +74,7 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
         setSubmittedProtocol('');
         setCopiedProtocol(false);
         setIsDuplicate(false);
+        setBotTrap('');
         setFormData({ empresa: '', nome: '', email: '', telefone: '', pratica: 'hibrido', contexto: '' });
       }, 300);
       return () => clearTimeout(t);
@@ -83,6 +88,35 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // 1. BLINDAGEM ANTI-BOT 1: HONEYPOT TRAP (Armadilha de Robô Invisível)
+    if (botTrap && botTrap.trim().length > 0) {
+      console.warn('[Segurança] Submissão automatizada neutralizada via Honeypot.');
+      setSubmitted(true);
+      return;
+    }
+
+    // 2. BLINDAGEM ANTI-BOT 2: TIME-TO-SUBMIT (Detecção de Automação Instantânea)
+    const elapsedMs = Date.now() - formOpenTimeRef.current;
+    if (elapsedMs < 2000) {
+      console.warn('[Segurança] Preenchimento inumano (< 2s) neutralizado.');
+      setSubmitted(true);
+      return;
+    }
+
+    // 3. BLINDAGEM ANTI-BOT 3: RATE LIMITING LOCAL (Prevenção de Ataques de Flooding)
+    try {
+      const history = JSON.parse(sessionStorage.getItem('mourato_lead_rate_limit') || '[]');
+      const now = Date.now();
+      const recent = history.filter(ts => (now - ts) < 10 * 60 * 1000); // Janela de 10 minutos
+      if (recent.length >= 3) {
+        setErrors({ geral: 'Limite temporário de envios atingido para este dispositivo. Por favor, aguarde alguns minutos ou fale direto conosco no WhatsApp.' });
+        return;
+      }
+      recent.push(now);
+      sessionStorage.setItem('mourato_lead_rate_limit', JSON.stringify(recent));
+    } catch (_) {}
+
     const newErrors = {};
     if (!phoneValid(formData.telefone)) newErrors.telefone = 'WhatsApp inválido — informe DDD + número (mín. 10 dígitos).';
     if (!emailValid(formData.email)) newErrors.email = 'E-mail inválido.';
@@ -91,6 +125,9 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
     setLoading(true);
     setIsDuplicate(false);
 
+    // 4. BLINDAGEM 4: SANITIZAÇÃO DE ENTRADAS (Anti-XSS e Anti-Payload)
+    const sanitize = (val) => typeof val === 'string' ? val.replace(/[<>]/g, '').trim() : '';
+
     try {
       // Gera Protocolo Oficial Único
       const protocol = `MA-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -98,6 +135,9 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
 
       const leadPayload = {
         ...formData,
+        empresa: sanitize(formData.empresa),
+        nome: sanitize(formData.nome),
+        contexto: sanitize(formData.contexto),
         id: 'lead-' + Date.now(),
         protocolo: protocol,
         status: 'novo',
@@ -318,6 +358,26 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
                   onBlur={(e) => e.target.style.borderColor = 'var(--border-subtle)'}
                 />
               </div>
+
+              {/* ARMADILHA ANTI-BOT (HONEYPOT INVISÍVEL A HUMANOS) */}
+              <div style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', height: 0, width: 0, overflow: 'hidden' }} aria-hidden="true">
+                <label htmlFor="website_security_token_field">Favor não preencher:</label>
+                <input
+                  id="website_security_token_field"
+                  type="text"
+                  name="website_security_token_check"
+                  tabIndex="-1"
+                  autoComplete="off"
+                  value={botTrap}
+                  onChange={(e) => setBotTrap(e.target.value)}
+                />
+              </div>
+
+              {errors.geral && (
+                <div style={{ padding: '0.6rem 0.8rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #EF4444', borderRadius: '4px', color: '#FCA5A5', fontSize: '0.78rem', marginTop: '0.4rem' }}>
+                  {errors.geral}
+                </div>
+              )}
 
               {/* Submit */}
               <button

@@ -39,3 +39,11 @@ Este arquivo estabelece as regras mandatórias de operação, isolamento de cont
 - **Stack:** React 19 + Vite + Lucide React + Tailwind/CSS nativo.
 - **Identidade Visual:** Paleta escura premium (#0b0b0b, dourado ouro #d4af37, azul executivo #1e3a8a, cinza platina).
 - **Segurança:** Autenticação local para painéis restritos de birô e proteção de dados sensíveis (LGPD).
+
+---
+
+## 5. MODO DE OPERAÇÃO: AUTONOMIA MÁXIMA (AUTORIZAÇÃO PERMANENTE DE HESIUEL)
+
+- **Autorização Prévia e Ampla:** O assistente (Antigravity) tem autorização permanente de Hesiuel para agir de ponta a ponta sem pedir validações intermediárias ou permissão para passos operacionais óbvios.
+- **Ciclo Autônomo:** Planejar -> Implementar cirurgicamente nos arquivos -> Validar compilação (`npm run build`) -> Enviar para repositórios (`git push origin main` e `git push prod main`).
+- **Resolução de Bloqueios:** Resolver qualquer bloqueio técnico com proatividade e autonomia, sem transferir trabalho operacional para o usuário. Só pausar caso necessite de informação sigilosa externa não disponível no sistema.

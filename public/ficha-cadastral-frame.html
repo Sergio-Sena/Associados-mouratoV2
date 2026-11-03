@@ -829,6 +829,12 @@
 
     <form id="form-onboarding" novalidate autocomplete="off" autocorrect="off" autocapitalize="off" onsubmit="iniciarConfirmacaoFicha(event)">
 
+      <!-- ARMADILHA ANTI-BOT (HONEYPOT INVISÍVEL A HUMANOS) -->
+      <div style="position: absolute; opacity: 0; pointer-events: none; height: 0; width: 0; overflow: hidden;" aria-hidden="true">
+        <label for="cad-security-token-check">Favor não preencher:</label>
+        <input type="text" id="cad-security-token-check" name="security_audit_validation" tabindex="-1" autocomplete="off" />
+      </div>
+
       <!-- =========================================================================
            BLOCO 1: IDENTIFICAÇÃO PESSOAL DO TITULAR
            ========================================================================= -->
@@ -2144,10 +2150,25 @@
     /* =========================================================================
        INICIAÇÃO DO FLUXO DE CONFIRMAÇÃO (MODAL EXECUTIVO)
        ========================================================================= */
+    window.__fichaPageLoadTime = Date.now();
     let payloadParaTransmitir = null;
 
     function iniciarConfirmacaoFicha(e) {
       if (e && e.preventDefault) e.preventDefault();
+
+      // BLINDAGEM ANTI-BOT 1: HONEYPOT TRAP
+      const botHoneypot = document.getElementById('cad-security-token-check')?.value;
+      if (botHoneypot && botHoneypot.trim().length > 0) {
+        console.warn('[Segurança] Preenchimento automatizado neutralizado via Honeypot.');
+        return false;
+      }
+
+      // BLINDAGEM ANTI-BOT 2: TEMPO MÍNIMO HUMANO (4s)
+      const tempoDecorrido = (Date.now() - (window.__fichaPageLoadTime || Date.now())) / 1000;
+      if (tempoDecorrido < 4) {
+        console.warn('[Segurança] Submissão instantânea (< 4s) neutralizada.');
+        return false;
+      }
 
       const elVal = id => document.getElementById(id)?.value?.trim() || '';
 
