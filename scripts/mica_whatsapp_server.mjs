@@ -180,6 +180,8 @@ async function pollAwsLeadsQueue() {
         for (const lead of leads) {
           const leadId = lead.id;
           if (leadId && !notifiedIds.has(leadId) && lead.status !== 'aprovado') {
+            notifiedIds.add(leadId);
+            saveNotifiedCache();
             writeMicaLog(`🔔 [VIGIA AWS] Nova solicitação detectada: "${lead.empresa || lead.nome}" (${leadId})`);
             await dispatchAlertToWhatsApp(lead, 'VIGIA_AWS');
           }
@@ -464,34 +466,9 @@ async function connectToWhatsApp() {
       }
 
       // 2. MENSAGEM VINDA DE CLIENTE / TERCEIRO:
-      // REGRA DE OURO: A MICA NÃO RESPONDE AO CLIENTE COM MENUS OU MENSAGENS ALEATÓRIAS!
-      // Ela apenas avisa a DIRETORIA no 11914572275 para que a equipe humana acompanhe.
-      const alertaDiretoria = 
-`🚨 *[MICA — RECADO RECEBIDO DE CLIENTE]* 🚨
-
-👤 *Remetente:* ${pushName}
-📱 *WhatsApp:* +${senderDigits}
-💬 *Mensagem:* "${text || '[Mídia / Anexo]'}"
-⏰ *Horário:* ${new Date().toLocaleTimeString('pt-BR')}
-───────────────────────────────────
-👉 *Conversar diretamente com o Cliente:*
-https://wa.me/${senderDigits}
-───────────────────────────────────
-_A Mica manteve silêncio e repassou o recado para a equipe humana._`;
-
-      try {
-        let dirJid = `${DIRECTOR_PHONE}@s.whatsapp.net`;
-        try {
-          const checkDir = await sock.onWhatsApp(DIRECTOR_PHONE);
-          if (Array.isArray(checkDir) && checkDir[0]?.exists && checkDir[0]?.jid) {
-            dirJid = checkDir[0].jid;
-          }
-        } catch (_) {}
-        await sock.sendMessage(dirJid, { text: alertaDiretoria });
-        writeMicaLog(`🔔 [RECADO REPASSADO] Mensagem de +${senderDigits} entregue para a Diretoria!`);
-      } catch (errTarget) {
-        writeMicaLog(`⚠️ Falha ao repassar recado para Diretoria: ${errTarget.message}`);
-      }
+      // A Mica mantém silêncio absoluto. Ela NÃO envia mensagens para clientes nem repassa newsletters/notificações para a diretoria.
+      // Apenas registra no log local.
+      continue;
     }
   });
 }
