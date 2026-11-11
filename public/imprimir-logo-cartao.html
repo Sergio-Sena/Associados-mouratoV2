@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mourato & Associados — Impressão do Logo (Tamanho Cartão de Visita)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* ==========================================================================
+       CONFIGURAÇÕES GERAIS DE TELA
+       ========================================================================== */
+    :root {
+      --gold-primary: #C5A869;
+      --gold-light: #E2CF96;
+      --gold-dark: #996515;
+      --obsidian-bg: #0B0E14;
+      --card-w: 90mm;
+      --card-h: 50mm;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background-color: #1e2430;
+      color: #e2e8f0;
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* BARRA DE CONTROLE SUPERIOR (NÃO APARECE NA IMPRESSÃO) */
+    .toolbar {
+      background: #0b0f19;
+      border-bottom: 1px solid rgba(197, 168, 105, 0.3);
+      padding: 1rem 1.5rem;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .toolbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .toolbar-brand img {
+      width: 36px;
+      height: 36px;
+      object-fit: contain;
+    }
+
+    .toolbar-title {
+      font-family: 'Cinzel', serif;
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: #fff;
+      letter-spacing: 0.05em;
+    }
+
+    .toolbar-title span {
+      color: var(--gold-primary);
+    }
+
+    .toolbar-options {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: #151b28;
+      padding: 0.35rem 0.65rem;
+      border-radius: 6px;
+      border: 1px solid #2a3447;
+      font-size: 0.82rem;
+    }
+
+    .control-group label {
+      color: #94a3b8;
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    select, input {
+      background: #0b0f19;
+      color: #f8fafc;
+      border: 1px solid #3b4861;
+      padding: 0.35rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.82rem;
+      outline: none;
+      cursor: pointer;
+    }
+
+    select:focus {
+      border-color: var(--gold-primary);
+    }
+
+    .btn-print {
+      background: linear-gradient(135deg, #d4af37, #996515);
+      color: #0b0b0b;
+      font-weight: 800;
+      font-size: 0.88rem;
+      padding: 0.6rem 1.4rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+      transition: all 0.2s ease;
+      letter-spacing: 0.02em;
+    }
+
+    .btn-print:hover {
+      background: linear-gradient(135deg, #f5df98, #d4af37);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(212, 175, 55, 0.45);
+    }
+
+    .btn-print svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* ÁREA DE VISUALIZAÇÃO DA FOLHA */
+    .preview-stage {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 2.5rem 1rem;
+      overflow-y: auto;
+    }
+
+    /* FOLHA A4 SIMULADA EM TELA */
+    .a4-sheet {
+      width: 210mm;
+      min-height: 297mm;
+      background: #ffffff;
+      padding: 10mm 15mm;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    .sheet-header-guide {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px dashed #cbd5e1;
+      padding-bottom: 4mm;
+      margin-bottom: 6mm;
+      font-size: 9pt;
+      color: #64748b;
+    }
+
+    /* GRADE DE CARTÕES (2 COLUNAS X 5 LINHAS = 10 CARTÕES) */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(2, var(--card-w));
+      gap: 5mm 6mm;
+      justify-content: center;
+      align-content: start;
+    }
+
+    /* CARTÃO DE VISITA UNITÁRIO */
+    .business-card {
+      width: var(--card-w);
+      height: var(--card-h);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    /* GUIAS DE CORTE EXTERNAS (CROP MARKS) */
+    .with-crop-marks {
+      border: 0.5pt dashed #94a3b8;
+    }
+
+    /* ==========================================================================
+       ESTILOS VISUAIS DO CARTÃO (THEMES)
+       ========================================================================== */
+
+    /* 1. TEMA OBSIDIAN & GOLD (FUNDO ESCURO EXECUTIVO) */
+    .theme-obsidian {
+      background: radial-gradient(circle at 50% 20%, #151d2d 0%, #07090e 100%);
+      color: #ffffff;
+      border: 0.6pt solid rgba(197, 168, 105, 0.4);
+    }
+
+    .theme-obsidian .card-gold-accent {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2mm;
+      background: linear-gradient(90deg, #996515, #d4af37, #f5df98, #d4af37, #996515);
+    }
+
+    /* 2. TEMA WHITE CLEAN (ECONÔMICO PARA IMPRESSÃO EM PAPEL BRANCO) */
+    .theme-white {
+      background: #ffffff;
+      color: #0b0f19;
+      border: 0.6pt solid #cbd5e1;
+    }
+
+    .theme-white .card-gold-accent {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 1.5mm;
+      background: linear-gradient(90deg, #996515, #d4af37, #996515);
+    }
+
+    /* 3. TEMA DOURADO SUAVE (CREME/PREMIUM) */
+    .theme-ivory {
+      background: #fbf9f4;
+      color: #1a1e29;
+      border: 0.6pt solid #d5c8a8;
+    }
+
+    .theme-ivory .card-gold-accent {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 1.8mm;
+      background: linear-gradient(90deg, #996515, #c5a869, #996515);
+    }
+
+    /* ==========================================================================
+       LAYOUTS DE CONTEÚDO DENTRO DO CARTÃO
+       ========================================================================== */
+
+    /* LAYOUT A: LOGO CENTRALIZADO COM TEXTO */
+    .content-standard {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      width: 100%;
+      height: 100%;
+      padding: 3mm 4mm;
+    }
+
+    .content-standard .logo-crest {
+      width: 22mm;
+      height: 22mm;
+      object-fit: contain;
+      margin-bottom: 2mm;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    }
+
+    .content-standard .brand-title {
+      font-family: 'Cinzel', serif;
+      font-size: 11pt;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      line-height: 1.1;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .theme-obsidian .brand-title {
+      color: #ffffff;
+    }
+    .theme-white .brand-title, .theme-ivory .brand-title {
+      color: #0b0f19;
+    }
+
+    .brand-title .gold-amp {
+      color: #d4af37;
+      font-family: 'Plus Jakarta Sans', serif;
+    }
+
+    .content-standard .brand-sub {
+      font-size: 4.8pt;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      margin-top: 1.5mm;
+      color: #c5a869;
+    }
+
+    .theme-white .brand-sub {
+      color: #8c6e26;
+    }
+
+    .content-standard .brand-meta {
+      font-size: 4.2pt;
+      letter-spacing: 0.05em;
+      margin-top: 2mm;
+      opacity: 0.75;
+    }
+
+    /* LAYOUT B: APENAS O BRASÃO (SÍMBOLO PURO MAXIMIZADO) */
+    .content-crest-only {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      padding: 4mm;
+    }
+
+    .content-crest-only .logo-crest {
+      width: 36mm;
+      height: 36mm;
+      object-fit: contain;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.25));
+    }
+
+    /* LAYOUT C: HORIZONTAL EXECUTIVO */
+    .content-horizontal {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 4mm;
+      width: 100%;
+      height: 100%;
+      padding: 4mm 6mm;
+    }
+
+    .content-horizontal .logo-crest {
+      width: 25mm;
+      height: 25mm;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .content-horizontal .text-block {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      text-align: left;
+    }
+
+    .content-horizontal .brand-title {
+      font-family: 'Cinzel', serif;
+      font-size: 10pt;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      line-height: 1.15;
+    }
+
+    .content-horizontal .brand-sub {
+      font-size: 4.5pt;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      color: #c5a869;
+      margin-top: 1.5mm;
+      text-transform: uppercase;
+    }
+
+    .theme-white .content-horizontal .brand-sub {
+      color: #8c6e26;
+    }
+
+    .content-horizontal .brand-footer {
+      font-size: 4.2pt;
+      margin-top: 2.5mm;
+      line-height: 1.4;
+      opacity: 0.8;
+      border-top: 0.5pt solid rgba(197, 168, 105, 0.3);
+      padding-top: 1.5mm;
+    }
+
+    /* MODO CARTÃO ÚNICO */
+    .single-mode .cards-grid {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 220mm;
+    }
+
+    /* ==========================================================================
+       REGRAS EXCLUSIVAS DE IMPRESSÃO (@media print)
+       ========================================================================== */
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 10mm 15mm;
+      }
+
+      body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        padding: 0 !important;
+      }
+
+      .toolbar, .no-print {
+        display: none !important;
+      }
+
+      .preview-stage {
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: visible !important;
+      }
+
+      .a4-sheet {
+        box-shadow: none !important;
+        padding: 0 !important;
+        width: 100% !important;
+        min-height: auto !important;
+      }
+
+      .sheet-header-guide {
+        border-bottom-color: #cbd5e1 !important;
+        margin-bottom: 5mm !important;
+      }
+
+      /* Garantir fidelidade de cores, dourados e fundos na impressora */
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- BARRA DE CONTROLE INTERATIVA -->
+  <header class="toolbar no-print">
+    <div class="toolbar-brand">
+      <img src="./mourato-seal-circle.png" alt="Mourato & Associados" onerror="this.src='./logo.svg'">
+      <div class="toolbar-title">MOURATO <span>&</span> ASSOCIADOS — <span>IMPRESSÃO DE LOGO</span></div>
+    </div>
+
+    <div class="toolbar-options">
+      <!-- Dimensões do Cartão -->
+      <div class="control-group">
+        <label for="selectSize">Dimensão:</label>
+        <select id="selectSize" onchange="updateDimensions()">
+          <option value="90x50" selected>9,0 × 5,0 cm (Padrão Brasil)</option>
+          <option value="85x55">8,5 × 5,5 cm (Cartão de Crédito)</option>
+        </select>
+      </div>
+
+      <!-- Tema / Fundo -->
+      <div class="control-group">
+        <label for="selectTheme">Fundo:</label>
+        <select id="selectTheme" onchange="updateTheme()">
+          <option value="theme-obsidian" selected>Obsidian & Dourado (Escuro Nobre)</option>
+          <option value="theme-white">Branco Clean (Econômico / Jato de Tinta)</option>
+          <option value="theme-ivory">Marfim / Creme Clássico</option>
+        </select>
+      </div>
+
+      <!-- Modelo de Conteúdo -->
+      <div class="control-group">
+        <label for="selectLayout">Conteúdo:</label>
+        <select id="selectLayout" onchange="updateLayout()">
+          <option value="standard" selected>Logo Centralizado Completo</option>
+          <option value="horizontal">Horizontal Executivo c/ Endereço</option>
+          <option value="crest-only">Apenas o Brasão / Selo 3D</option>
+        </select>
+      </div>
+
+      <!-- Formato de Folha -->
+      <div class="control-group">
+        <label for="selectQuantity">Formato:</label>
+        <select id="selectQuantity" onchange="updateQuantity()">
+          <option value="grid10" selected>Grade A4 (10 cartões p/ folha)</option>
+          <option value="single">1 Cartão Centralizado</option>
+        </select>
+      </div>
+
+      <!-- Marcas de Corte -->
+      <div class="control-group">
+        <label for="checkCrops" style="cursor: pointer;">Guias de Corte:</label>
+        <input type="checkbox" id="checkCrops" checked onchange="updateCrops()">
+      </div>
+
+      <!-- Botão Imprimir -->
+      <button class="btn-print" onclick="window.print()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 6 2 18 2 18 9"></polyline>
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+          <rect x="6" y="14" width="12" height="8"></rect>
+        </svg>
+        IMPRIMIR / PDF
+      </button>
+    </div>
+  </header>
+
+  <!-- ÁREA DE PRÉ-VISUALIZAÇÃO DA FOLHA A4 -->
+  <main class="preview-stage">
+    <div class="a4-sheet" id="a4Sheet">
+      
+      <!-- Linha guia da folha para conferência -->
+      <div class="sheet-header-guide">
+        <span>Folha A4 — Escala 100% Real (Desative "Ajustar à página" na janela de impressão)</span>
+        <span id="guideSizeLabel">Tamanho Cartão: 90 mm × 50 mm (9,0 × 5,0 cm)</span>
+      </div>
+
+      <!-- GRADE DE CARTÕES -->
+      <div class="cards-grid" id="cardsGrid">
+        <!-- Renderizado dinamicamente via JavaScript -->
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    // Templates de Conteúdo do Cartão
+    function getCardHtml(layout) {
+      if (layout === 'crest-only') {
+        return `
+          <div class="content-crest-only">
+            <img src="./mourato-seal-circle.png" class="logo-crest" alt="Brasão Mourato & Associados" onerror="this.src='./mourato-logo-transp.png'">
+          </div>
+          <div class="card-gold-accent"></div>
+        `;
+      }
+
+      if (layout === 'horizontal') {
+        return `
+          <div class="content-horizontal">
+            <img src="./mourato-seal-circle.png" class="logo-crest" alt="Selo Oficial" onerror="this.src='./mourato-logo-transp.png'">
+            <div class="text-block">
+              <div class="brand-title">MOURATO <span class="gold-amp">&amp;</span> ASSOCIADOS</div>
+              <div class="brand-sub">QUALIDADE • CONFIANÇA • EXCELÊNCIA</div>
+              <div class="brand-footer">
+                <div>Av. São Luís, 187 — República, São Paulo/SP</div>
+                <div>www.mouratoassociados.com.br</div>
+              </div>
+            </div>
+          </div>
+          <div class="card-gold-accent"></div>
+        `;
+      }
+
+      // Padrão: Centralizado Completo
+      return `
+        <div class="content-standard">
+          <img src="./mourato-seal-circle.png" class="logo-crest" alt="Selo Oficial Mourato & Associados" onerror="this.src='./mourato-logo-transp.png'">
+          <div class="brand-title">MOURATO <span class="gold-amp">&amp;</span> ASSOCIADOS</div>
+          <div class="brand-sub">QUALIDADE • CONFIANÇA • EXCELÊNCIA</div>
+          <div class="brand-meta">SÃO PAULO — SP • BRASIL</div>
+        </div>
+        <div class="card-gold-accent"></div>
+      `;
+    }
+
+    function renderCards() {
+      const grid = document.getElementById('cardsGrid');
+      const quantity = document.getElementById('selectQuantity').value;
+      const theme = document.getElementById('selectTheme').value;
+      const layout = document.getElementById('selectLayout').value;
+      const hasCrops = document.getElementById('checkCrops').checked;
+      const sheet = document.getElementById('a4Sheet');
+
+      const count = (quantity === 'single') ? 1 : 10;
+      
+      if (quantity === 'single') {
+        sheet.classList.add('single-mode');
+      } else {
+        sheet.classList.remove('single-mode');
+      }
+
+      let html = '';
+      const cardInner = getCardHtml(layout);
+      const cropClass = hasCrops ? 'with-crop-marks' : '';
+
+      for (let i = 0; i < count; i++) {
+        html += `<div class="business-card ${theme} ${cropClass}">${cardInner}</div>`;
+      }
+
+      grid.innerHTML = html;
+    }
+
+    function updateDimensions() {
+      const val = document.getElementById('selectSize').value;
+      const root = document.documentElement;
+      const label = document.getElementById('guideSizeLabel');
+
+      if (val === '85x55') {
+        root.style.setProperty('--card-w', '85mm');
+        root.style.setProperty('--card-h', '55mm');
+        label.innerText = 'Tamanho Cartão: 85 mm × 55 mm (8,5 × 5,5 cm)';
+      } else {
+        root.style.setProperty('--card-w', '90mm');
+        root.style.setProperty('--card-h', '50mm');
+        label.innerText = 'Tamanho Cartão: 90 mm × 50 mm (9,0 × 5,0 cm)';
+      }
+    }
+
+    function updateTheme() {
+      renderCards();
+    }
+
+    function updateLayout() {
+      renderCards();
+    }
+
+    function updateQuantity() {
+      renderCards();
+    }
+
+    function updateCrops() {
+      renderCards();
+    }
+
+    // Inicialização
+    window.addEventListener('DOMContentLoaded', () => {
+      updateDimensions();
+      renderCards();
+    });
+  </script>
+</body>
+</html>
+
