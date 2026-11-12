@@ -21,7 +21,7 @@ async function main() {
   if (!fs.existsSync(path.join(pfDir, 'documentos_pdf'))) fs.mkdirSync(path.join(pfDir, 'documentos_pdf'), { recursive: true });
 
   const dataEmissao = '12/11/2026';
-  const horaEmissao = '14:15';
+  const horaEmissao = '14:30';
   const hashDoc = crypto.createHash('sha256').update('MOURATO_DOSSIE_MESTRE_JOSE_JAILSON_' + Date.now()).digest('hex').substring(0, 24).toUpperCase();
 
   const totalPages = 3;
@@ -89,20 +89,23 @@ async function main() {
       z-index: 0;
     }
     
-    .sheet-content { position: relative; z-index: 2; }
+    .sheet-content { 
+      position: relative; 
+      z-index: 2; 
+    }
     
     /* CABEÇALHO PADRÃO MOURATO */
     .doc-header-institutional {
       border-bottom: 2px solid #C5A869;
-      padding-bottom: 10px;
-      margin-bottom: 12px;
+      padding-bottom: 8px;
+      margin-bottom: 10px;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
     .brand-logo-crest {
-      width: 48px;
-      height: 48px;
+      width: 46px;
+      height: 46px;
       object-fit: contain;
       flex-shrink: 0;
     }
@@ -137,29 +140,29 @@ async function main() {
     .doc-title-block {
       background: #F8FAFC;
       border-left: 4px solid #C5A869;
-      padding: 8px 12px;
-      margin-bottom: 12px;
+      padding: 6px 12px;
+      margin-bottom: 10px;
     }
     .doc-title-main {
-      font-size: 10.5pt;
+      font-size: 10pt;
       font-weight: 800;
       color: #0F172A;
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
     .doc-title-sub {
-      font-size: 7.5pt;
+      font-size: 7.2pt;
       color: #64748B;
       margin-top: 2px;
     }
     
     .section-title {
-      font-size: 8.5pt;
+      font-size: 8.2pt;
       font-weight: 700;
       color: #876223;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      margin: 10px 0 6px 0;
+      margin: 8px 0 5px 0;
       border-bottom: 1px solid #E2E8F0;
       padding-bottom: 3px;
       display: flex;
@@ -170,12 +173,12 @@ async function main() {
     .data-table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 8px;
-      font-size: 7.6pt;
+      margin-bottom: 7px;
+      font-size: 7.4pt;
     }
     .data-table th, .data-table td {
       border: 1px solid #CBD5E1;
-      padding: 5px 7px;
+      padding: 4px 6px;
       text-align: left;
     }
     .data-table th {
@@ -183,34 +186,34 @@ async function main() {
       color: #0F172A;
       font-weight: 700;
       text-transform: uppercase;
-      font-size: 6.8pt;
+      font-size: 6.6pt;
       letter-spacing: 0.03em;
     }
     
     .kpi-row {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-      margin-bottom: 10px;
+      gap: 7px;
+      margin-bottom: 8px;
     }
     .kpi-card {
       background: #F8FAFC;
       border: 1px solid #E2E8F0;
       border-top: 3px solid #C5A869;
-      padding: 6px 8px;
+      padding: 5px 7px;
       border-radius: 4px;
       text-align: center;
     }
-    .kpi-label { font-size: 6.2pt; font-weight: 700; color: #64748B; text-transform: uppercase; }
-    .kpi-val { font-size: 11pt; font-weight: 800; color: #0F172A; margin: 1px 0; font-family: 'Cinzel', Georgia, serif; }
-    .kpi-sub { font-size: 6pt; color: #16A34A; font-weight: bold; }
+    .kpi-label { font-size: 6pt; font-weight: 700; color: #64748B; text-transform: uppercase; }
+    .kpi-val { font-size: 10.5pt; font-weight: 800; color: #0F172A; margin: 1px 0; font-family: 'Cinzel', Georgia, serif; }
+    .kpi-sub { font-size: 5.8pt; color: #16A34A; font-weight: bold; }
     
     .alert-box {
       border-radius: 4px;
-      padding: 8px 10px;
-      margin: 8px 0;
-      font-size: 7.5pt;
-      line-height: 1.4;
+      padding: 6px 9px;
+      margin: 6px 0;
+      font-size: 7.2pt;
+      line-height: 1.35;
     }
     .alert-success { background: #F0FDF4; border: 1px solid #86EFAC; border-left: 3px solid #16A34A; color: #166534; }
     .alert-info { background: #EFF6FF; border: 1px solid #BFDBFE; border-left: 3px solid #2563EB; color: #1E40AF; }
@@ -220,7 +223,7 @@ async function main() {
       display: inline-block;
       padding: 2px 5px;
       border-radius: 3px;
-      font-size: 6.5pt;
+      font-size: 6.2pt;
       font-weight: 700;
       text-transform: uppercase;
     }
@@ -228,6 +231,7 @@ async function main() {
     .badge-info { background: #DBEAFE; color: #1E40AF; }
     .badge-warning { background: #FEF3C7; color: #92400E; }
     
+    /* RODAPÉ ANCORADO PERFEITAMENTE NA FOLHA A4 */
     .footer-security {
       position: absolute;
       bottom: 8mm;
@@ -240,6 +244,7 @@ async function main() {
       font-size: 6.2pt;
       color: #94A3B8;
       line-height: 1.3;
+      z-index: 10;
     }
   </style>
 </head>
@@ -260,7 +265,7 @@ async function main() {
             <div class="brand-main-meta">CNPJ: 38.377.738/0001-45 • SÃO PAULO - SP • AV. SÃO LUÍS, 187</div>
           </div>
         </div>
-        <div style="text-align: right; font-size: 7.2pt; color: #64748B; line-height: 1.3;">
+        <div style="text-align: right; font-size: 7pt; color: #64748B; line-height: 1.3;">
           <div><b>TEIA DE ARANHA INTELLIGENCE</b></div>
           <div>Dossiê Master 100% Auditado</div>
           <div>Emissão: ${dataEmissao} às ${horaEmissao}</div>
@@ -390,20 +395,22 @@ async function main() {
       <div class="alert-box alert-success">
         <b>RELATÓRIO DE EMPRÉSTIMOS E FINANCIAMENTOS (CÓDIGO DE AUTENTICIDADE: <code>KPXA-XE7M-GN</code>):</b><br>
         Extrato oficial emitido pelo Banco Central em 10/09/2026 cobrindo <b>5 anos ininterruptos de série histórica (09/2021 a 07/2026)</b>:<br>
-        • <b>Dívidas em Dia:</b> R$ 259,43 (residual operacional de cartão Itaú).<br>
+        • <b>Dívidas em Dia:</b> R$ 259,43 (residual operacional de fatura de cartão Itaú).<br>
         • <b>Dívidas Vencidas / Inadimplência:</b> <b>R$ 0,00 (ZERO)</b> em toda a rede bancária nacional.<br>
         • <b>Prejuízo Baixado (Write-Off):</b> <b>R$ 0,00 (ZERO)</b>.<br>
         • <b>Limites de Crédito Disponíveis:</b> R$ 2.153,62 (Itaú Unibanco S.A.).
       </div>
 
-      <div class="footer-security">
-        <div>Mourato & Associados • Dossiê Pericial Confidencial • LGPD Art. 7º Inc. IX</div>
-        <div>Autenticidade: <code>${hashDoc}</code> • Página 1 de ${totalPages}</div>
-      </div>
+    </div> <!-- fecha sheet-content -->
+    
+    <!-- RODAPÉ FIXO NA FOLHA 1 -->
+    <div class="footer-security">
+      <div>Mourato & Associados • Dossiê Pericial Confidencial • LGPD Art. 7º Inc. IX</div>
+      <div>Autenticidade: <code>${hashDoc}</code> • Página 1 de ${totalPages}</div>
     </div>
   </div>
 
-  <!-- ==================== PÁGINA 2: CONTAS CCS, CARTÓRIOS, TRIBUNAIS E CNDS ==================== -->
+  <!-- ==================== PÁGINA 2: CONTAS CCS, DÍVIDA ATIVA (PGFN / PGE), CARTÓRIOS E TRIBUNAIS ==================== -->
   <div class="sheet">
     <div class="watermark-mourato"></div>
     <div class="sheet-content">
@@ -418,7 +425,7 @@ async function main() {
             <div class="brand-main-meta">CNPJ: 38.377.738/0001-45 • SÃO PAULO - SP • AV. SÃO LUÍS, 187</div>
           </div>
         </div>
-        <div style="text-align: right; font-size: 7.2pt; color: #64748B; line-height: 1.3;">
+        <div style="text-align: right; font-size: 7pt; color: #64748B; line-height: 1.3;">
           <div><b>TEIA DE ARANHA INTELLIGENCE</b></div>
           <div>Dossiê Master 100% Auditado</div>
           <div>Emissão: ${dataEmissao} às ${horaEmissao}</div>
@@ -464,24 +471,62 @@ async function main() {
         </tbody>
       </table>
 
-      <!-- 5. CARTÓRIOS DE PROTESTO (CENPROT / IEPTB) -->
-      <div class="section-title">5. Central Nacional de Protestos (CENPROT / IEPTB) & 6º Cartório de SP</div>
-      <div class="alert-box alert-success">
+      <!-- 5. REGULARIDADE FISCAL E DÍVIDA ATIVA (PROTOCOLO 75/25) -->
+      <div class="section-title">5. Dívida Ativa da União (PGFN) e Dívida Ativa Estadual (PGE-SP) — Protocolo 75/25</div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Esfera / Órgão Competente</th>
+            <th>Tipo de Certidão / Consulta</th>
+            <th>Resultado Pericial Auditado</th>
+            <th>Classificação 75/25</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>Dívida Ativa da União (PGFN / RFB)</b></td>
+            <td>Certidão Conjunta Negativa de Tributos Federais e Dívida Ativa</td>
+            <td><b>NADA CONSTA</b> — Inexistência de débitos inscritos ou execuções fiscais federais.</td>
+            <td><span class="badge badge-success">75% PÚBLICO E GRATUITO</span></td>
+          </tr>
+          <tr>
+            <td><b>Portal Dívida Aberta (PGFN)</b></td>
+            <td>Consulta de Inscrições em Dívida Ativa da Fazenda Nacional</td>
+            <td><b>NÃO INSCRITO</b> — Ausência de débitos tributários, previdenciários ou multas.</td>
+            <td><span class="badge badge-success">75% PÚBLICO E GRATUITO</span></td>
+          </tr>
+          <tr>
+            <td><b>Dívida Ativa do Estado (PGE-SP)</b></td>
+            <td>CRDA Estadual / Débitos Tributários Inscritos</td>
+            <td><b>APONTAMENTO RESIDUAL (IPVA MOTO)</b>: CDA nº 1.480.853.730 inscrita indevidamente pós-venda.</td>
+            <td><span class="badge badge-warning">75% PÚBLICO (CRDA)</span></td>
+          </tr>
+          <tr>
+            <td><b>Portal PRDI (PGE-SP) & REGULARIZE</b></td>
+            <td>Acesso autenticado para visualização de CDAs, guias e defesas</td>
+            <td>Petição de desvinculação e anulação com base na Súmula 585 do STJ arquivada no dossiê físico.</td>
+            <td><span class="badge badge-info">25% (CERTIFICADO A1 / GOV.BR)</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- 6. CARTÓRIOS DE PROTESTO (CENPROT / IEPTB) -->
+      <div class="section-title">6. Central Nacional de Protestos (CENPROT / IEPTB) & 6º Cartório de SP</div>
+      <div class="alert-box alert-success" style="padding: 4px 8px; margin: 4px 0;">
         <b>CERTIDÃO E AUDITORIA DE PROTESTOS DE TÍTULOS:</b><br>
-        • <b>Certidão Anexada:</b> 6º Tabelião de Protesto de Letras e Títulos de São Paulo/SP.<br>
-        • <b>Status:</b> Título liquidado e notificação de baixa formalizada perante a Serasa Experian (notificação assinada digitalmente arquivada no dossiê físico).<br>
-        • <b>Situação Nacional Atualizada:</b> <b>ZERO TÍTULOS PROTESTADOS ATIVOS</b> em nome de José Jailson Mourato da Silva.
+        • <b>Certidão Anexada:</b> 6º Tabelião de Protesto de Letras e Títulos de São Paulo/SP com quitação comprovada.<br>
+        • <b>Situação Nacional Atualizada:</b> <b>ZERO TÍTULOS PROTESTADOS ATIVOS</b> em nome de José Jailson Mourato da Silva (protestos residuais de IPVA objeto de cancelamento pela Súmula 585 do STJ).
       </div>
 
-      <!-- 6. JUSTIÇA E TRIBUNAIS (FORENSE) -->
-      <div class="section-title">6. Auditoria Forense e Certidões Judiciais (TJSP, TRF-3, TST, BNMP)</div>
+      <!-- 7. JUSTIÇA E TRIBUNAIS (FORENSE) & COMPLIANCE -->
+      <div class="section-title">7. Auditoria Forense, Judiciária e Compliance PLD/FT (TJSP, TRF-3, TST, TCU, CEIS)</div>
       <table class="data-table">
         <thead>
           <tr>
             <th>Tribunal / Órgão</th>
-            <th>Esfera Jurisdicional</th>
+            <th>Esfera Jurisdicional / Cadastro</th>
             <th>Resultado da Consulta Oficial</th>
-            <th>Classificação de Risco</th>
+            <th>Classificação</th>
           </tr>
         </thead>
         <tbody>
@@ -500,51 +545,30 @@ async function main() {
           <tr>
             <td><b>Tribunal Regional Federal (TRF-3)</b></td>
             <td>Justiça Federal da 3ª Região (SP/MS)</td>
-            <td><b>NADA CONSTA</b> (Inexistência de crimes federais ou execuções tributárias da União)</td>
+            <td><b>NADA CONSTA</b> (Inexistência de crimes federais ou execuções fiscais)</td>
             <td><span class="badge badge-success">RISCO ZERO</span></td>
           </tr>
           <tr>
             <td><b>Tribunal Superior do Trabalho (TST)</b></td>
             <td>CNDT (Banco Nacional de Devedores Trabalhistas)</td>
-            <td><b>NADA CONSTA</b> (Certidão Negativa Trabalhista regular)</td>
-            <td><span class="badge badge-success">100% REGULAR</span></td>
+            <td><b>NADA CONSTA</b> (Certidão Negativa Trabalhista 100% regular)</td>
+            <td><span class="badge badge-success">REGULAR</span></td>
           </tr>
           <tr>
-            <td><b>Conselho Nacional de Justiça (CNJ)</b></td>
-            <td>BNMP (Banco Nacional de Mandados de Prisão)</td>
-            <td><b>NADA CONSTA</b> (Zero mandados ou restrições de liberdade)</td>
-            <td><span class="badge badge-success">REGULAR</span></td>
+            <td><b>Compliance / PLD-FT (Transparência)</b></td>
+            <td>Listas Restritivas (CEIS, CNEP, CEPIM, TCU e PEP)</td>
+            <td><b>NADA CONSTA</b> em todas as listas restritivas e anticorrupção</td>
+            <td><span class="badge badge-success">CONFORME</span></td>
           </tr>
         </tbody>
       </table>
 
-      <!-- 7. COMPLIANCE E LISTAS RESTRITIVAS (PLD/FT) -->
-      <div class="section-title">7. Compliance, Prevenção à Lavagem de Dinheiro (PLD/FT) & Listas Restritivas</div>
-      <table class="data-table">
-        <tr>
-          <td style="width: 25%;"><b>Portal Transparência (CEIS):</b></td>
-          <td style="width: 25%;"><span class="badge badge-success">NADA CONSTA</span></td>
-          <td style="width: 25%;"><b>Portal Transparência (CNEP):</b></td>
-          <td style="width: 25%;"><span class="badge badge-success">NADA CONSTA</span></td>
-        </tr>
-        <tr>
-          <td><b>Portal Transparência (CEPIM):</b></td>
-          <td><span class="badge badge-success">NADA CONSTA</span></td>
-          <td><b>Pessoa Politicamente Exposta (PEP):</b></td>
-          <td><span class="badge badge-success">NÃO ENQUADRADO</span></td>
-        </tr>
-        <tr>
-          <td><b>Tribunal de Contas União (TCU):</b></td>
-          <td><span class="badge badge-success">FICHA LIMPA (Sem contas irregulares)</span></td>
-          <td><b>COAF / SISCOAF:</b></td>
-          <td><span class="badge badge-success">Ausência de sanções administrativas</span></td>
-        </tr>
-      </table>
+    </div> <!-- fecha sheet-content -->
 
-      <div class="footer-security">
-        <div>Mourato & Associados • Dossiê Pericial Confidencial • LGPD Art. 7º Inc. IX</div>
-        <div>Autenticidade: <code>${hashDoc}</code> • Página 2 de ${totalPages}</div>
-      </div>
+    <!-- RODAPÉ FIXO NA FOLHA 2 -->
+    <div class="footer-security">
+      <div>Mourato & Associados • Dossiê Pericial Confidencial • LGPD Art. 7º Inc. IX</div>
+      <div>Autenticidade: <code>${hashDoc}</code> • Página 2 de ${totalPages}</div>
     </div>
   </div>
 
@@ -563,7 +587,7 @@ async function main() {
             <div class="brand-main-meta">CNPJ: 38.377.738/0001-45 • SÃO PAULO - SP • AV. SÃO LUÍS, 187</div>
           </div>
         </div>
-        <div style="text-align: right; font-size: 7.2pt; color: #64748B; line-height: 1.3;">
+        <div style="text-align: right; font-size: 7pt; color: #64748B; line-height: 1.3;">
           <div><b>TEIA DE ARANHA INTELLIGENCE</b></div>
           <div>Dossiê Master 100% Auditado</div>
           <div>Emissão: ${dataEmissao} às ${horaEmissao}</div>
@@ -581,7 +605,8 @@ async function main() {
         </tr>
         <tr>
           <td><b>Veículo Auditado no Detran-SP:</b></td>
-          <td colspan="3">Fiat Uno Mille Fire Flex — Placa: <code>DUZ0988</code> (Protocolo Detran nº <code>SRV2683164</code> de desvinculação de IPVA/bloqueio protocolado e assinado digitalmente anexado ao dossiê).</td>
+          <td colspan="3"><b>Motocicleta YAMAHA/YBR 125K (Ano 2006/2007 - Preta)</b> • Placa: <code>DUZ-0988</code> • Renavam: <code>00909604606</code>.<br>
+          <i>Situação Pericial:</i> Alienada há 18 anos sem posse material. <b>Protocolo Detran-SP nº <code>SRV2683164</code></b> de Bloqueio por Falta de Transferência protocolado e assinado digitalmente com Certificado Digital e-CPF A1 (ICP-Brasil), fundamentado na <b>Portaria Detran nº 519/2013</b> e <b>Súmula 585 do STJ</b> para exclusão de débitos de IPVA/taxas e cancelamento de apontamentos cartorários.</td>
         </tr>
       </table>
 
@@ -638,25 +663,26 @@ async function main() {
             <td><code>317.769.598-92</code></td>
             <td>PIN: <code>123456</code> (Certificado A1)</td>
             <td><span class="badge badge-success">CONECTADO</span></td>
-            <td>Acesso para emissão de CRDA Estadual</td>
+            <td>Acesso para emissão e gestão de CRDA Estadual</td>
           </tr>
         </tbody>
       </table>
 
       <!-- 10. PARECER CONCLUSIVO E RATING PERICIAL -->
       <div class="section-title">10. Parecer Conclusivo da Assessoria & Classificação de Rating</div>
-      <div class="alert-box alert-success">
+      <div class="alert-box alert-success" style="padding: 6px 10px;">
         <b>PARECER TÉCNICO DE SOLVÊNCIA E ELEGIBILIDADE BANCÁRIA:</b><br>
         O titular <b>JOSÉ JAILSON MOURATO DA SILVA</b> apresenta um perfil cadastral de excelência, demonstrando:<br>
         1. <b>Adimplência Comprovada em Todos os Birôs:</b> Score Quod <b>711</b>, Boa Vista <b>800</b> e Serasa <b>654</b>, com quitação de contratos e zero inadimplência.<br>
         2. <b>Idoneidade no Banco Central:</b> Certidão SCR (Código <code>KPXA-XE7M-GN</code>) atesta dívidas pontuais de cartão de apenas R$ 259,00 e <b>R$ 0,00 em atraso</b> em 5 anos.<br>
-        3. <b>Reputação Forense Ilibada:</b> Zero apontamentos em Tribunais de Justiça (TJSP/TRF-3), zero protestos ativos no Cenprot e regularidade no TST.<br>
-        <b>Classificação Atribuída:</b> <span class="badge badge-success" style="font-size: 8pt;">RATING PESSOA FÍSICA: AAA (APTO PARA AVAL, FIANÇA E CRÉDITO ESTRUTURADO)</span>
+        3. <b>Reputação Forense Ilibada:</b> Zero apontamentos em Tribunais de Justiça (TJSP/TRF-3), zero processos cíveis ou criminais e regularidade no TST.<br>
+        4. <b>Regularidade Fiscal:</b> Dívida Ativa da União 100% regular (Nada Consta); débitos residuais de IPVA de veículo alienado amparados por petição oficial do Detran-SP e Súmula 585 do STJ.<br>
+        <b>Classificação Atribuída:</b> <span class="badge badge-success" style="font-size: 7.8pt;">RATING PESSOA FÍSICA: AAA (APTO PARA AVAL, FIANÇA E CRÉDITO ESTRUTURADO)</span>
       </div>
 
       <!-- ASSINATURA CORPORATIVA -->
-      <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: flex-end;">
-        <div style="font-size: 6.8pt; color: #64748B; line-height: 1.3;">
+      <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: flex-end;">
+        <div style="font-size: 6.6pt; color: #64748B; line-height: 1.3;">
           <b>MOURATO & ASSOCIADOS ASSESSORIA CORPORATIVA LTDA</b><br>
           Departamento de Inteligência Cadastral, Forense & Risco Financeiro<br>
           CNPJ: 38.377.738/0001-45 • Sede: Av. São Luís, 187, República, São Paulo/SP
@@ -667,10 +693,12 @@ async function main() {
         </div>
       </div>
 
-      <div class="footer-security">
-        <div>Mourato & Associados • Dossiê Pericial Confidencial • LGPD Art. 7º Inc. IX</div>
-        <div>Autenticidade: <code>${hashDoc}</code> • Página 3 de ${totalPages}</div>
-      </div>
+    </div> <!-- fecha sheet-content -->
+
+    <!-- RODAPÉ FIXO NA FOLHA 3 -->
+    <div class="footer-security">
+      <div>Mourato & Associados • Dossiê Pericial Confidencial • LGPD Art. 7º Inc. IX</div>
+      <div>Autenticidade: <code>${hashDoc}</code> • Página 3 de ${totalPages}</div>
     </div>
   </div>
 

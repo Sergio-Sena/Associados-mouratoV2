@@ -1,6 +1,6 @@
 /**
  * Base Oficial da Teia de Aranha - Mourato & Associados
- * Sincronizado automaticamente por scripts/sync_from_teia.mjs em 2026-11-12T14:56:00.539Z
+ * Sincronizado automaticamente por scripts/sync_from_teia.mjs em 2026-11-12T16:43:53.202Z
  * Origem Pericial: C:\Projetos\Empreas\data
  * Diretriz: ZERO DADOS INVENTADOS (Scores não periciados constam como "Pendente")
  */
