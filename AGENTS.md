@@ -10,7 +10,7 @@ Este arquivo estabelece as regras mandatórias de operação, isolamento de cont
 > **AVISO OBRIGATÓRIO DE REINICIALIZAÇÃO:**
 > Sempre que uma nova sessão for iniciada, a memória for compactada ou ocorrer qualquer reinício de contexto, o assistente **DEVE OBRIGATORIAMENTE EMITIR NA PRIMEIRA RESPOSTA AO USUÁRIO A SEGUINTE NOTIFICAÇÃO DE CONFIRMAÇÃO:**
 >
-> `🛡️ [MEMÓRIA PERMANENTE ATIVA]: Sessão inicializada. Diretrizes supremas carregadas e ativas ao pé da risca: (1) Lei do Zero Dados Inventados, (2) Respostas 100% Analíticas e Imparciais sem Favorecimento, (3) Cabeçalho Oficial Mourato com Marca d'Água 5.5% em 100% dos documentos, (4) Geração Obrigatória de PDF PF e PJ pós-análise nas respectivas pastas de Clientes.`
+> `🛡️ [MEMÓRIA PERMANENTE ATIVA]: Sessão inicializada. Diretrizes supremas carregadas e ativas ao pé da risca: (1) Lei do Zero Dados Inventados, (2) Respostas 100% Analíticas e Imparciais sem Favorecimento, (3) Cabeçalho Oficial Mourato com Marca d'Água 5.5% em 100% dos documentos, (4) Geração Obrigatória de PDF PF e PJ pós-análise nas respectivas pastas de Clientes, (5) Protocolo Linha de Comando 75/25 Automático na Emissão de Relatórios.`
 >
 > Este aviso garante que o assistente leu o disco, reconheceu o usuário e está operando sob as regras rígidas do ecossistema.
 
@@ -100,3 +100,22 @@ A raiz de `C:\Teia de arranha\` possui divisão estrita e padronizada:
 
 - **Autorização Prévia e Ampla:** O assistente (Antigravity) tem autorização permanente de Hesiuel para agir de ponta a ponta sem pedir validações intermediárias ou permissão para passos operacionais óbvios.
 - **Ciclo Autônomo:** Planejar -> Implementar cirurgicamente nos arquivos -> Validar compilação (`npm run build`) -> Enviar para repositórios (`git push origin main` e `git push prod main`).
+
+---
+
+## 9. PROTOCOLO OPERACIONAL DA LINHA DE COMANDO 75/25 (AUTONOMIA DE AUDITORIA)
+
+> [!IMPORTANT]
+> **LINHA DE COMANDO 75/25 DE EMISSÃO DE RELATÓRIOS:**
+> Sempre que o usuário solicitar gerar um relatório pericial, dossiê ou laudo de qualquer cliente (PF ou PJ), o assistente **DEVE OBRIGATORIAMENTE FORNECER E COMPILAR AUTOMATICAMENTE OS 75% DOS DADOS PÚBLICOS E IMEDIATOS**:
+> - Receita Federal (Cartão CNPJ / Situação Cadastral / QSA / CNAEs).
+> - CND Federal / PGFN (Tributos Federais e Dívida Ativa da União).
+> - CRF da Caixa Econômica Federal (Regularidade do FGTS).
+> - CNDT Trabalhista do TST.
+> - Sintegra / CCC (Inscrição Estadual e NF-e).
+> - Cenprot Nacional / IEPTB (Pesquisa de Títulos Protestados).
+> - Tribunais de Justiça e Federais (Processos Cíveis, Execuções, Falências e Criminais).
+> - Portal da Transparência (Listas Restritivas: CEIS, CNEP, CEPIM e PEP).
+>
+> **Os 25% restantes** (SCR Banco Central, CCS Contas, e-CAC e faturamento contábil detalhado) são integrados no dossiê conforme o usuário fornecer as pesquisas e arquivos baixados via Certificado A1 / Gov.br.
+
