@@ -6,39 +6,41 @@ Este arquivo estabelece as regras mandatórias de operação, isolamento de cont
 
 ## 1. REGRA DE ISOLAMENTO ESTRITO DE PROJETO (ANTI-CONTAMINAÇÃO)
 
-- **Escopo Exclusivo:** O ambiente ativo é restrito unicamente a `c:\Projetos\Mourato.associados`.
-- **Proibição de Mistura:** É terminantemente proibido misturar código, configurações, históricos de comandos ou lógicas de outros projetos (como `Troll_BDO`, `Melhoria`, `NasciEmOutroIdioma`, `AtacadoPY`, etc.).
-- **Abas do Editor:** Se houver abas abertas no editor apontando para outros projetos fora deste diretório, o agente deve **ignorá-las completamente** e focar unicamente nos arquivos deste repositório.
-- **Terminal e Comandos:** Qualquer comando (`npm`, `node`, `git`, `powershell`) DEVE obrigatoriamente ser executado com o diretório de trabalho (`Cwd`) apontando para `c:\Projetos\Mourato.associados`.
+- **Escopo Exclusivo:** O ambiente ativo é restrito unicamente a `c:\Teia de arranha\Mourato.associados`.
+- **Proibição de Mistura:** É terminantemente proibido misturar código, configurações ou lógicas de outros projetos fora do ecossistema.
+- **Terminal e Comandos:** Qualquer comando (`npm`, `node`, `git`, `powershell`) DEVE obrigatoriamente ser executado com o diretório de trabalho apontando para `c:\Teia de arranha\Mourato.associados`.
 
 ---
 
-## 2. INTEGRAÇÃO AUTORIZADA: SISTEMA TEIA DE ARANHA
+## 2. ARQUITETURA CANÔNICA DE PASTAS DO ECOSSISTEMA TEIA DE ARANHA
 
-- **Ponte de Dados:** A única fonte de dados externa permitida para este projeto é a base de inteligência do **Teia de Aranha**, localizada em:
-  `C:\Projetos\Empreas\data` (notadamente `fichas_cadastrais_db.json` e os relatórios dos birôs de crédito).
+A raiz de `C:\Teia de arranha\` possui divisão estrita e padronizada:
+- `Robo/`: Cérebro do robô (motores de automação, scripts, `LINKS_PARA_USO.md`, serviços).
+- `ClientesPJ/[EMPRESA]_[CNPJ]/`: Dossiês exclusivos PJ com dados, senhas, scores e documentos.
+- `ClientesPF/[CLIENTE]_[CPF]/`: Dossiês exclusivos PF com dados, senhas, scores e documentos.
+- `Outros_Arquivos_PDF/`: Laudos periciais gerais, modelos e petições avulsas.
+- `Mourato.associados/`: O portal web da plataforma.
+
+---
+
+## 3. REGRA DE OURO MANDATÓRIA: GERAÇÃO AUTOMÁTICA DE PDF (PF E PJ) PÓS-ANÁLISE
+
+> [!IMPORTANT]
+> **OBRIGAÇÃO PÓS-ANÁLISE:** Sempre, sem qualquer exceção, após terminar o cadastro ou uma análise pericial/de birôs de qualquer cliente, o assistente **DEVE OBRIGATORIAMENTE GERAR O ARQUIVO PDF DE ALTA DEFINIÇÃO TANTO DA FICHA PF QUANTO DA FICHA PJ** e salvá-los diretamente em suas respectivas pastas:
+> - `C:\Teia de arranha\ClientesPF\[NOME_CPF]\FICHA_CADASTRAL_E_SENHAS.pdf`
+> - `C:\Teia de arranha\ClientesPJ\[EMPRESA_CNPJ]\FICHA_CADASTRAL_E_SENHAS.pdf`
+>
+> O PDF deve ser disponibilizado com link direto e aberto para que o usuário possa **avaliar e validar imediatamente**.
+
+---
+
+## 4. INTEGRAÇÃO AUTORIZADA: SISTEMA TEIA DE ARANHA
+
+- **Ponte de Dados:** A base de inteligência externa está em `C:\Projetos\Empreas\data\fichas_cadastrais_db.json`.
 - **Mecanismo de Sincronização:** Todas as atualizações cadastrais e periciais devem ser canalizadas pelo script:
   `node scripts/sync_from_teia.mjs`
   alimentando o banco oficial do portal em `src/data/teiaDatabase.js`.
-- **Integridade Cadastral:** Preservar a consistência dos dados de Pessoas Físicas (PF) e Jurídicas (PJ), scores dos birôs (Serasa, Boa Vista, Quod, SCR Bacen) e petições periciais.
-
----
-
-## 3. PADRÃO OPERACIONAL: CÓDIGO + VISÃO REAL (ROBÔ)
-
-1. **Velocidade e Precisão (Código Direto):**
-   - Alterações de código, correções de lógica, cálculos financeiros e manipulação de estado devem ser feitas cirurgicamente nos arquivos e validadas via `npm run build` ou testes unitários.
-2. **Validação Visual (Interface):**
-   - Para checar telas, responsividade e layout (Ficha Cadastral, Modais, Birôs), o servidor local Vite (`npm run dev`) deve estar ativo na porta `5173`.
-   - Scripts de teste do Playwright (`scripts/test_*.mjs`) só devem ser disparados com o servidor ativo para evitar erros de conexão (`ERR_CONNECTION_REFUSED`).
-
----
-
-## 4. PADRÕES TÉCNICOS DO PROJETO
-
-- **Stack:** React 19 + Vite + Lucide React + Tailwind/CSS nativo.
-- **Identidade Visual:** Paleta escura premium (#0b0b0b, dourado ouro #d4af37, azul executivo #1e3a8a, cinza platina).
-- **Segurança:** Autenticação local para painéis restritos de birô e proteção de dados sensíveis (LGPD).
+- **Integridade Cadastral & Fidelidade Real:** NUNCA inventar dados financeiros, valores de balanço, scores ou números periciais. Se não houver comprovação documental, o campo deve permanecer estritamente em branco ou sinalizado como pendente.
 
 ---
 
@@ -46,4 +48,3 @@ Este arquivo estabelece as regras mandatórias de operação, isolamento de cont
 
 - **Autorização Prévia e Ampla:** O assistente (Antigravity) tem autorização permanente de Hesiuel para agir de ponta a ponta sem pedir validações intermediárias ou permissão para passos operacionais óbvios.
 - **Ciclo Autônomo:** Planejar -> Implementar cirurgicamente nos arquivos -> Validar compilação (`npm run build`) -> Enviar para repositórios (`git push origin main` e `git push prod main`).
-- **Resolução de Bloqueios:** Resolver qualquer bloqueio técnico com proatividade e autonomia, sem transferir trabalho operacional para o usuário. Só pausar caso necessite de informação sigilosa externa não disponível no sistema.
