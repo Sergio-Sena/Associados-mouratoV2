@@ -4,6 +4,18 @@ Este arquivo estabelece as regras mandatórias de operação, isolamento de cont
 
 ---
 
+## 0. PROTOCOLO OBRIGATÓRIO DE INICIALIZAÇÃO / RESET DE MEMÓRIA (ANTI-AMNÉSIA)
+
+> [!IMPORTANT]
+> **AVISO OBRIGATÓRIO DE REINICIALIZAÇÃO:**
+> Sempre que uma nova sessão for iniciada, a memória for compactada ou ocorrer qualquer reinício de contexto, o assistente **DEVE OBRIGATORIAMENTE EMITIR NA PRIMEIRA RESPOSTA AO USUÁRIO A SEGUINTE NOTIFICAÇÃO DE CONFIRMAÇÃO:**
+>
+> `🛡️ [MEMÓRIA PERMANENTE ATIVA]: Sessão inicializada. Diretrizes supremas carregadas e ativas ao pé da risca: (1) Lei do Zero Dados Inventados, (2) Cabeçalho Oficial Mourato com Marca d'Água 5.5% em 100% dos documentos, (3) Geração Obrigatória de PDF PF e PJ pós-análise nas respectivas pastas de Clientes.`
+>
+> Este aviso garante que o assistente leu o disco, reconheceu o usuário e está operando sob as regras rígidas do ecossistema.
+
+---
+
 ## 1. LEI FUNDAMENTAL INEGOCIÁVEL: ZERO DADOS INVENTADOS (REGRA DO ZERO)
 
 > [!CAUTION]
@@ -58,7 +70,7 @@ A raiz de `C:\Teia de arranha\` possui divisão estrita e padronizada:
 >    - Barra divisória dourada acompanhada dos metadados corporativos (CNPJ: `38.377.738/0001-45` • Sede: `Av. São Luís, 187, República, São Paulo/SP`).
 >
 > 2. **Marca d'Água Oficial Centralizada (Watermark):**
->    - O Brasão/Selo Oficial da Mourato posicionado no centro geométrico de cada página em marca d'água elegante com opacidade calibrada entre `4%` e `7%` (`opacity: 0.05`), de forma imponente, porém permitindo a leitura cristalina dos dados.
+>    - O Brasão/Selo Oficial da Mourato posicionado no centro geométrico de cada página em marca d'água elegante com opacidade calibrada entre `4%` e `7%` (`opacity: 0.055`), de forma imponente, porém permitindo a leitura cristalina dos dados.
 >
 > 3. **Rodapé de Segurança & Autenticidade:**
 >    - Informações de conformidade com a LGPD, data/hora de emissão e hash/código de autenticidade local.
