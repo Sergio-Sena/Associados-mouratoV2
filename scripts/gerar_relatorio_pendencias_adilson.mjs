@@ -34,19 +34,44 @@ async function main() {
   <meta charset="UTF-8">
   <title>Relatório Pericial de Compliance e Pendências — Lima Gás / Adilson de Andrade Lima</title>
   <style>
+    @page {
+      size: A4 portrait;
+      margin: 0;
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
-    body { background: #0F172A; color: #1E293B; padding: 2rem 1rem; display: flex; flex-direction: column; align-items: center; gap: 2rem; }
+    html, body { 
+      background: #FFFFFF !important; 
+      color: #1E293B; 
+      margin: 0; 
+      padding: 0; 
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    @media screen {
+      body {
+        background: #E2E8F0 !important;
+        padding: 20px 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+      }
+      .sheet {
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      }
+    }
     
     .sheet { 
       width: 210mm; 
-      min-height: 297mm; 
-      background: #FFFFFF; 
-      padding: 18mm 20mm; 
-      box-shadow: 0 10px 40px rgba(0,0,0,0.5); 
+      height: 297mm; 
+      max-height: 297mm; 
+      background: #FFFFFF !important; 
+      padding: 13mm 18mm 16mm 18mm; 
       position: relative; 
       overflow: hidden; 
       z-index: 1; 
       page-break-after: always;
+      page-break-inside: avoid;
     }
     
     /* MARCA D'ÁGUA OFICIAL MOURATO (OPACIDADE CALIBRADA 5.5%) */
@@ -203,9 +228,12 @@ async function main() {
     .badge-success { background: #DCFCE7; color: #166534; }
     
     .footer-security {
-      margin-top: 18px;
-      border-top: 1px solid #E2E8F0;
-      padding-top: 8px;
+      position: absolute;
+      bottom: 10mm;
+      left: 18mm;
+      right: 18mm;
+      border-top: 1px solid #CBD5E1;
+      padding-top: 6px;
       display: flex;
       justify-content: space-between;
       font-size: 6.5pt;
@@ -493,3 +521,4 @@ main().catch(err => {
   console.error('Erro na execução:', err);
   process.exit(1);
 });
+
