@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EVE — Estudo de Viabilidade Econômico-Financeira | Mourato & Associados</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --gold-primary: #B89047;
+      --gold-light: #DFCA8D;
+      --gold-dark: #876223;
+      --navy-deep: #0D1424;
+      --navy-light: #1A263E;
+      --text-main: #1E293B;
+      --text-muted: #64748B;
+      --border-color: #E2E8F0;
+      --bg-alt: #F8FAFC;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background-color: #0F172A;
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      padding: 2rem 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* BARRA DE IMPRESSÃO / AÇÕES NO TOPO */
+    .action-bar {
+      width: 210mm;
+      max-width: 100%;
+      background: #1E293B;
+      border: 1px solid rgba(184, 144, 71, 0.4);
+      padding: 0.85rem 1.25rem;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .action-bar span {
+      color: #F8FAFC;
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+
+    .action-bar span b {
+      color: var(--gold-light);
+    }
+
+    .btn-print {
+      background: linear-gradient(135deg, #D4AF37, #996515);
+      color: #0B0B0B;
+      font-weight: 800;
+      font-size: 0.85rem;
+      padding: 0.5rem 1.25rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      letter-spacing: 0.03em;
+      transition: all 0.2s;
+    }
+
+    .btn-print:hover {
+      background: linear-gradient(135deg, #F5DF98, #D4AF37);
+      transform: translateY(-1px);
+    }
+
+    /* PÁGINA A4 PADRONIZADA */
+    .document-page {
+      width: 210mm;
+      min-height: 297mm;
+      background: #FFFFFF;
+      padding: 18mm 20mm 20mm 20mm;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+      position: relative;
+      margin-bottom: 2rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* CABEÇALHO INSTITUCIONAL */
+    .doc-header {
+      border-bottom: 2px solid var(--gold-primary);
+      padding-bottom: 12px;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .doc-header-brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .doc-header-seal {
+      width: 52px;
+      height: 52px;
+      object-fit: contain;
+    }
+
+    .doc-header-title {
+      font-family: 'Cinzel', serif;
+      font-size: 15pt;
+      font-weight: 900;
+      color: var(--navy-deep);
+      letter-spacing: 0.04em;
+      line-height: 1.1;
+    }
+
+    .doc-header-title span {
+      color: var(--gold-primary);
+    }
+
+    .doc-header-subtitle {
+      font-size: 6.5pt;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--gold-dark);
+      margin-top: 3px;
+    }
+
+    .doc-header-meta {
+      text-align: right;
+      font-size: 7.5pt;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .doc-header-meta b {
+      color: var(--navy-deep);
+    }
+
+    /* TÍTULO PRINCIPAL DO LAUDO */
+    .report-banner {
+      background: linear-gradient(135deg, var(--navy-deep) 0%, #17243B 100%);
+      color: #FFFFFF;
+      padding: 14px 18px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      border-left: 5px solid var(--gold-primary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .report-banner h1 {
+      font-family: 'Cinzel', serif;
+      font-size: 13pt;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      line-height: 1.2;
+    }
+
+    .report-banner .badge-safra {
+      background: rgba(184, 144, 71, 0.2);
+      border: 1px solid var(--gold-primary);
+      color: var(--gold-light);
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 7.5pt;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    /* ESTRUTURA DE SEÇÕES */
+    .section-block {
+      margin-bottom: 18px;
+    }
+
+    .section-title {
+      font-family: 'Cinzel', serif;
+      font-size: 9.5pt;
+      font-weight: 800;
+      color: var(--navy-deep);
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 4px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .section-title::before {
+      content: "";
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      background: var(--gold-primary);
+      border-radius: 1px;
+    }
+
+    .section-text {
+      font-size: 8.5pt;
+      line-height: 1.55;
+      color: #334155;
+      text-align: justify;
+      margin-bottom: 8px;
+    }
+
+    /* TABELAS EXECUTIVAS */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8pt;
+      margin-top: 6px;
+      margin-bottom: 12px;
+    }
+
+    .data-table th {
+      background: #F1F5F9;
+      color: var(--navy-deep);
+      font-weight: 700;
+      text-align: left;
+      padding: 6px 10px;
+      border: 1px solid var(--border-color);
+      text-transform: uppercase;
+      font-size: 7pt;
+      letter-spacing: 0.04em;
+    }
+
+    .data-table td {
+      padding: 6px 10px;
+      border: 1px solid var(--border-color);
+      color: #1E293B;
+    }
+
+    .data-table tr:nth-child(even) td {
+      background: #F8FAFC;
+    }
+
+    .data-table .num {
+      text-align: right;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+    }
+
+    .data-table .highlight-row td {
+      background: #FEF9C3 !important;
+      font-weight: 800;
+      color: #713F12;
+    }
+
+    .data-table .total-row td {
+      background: #E2E8F0 !important;
+      font-weight: 800;
+      color: var(--navy-deep);
+      border-top: 2px solid var(--navy-deep);
+    }
+
+    /* GRID DE INDICADORES (KPIs) */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin: 12px 0 16px 0;
+    }
+
+    .kpi-card {
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-top: 3px solid var(--gold-primary);
+      border-radius: 4px;
+      padding: 8px 10px;
+      text-align: center;
+    }
+
+    .kpi-label {
+      font-size: 6.8pt;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      margin-bottom: 4px;
+    }
+
+    .kpi-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11pt;
+      font-weight: 800;
+      color: var(--navy-deep);
+    }
+
+    .kpi-sub {
+      font-size: 6.2pt;
+      color: #16A34A;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+
+    /* BLOCO DE PARECER / CONCLUSÃO TÉCNICA */
+    .opinion-box {
+      background: #F0FDF4;
+      border: 1px solid #BBF7D0;
+      border-left: 4px solid #16A34A;
+      padding: 12px 14px;
+      border-radius: 4px;
+      margin-top: 10px;
+      margin-bottom: 16px;
+    }
+
+    .opinion-title {
+      font-weight: 800;
+      color: #14532D;
+      font-size: 8.8pt;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .opinion-text {
+      font-size: 8pt;
+      line-height: 1.5;
+      color: #166534;
+    }
+
+    /* ASSINATURA FORMAL */
+    .signature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-top: 24px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .sig-block {
+      text-align: center;
+    }
+
+    .sig-line {
+      width: 75%;
+      height: 1px;
+      background: #64748B;
+      margin: 0 auto 6px auto;
+    }
+
+    .sig-name {
+      font-size: 8.5pt;
+      font-weight: 800;
+      color: var(--navy-deep);
+    }
+
+    .sig-role {
+      font-size: 7pt;
+      color: var(--text-muted);
+    }
+
+    /* RODAPÉ DA PÁGINA */
+    .doc-footer {
+      border-top: 1px solid var(--border-color);
+      padding-top: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 6.8pt;
+      color: var(--text-muted);
+    }
+
+    .doc-footer b {
+      color: var(--navy-deep);
+    }
+
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 10mm 15mm;
+      }
+
+      body {
+        background: #FFFFFF !important;
+        padding: 0 !important;
+      }
+
+      .action-bar {
+        display: none !important;
+      }
+
+      .document-page {
+        box-shadow: none !important;
+        margin-bottom: 0 !important;
+        padding: 12mm 15mm !important;
+        page-break-after: always;
+        break-after: page;
+        min-height: 275mm;
+      }
+
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- BARRA DE AÇÃO SUPERIOR (NÃO APARECE NA IMPRESSÃO) -->
+  <div class="action-bar">
+    <span><b>Mourato & Associados</b> — Laudo Oficial EVE para Comitê de Crédito (Safra PJ)</span>
+    <button class="btn-print" onclick="window.print()">
+      🖨️ IMPRIMIR / SALVAR PDF (Ctrl + P)
+    </button>
+  </div>
+
+  <!-- =========================================================================
+       PÁGINA 1: IDENTIFICAÇÃO, SUMÁRIO EXECUTIVO & DIAGNÓSTICO DE RISCO (SCR)
+       ========================================================================= -->
+  <div class="document-page">
+    <div>
+      <!-- Cabeçalho Institucional -->
+      <header class="doc-header">
+        <div class="doc-header-brand">
+          <img src="./mourato-seal-circle.png" class="doc-header-seal" alt="Mourato & Associados" onerror="this.src='./mourato-logo.png'">
+          <div>
+            <div class="doc-header-title">MOURATO <span>&</span> ASSOCIADOS</div>
+            <div class="doc-header-subtitle">Assessoria Corporativa & Estruturação Financeira</div>
+          </div>
+        </div>
+        <div class="doc-header-meta">
+          <div><b>Doc Ref:</b> EVE-SAFRA-2026/01</div>
+          <div><b>Data de Emissão:</b> 12 de Novembro de 2026</div>
+          <div><b>Finalidade:</b> Análise de Crédito PJ</div>
+        </div>
+      </header>
+
+      <!-- Banner de Título -->
+      <div class="report-banner">
+        <div>
+          <h1>ESTUDO DE VIABILIDADE ECONÔMICO-FINANCEIRA (EVE)</h1>
+          <div style="font-size: 7.5pt; color: #CBD5E1; margin-top: 3px;">
+            Dossiê Pericial de Capacidade de Pagamento, Fluxo de Caixa e Solvência Corporativa
+          </div>
+        </div>
+        <div class="badge-safra">Comitê de Crédito Safra</div>
+      </div>
+
+      <!-- 1. IDENTIFICAÇÃO DO TOMADOR -->
+      <section class="section-block">
+        <div class="section-title">1. Qualificação Societária e Cadastral do Tomador</div>
+        <table class="data-table">
+          <tr>
+            <td style="width: 25%;"><b>Razão Social:</b></td>
+            <td style="width: 45%;">MOURATO E ASSOCIADOS LTDA</td>
+            <td style="width: 15%;"><b>CNPJ:</b></td>
+            <td style="width: 15%; font-family: 'JetBrains Mono';">38.377.738/0001-45</td>
+          </tr>
+          <tr>
+            <td><b>Nome Fantasia:</b></td>
+            <td>MOURATO & ASSOCIADOS</td>
+            <td><b>NIRE:</b></td>
+            <td style="font-family: 'JetBrains Mono';">35270804594</td>
+          </tr>
+          <tr>
+            <td><b>Natureza Jurídica:</b></td>
+            <td>Sociedade Empresária Limitada Unipessoal</td>
+            <td><b>Regime Tributário:</b></td>
+            <td>Simples Nacional (ME)</td>
+          </tr>
+          <tr>
+            <td><b>Capital Social:</b></td>
+            <td colspan="3"><b>R$ 1.000.000,00</b> (Hum milhão de reais totalmente subscrito e integralizado)</td>
+          </tr>
+          <tr>
+            <td><b>Sede Administrativa:</b></td>
+            <td colspan="3">Avenida São Luís, 187, Sala 69 A — República, São Paulo/SP — CEP: 01046-000</td>
+          </tr>
+          <tr>
+            <td><b>Sócio-Administrador:</b></td>
+            <td colspan="3">José Jailson Mourato da Silva (CPF: 317.769.598-92 | RG: 3387860-1 SSP/PE)</td>
+          </tr>
+        </table>
+      </section>
+
+      <!-- 2. SUMÁRIO EXECUTIVO E OBJETO DO FINANCIAMENTO -->
+      <section class="section-block">
+        <div class="section-title">2. Sumário Executivo e Objeto da Operação</div>
+        <p class="section-text">
+          O presente <b>Estudo de Viabilidade Econômico-Financeira (EVE)</b> tem como objetivo instruir e subsidiar tecnicamente a análise do Comitê de Crédito do <b>Banco Safra</b> para a concessão de linha de <b>Capital de Giro Estruturado / Expansão Operacional</b>. A <b>Mourato & Associados Ltda</b> é uma boutique independente especializada em inteligência financeira, desintermediação de spread bancário e governança societária, atuando no mercado de capitais e assessoria empresarial.
+        </p>
+        <p class="section-text">
+          Os recursos captados destinam-se exclusivamente à expansão da infraestrutura tecnológica de análise pericial de dados (Teia de Aranha), fortalecimento de caixa para antecipação de honorários periciais de êxito e ampliação da equipe de consultores sêniores em São Paulo/SP.
+        </p>
+      </section>
+
+      <!-- 3. RATING DE CRÉDITO E SCR BACEN -->
+      <section class="section-block">
+        <div class="section-title">3. Indicadores de Risco, Birôs de Crédito e SCR BACEN</div>
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Rating Registrato BACEN</div>
+            <div class="kpi-value" style="color: #16A34A;">A1</div>
+            <div class="kpi-sub">Prime Rate / Máximo</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Endividamento Nocivo SCR</div>
+            <div class="kpi-value" style="color: #16A34A;">R$ 0,00</div>
+            <div class="kpi-sub">Zero Prejuízo Registrado</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Score Boa Vista (PF/PJ)</div>
+            <div class="kpi-value">800</div>
+            <div class="kpi-sub">Faixa A (Excelente)</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Score Quod Consumidor</div>
+            <div class="kpi-value">711</div>
+            <div class="kpi-sub">Risco Muito Baixo</div>
+          </div>
+        </div>
+        <p class="section-text" style="font-size: 8pt;">
+          <b>Conformidade Regulatória e Fiscal:</b> A empresa mantém Certidão Negativa de Débitos Federais (CND) plenamente regular, inexistência de protestos impeditivos e histórico de 22 anos de relacionamento bancário ilibado por parte de seu corpo societário gestor.
+        </p>
+      </section>
+    </div>
+
+    <!-- Rodapé Página 1 -->
+    <footer class="doc-footer">
+      <div><b>Mourato & Associados Ltda</b> — CNPJ: 38.377.738/0001-45</div>
+      <div>Av. São Luís, 187, República, São Paulo/SP</div>
+      <div>Página 1 de 2</div>
+    </footer>
+  </div>
+
+  <!-- =========================================================================
+       PÁGINA 2: DEMONSTRATIVO FINANCEIRO, PROJEÇÃO DE CAIXA, ICSD & PARECER
+       ========================================================================= -->
+  <div class="document-page">
+    <div>
+      <!-- Cabeçalho Institucional Página 2 -->
+      <header class="doc-header">
+        <div class="doc-header-brand">
+          <img src="./mourato-seal-circle.png" class="doc-header-seal" alt="Mourato & Associados" onerror="this.src='./mourato-logo.png'">
+          <div>
+            <div class="doc-header-title">MOURATO <span>&</span> ASSOCIADOS</div>
+            <div class="doc-header-subtitle">Assessoria Corporativa & Estruturação Financeira</div>
+          </div>
+        </div>
+        <div class="doc-header-meta">
+          <div><b>Doc Ref:</b> EVE-SAFRA-2026/01</div>
+          <div><b>Demonstrativo Financeiro & Projeção</b></div>
+        </div>
+      </header>
+
+      <!-- 4. DRE HISTÓRICA E PROJETADA -->
+      <section class="section-block">
+        <div class="section-title">4. Demonstração de Resultado do Exercício (DRE Sintética & Projeções)</div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Rubrica Contábil / Financeira</th>
+              <th class="num">Exercício Atual (Base)</th>
+              <th class="num">Ano +1 (Projetado)</th>
+              <th class="num">Ano +2 (Projetado)</th>
+              <th class="num">Ano +3 (Projetado)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><b>Receita Operacional Bruta (Faturamento)</b></td>
+              <td class="num">R$ 1.753.240,36</td>
+              <td class="num">R$ 2.103.888,43</td>
+              <td class="num">R$ 2.482.588,35</td>
+              <td class="num">R$ 2.855.000,00</td>
+            </tr>
+            <tr>
+              <td>(-) Deduções da Receita & Impostos (Simples Nacional)</td>
+              <td class="num">-R$ 157.791,63</td>
+              <td class="num">-R$ 189.349,96</td>
+              <td class="num">-R$ 223.432,95</td>
+              <td class="num">-R$ 256.950,00</td>
+            </tr>
+            <tr style="background: #F1F5F9; font-weight: 700;">
+              <td><b>(=) Receita Operacional Líquida</b></td>
+              <td class="num">R$ 1.595.448,73</td>
+              <td class="num">R$ 1.914.538,47</td>
+              <td class="num">R$ 2.259.155,40</td>
+              <td class="num">R$ 2.598.050,00</td>
+            </tr>
+            <tr>
+              <td>(-) Custos dos Serviços Prestados (Consultores e Perícias)</td>
+              <td class="num">-R$ 490.907,30</td>
+              <td class="num">-R$ 568.049,87</td>
+              <td class="num">-R$ 670.300,00</td>
+              <td class="num">-R$ 770.800,00</td>
+            </tr>
+            <tr>
+              <td>(-) Despesas Administrativas, Estrutura & Infraestrutura TI</td>
+              <td class="num">-R$ 368.180,48</td>
+              <td class="num">-R$ 412.350,00</td>
+              <td class="num">-R$ 460.800,00</td>
+              <td class="num">-R$ 510.000,00</td>
+            </tr>
+            <tr class="highlight-row">
+              <td><b>(=) LAJIDA / EBITDA Operacional</b></td>
+              <td class="num">R$ 736.360,95</td>
+              <td class="num">R$ 934.138,60</td>
+              <td class="num">R$ 1.128.055,40</td>
+              <td class="num">R$ 1.317.250,00</td>
+            </tr>
+            <tr>
+              <td><b>Margem EBITDA (%)</b></td>
+              <td class="num"><b>42,00%</b></td>
+              <td class="num"><b>44,40%</b></td>
+              <td class="num"><b>45,44%</b></td>
+              <td class="num"><b>46,14%</b></td>
+            </tr>
+            <tr class="total-row">
+              <td><b>(=) Fluxo de Caixa Livre da Firma (FCFF)</b></td>
+              <td class="num">R$ 648.200,00</td>
+              <td class="num">R$ 812.500,00</td>
+              <td class="num">R$ 980.200,00</td>
+              <td class="num">R$ 1.140.000,00</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- 5. ÍNDICE DE COBERTURA DO SERVIÇO DA DÍVIDA (ICSD / DSCR) -->
+      <section class="section-block">
+        <div class="section-title">5. Capacidade de Pagamento e Cobertura da Dívida (ICSD / DSCR)</div>
+        <p class="section-text">
+          Para mensurar a solvência frente à operação pretendida com o Banco Safra, foi simulado o serviço da dívida em cenários de captação de <b>R$ 200.000,00</b> a <b>R$ 400.000,00</b> amortizados em 36 parcelas mensais:
+        </p>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Cenário de Operação</th>
+              <th class="num">Valor Financiado</th>
+              <th class="num">Serviço da Dívida Anual</th>
+              <th class="num">EBITDA Anual Médio</th>
+              <th class="num">ICSD (DSCR)</th>
+              <th style="text-align: center;">Status Solvência</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><b>Cenário Base (R$ 200k / 36m)</b></td>
+              <td class="num">R$ 200.000,00</td>
+              <td class="num">R$ 84.600,00</td>
+              <td class="num">R$ 736.360,95</td>
+              <td class="num" style="color: #16A34A; font-weight: 800;">8,70x</td>
+              <td style="text-align: center; color: #16A34A; font-weight: 700;">Excelente (Folga Ampla)</td>
+            </tr>
+            <tr>
+              <td><b>Cenário Intermediário (R$ 300k / 36m)</b></td>
+              <td class="num">R$ 300.000,00</td>
+              <td class="num">R$ 126.900,00</td>
+              <td class="num">R$ 736.360,95</td>
+              <td class="num" style="color: #16A34A; font-weight: 800;">5,80x</td>
+              <td style="text-align: center; color: #16A34A; font-weight: 700;">Excelente (Folga Ampla)</td>
+            </tr>
+            <tr class="highlight-row">
+              <td><b>Cenário Expansão (R$ 400k / 36m)</b></td>
+              <td class="num">R$ 400.000,00</td>
+              <td class="num">R$ 169.200,00</td>
+              <td class="num">R$ 736.360,95</td>
+              <td class="num" style="color: #16A34A; font-weight: 800;">4,35x</td>
+              <td style="text-align: center; color: #16A34A; font-weight: 700;">Excelente (Acima de 2.0x)</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="section-text" style="font-size: 7.5pt; color: #64748B;">
+          * Nota Técnica: Comitês de crédito bancário consideram solventes operações com ICSD a partir de 1,30x. O tomador apresenta cobertura mínima de <b>4,35x a 8,70x</b>, evidenciando risco de inadimplência residual praticamente nulo.
+        </p>
+      </section>
+
+      <!-- 6. PARECER CONCLUSIVO -->
+      <section class="section-block">
+        <div class="opinion-box">
+          <div class="opinion-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+            PARECER TÉCNICO CONCLUSIVO DE VIABILIDADE
+          </div>
+          <div class="opinion-text">
+            Com esteio na análise de fluxo de caixa operacional, histórico ilibado perante o Sistema de Informações de Crédito (SCR) do Banco Central, patrimônio líquido robusto com capital social integralizado de R$ 1.000.000,00 e margem EBITDA superior a 40%, conclui-se pela <b>TOTAL VIABILIDADE ECONÔMICO-FINANCEIRA</b> para concessão e liquidação regular dos limites de crédito pretendidos junto ao Banco Safra.
+          </div>
+        </div>
+      </section>
+
+      <!-- ASSINATURAS INSTITUCIONAIS -->
+      <div class="signature-grid">
+        <div class="sig-block">
+          <div class="sig-line"></div>
+          <div class="sig-name">MOURATO E ASSOCIADOS LTDA</div>
+          <div class="sig-role">CNPJ: 38.377.738/0001-45 — Tomador</div>
+        </div>
+        <div class="sig-block">
+          <div class="sig-line"></div>
+          <div class="sig-name">JOSÉ JAILSON MOURATO DA SILVA</div>
+          <div class="sig-role">Sócio-Administrador | CPF: 317.769.598-92</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rodapé Página 2 -->
+    <footer class="doc-footer">
+      <div><b>Mourato & Associados Ltda</b> — Dossiê EVE Oficial Safra PJ</div>
+      <div>Autenticidade ICP-Brasil / SEI-SP</div>
+      <div>Página 2 de 2</div>
+    </footer>
+  </div>
+
+</body>
+</html>

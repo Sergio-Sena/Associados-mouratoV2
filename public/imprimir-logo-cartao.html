@@ -636,10 +636,21 @@
       renderCards();
     }
 
-    // Inicialização
+    // Inicialização com suporte a Query Params
     window.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has('size')) document.getElementById('selectSize').value = urlParams.get('size');
+      if (urlParams.has('theme')) document.getElementById('selectTheme').value = urlParams.get('theme');
+      if (urlParams.has('layout')) document.getElementById('selectLayout').value = urlParams.get('layout');
+      if (urlParams.has('qty')) document.getElementById('selectQuantity').value = urlParams.get('qty');
+      if (urlParams.has('crops')) document.getElementById('checkCrops').checked = urlParams.get('crops') === '1';
+
       updateDimensions();
       renderCards();
+
+      if (urlParams.has('autoprint')) {
+        setTimeout(() => window.print(), 800);
+      }
     });
   </script>
 </body>
