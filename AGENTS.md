@@ -34,7 +34,27 @@ A raiz de `C:\Teia de arranha\` possui divisão estrita e padronizada:
 
 ---
 
-## 4. INTEGRAÇÃO AUTORIZADA: SISTEMA TEIA DE ARANHA
+## 4. REGRA SUPREMA DE IDENTIDADE VISUAL: CABEÇALHO PADRÃO MOURATO & MARCA D'ÁGUA EM TODOS OS DOCUMENTOS
+
+> [!CAUTION]
+> **PADRÃO GRÁFICO OBRIGATÓRIO EM 100% DOS DOCUMENTOS:**
+> **TODO E QUALQUER DOCUMENTO**, relatório pericial, ficha cadastral, laudo EVE, dossiê, notificação, minuta ou petição gerada no ecossistema Mourato & Associados / Teia de Aranha **DEVE OBRIGATORIAMENTE SER SALVO COM:**
+>
+> 1. **Cabeçalho Institucional Modelo Padrão Mourato & Associados:**
+>    - Brasão Oficial em Alta Definição (`mourato-seal-circle.png`).
+>    - Tipografia Oficial: `MOURATO & ASSOCIADOS` em estilo serifado nobre (Cinzel / Georgia), com o caractere `&` em Dourado Primário (`#C5A869`).
+>    - Subtítulo Institucional: `ASSESSORIA CORPORATIVA & ESTRUTURAÇÃO FINANCEIRA` ou `QUALIDADE • CONFIANÇA • EXCELÊNCIA` em caixa alta e espaçamento ampliado.
+>    - Barra divisória dourada acompanhada dos metadados corporativos (CNPJ: `38.377.738/0001-45` • Sede: `Av. São Luís, 187, República, São Paulo/SP`).
+>
+> 2. **Marca d'Água Oficial Centralizada (Watermark):**
+>    - O Brasão/Selo Oficial da Mourato posicionado no centro geométrico de cada página em marca d'água elegante com opacidade calibrada entre `4%` e `7%` (`opacity: 0.05`), de forma imponente, porém permitindo a leitura cristalina dos dados.
+>
+> 3. **Rodapé de Segurança & Autenticidade:**
+>    - Informações de conformidade com a LGPD, data/hora de emissão e hash/código de autenticidade local.
+
+---
+
+## 5. INTEGRAÇÃO AUTORIZADA: SISTEMA TEIA DE ARANHA
 
 - **Ponte de Dados:** A base de inteligência externa está em `C:\Projetos\Empreas\data\fichas_cadastrais_db.json`.
 - **Mecanismo de Sincronização:** Todas as atualizações cadastrais e periciais devem ser canalizadas pelo script:
@@ -44,7 +64,7 @@ A raiz de `C:\Teia de arranha\` possui divisão estrita e padronizada:
 
 ---
 
-## 5. MODO DE OPERAÇÃO: AUTONOMIA MÁXIMA (AUTORIZAÇÃO PERMANENTE DE HESIUEL)
+## 6. MODO DE OPERAÇÃO: AUTONOMIA MÁXIMA (AUTORIZAÇÃO PERMANENTE DE HESIUEL)
 
 - **Autorização Prévia e Ampla:** O assistente (Antigravity) tem autorização permanente de Hesiuel para agir de ponta a ponta sem pedir validações intermediárias ou permissão para passos operacionais óbvios.
 - **Ciclo Autônomo:** Planejar -> Implementar cirurgicamente nos arquivos -> Validar compilação (`npm run build`) -> Enviar para repositórios (`git push origin main` e `git push prod main`).
