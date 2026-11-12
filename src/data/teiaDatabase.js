@@ -1,6 +1,6 @@
 /**
  * Base Oficial da Teia de Aranha - Mourato & Associados
- * Sincronizado automaticamente por scripts/sync_from_teia.mjs em 2026-11-12T14:31:34.864Z
+ * Sincronizado automaticamente por scripts/sync_from_teia.mjs em 2026-11-12T14:56:00.539Z
  * Origem Pericial: C:\Projetos\Empreas\data
  * Diretriz: ZERO DADOS INVENTADOS (Scores não periciados constam como "Pendente")
  */
@@ -715,7 +715,7 @@ export const TEIA_INITIAL_CLIENTS = [
     "responsavel": "ADILSON DE ANDRADE LIMA (Sócio-Titular)",
     "contato": "(33) 3261-3399",
     "email": "dadaltofabricio2@gmail.com",
-    "endereco": "Rua São Paulo, 3020, Edifício Monte Aga, Ap 102 - Itapuã - Vila Velha - ES",
+    "endereco": "R SAO PAULO, 3020, EDIFICIO MONTE AGA, AP 102 - ITAPUA - VILA VELHA/ES",
     "cep": "29101-512",
     "protocolo": "",
     "balanco": {
@@ -756,13 +756,13 @@ export const TEIA_INITIAL_CLIENTS = [
     "nomeRazao": "ADILSON DE ANDRADE LIMA",
     "documento": "128.294.778-80",
     "documentoTipo": "CPF",
-    "profissao": "Empresário Individual (Comércio de Gás GLP)",
+    "profissao": "EMPRESARIO",
     "empresaVinculada": "ADILSON DE ANDRADE LIMA (CNPJ 15.204.314/0001-83)",
     "responsavel": "Titular",
     "contato": "(33) 3261-3399",
     "email": "dadaltofabricio2@gmail.com",
     "protocolo": "",
-    "endereco": "Rua São Paulo, 3020, Edifício Monte Aga, Ap 102 - Itapuã - Vila Velha - ES",
+    "endereco": "R SAO PAULO, 3020, EDIFICIO MONTE AGA, AP 102 - ITAPUA - VILA VELHA/ES",
     "cep": "29101-512",
     "rendaPatrimonio": {
       "proLabore": "Aguardando DRE/Balanço",
@@ -790,7 +790,7 @@ export const TEIA_INITIAL_CLIENTS = [
     "govNivel": "Pendente",
     "govProtocolo": "Validação Gov.br em andamento",
     "limiteAprovado": "Sob auditoria de capacidade de pagamento",
-    "observacoesSigilosas": "Empresa Lima Gás fundada em 15/03/2012 (14 anos de mercado). Zero protestos, zero pendências financeiras, zero devoluções de cheque BACEN. Relatório executivo de 29/10/2026.",
+    "observacoesSigilosas": "Dados auditados 100% fiéis aos relatórios oficiais nº 891651 e 891658 de 29/10/2026. Zero pendências, zero protestos, zero cheques sem fundos.",
     "dataCadastro": "2026,-11-12"
   }
 ];
