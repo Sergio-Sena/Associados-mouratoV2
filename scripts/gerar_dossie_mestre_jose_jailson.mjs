@@ -610,14 +610,17 @@ async function main() {
         </tr>
       </table>
 
-      <!-- 9. COFRE DE CREDENCIAIS E PORTAIS CONECTADOS -->
-      <div class="section-title">9. Cofre de Credenciais e Acessos Oficiais (Auditados em 12/11/2026)</div>
+      <!-- 9. GOVERNANÇA DE CREDENCIAIS E PORTAIS CONECTADOS (PROTEGIDO) -->
+      <div class="section-title">9. Governança de Credenciais & Conectividade dos Birôs (Custódia Segregada)</div>
+      <div class="alert-box alert-info" style="padding: 4px 8px; margin: 4px 0; font-size: 6.8pt;">
+        🔒 <b>POLÍTICA DE SIGILO E LGPD (ART. 7º, IX):</b> Por diretriz de compliance e governança bancária, as senhas e PINs de acesso aos birôs foram segregadas no documento confidencial criptografado <b><code>COFRE_DE_SENHAS.pdf</code></b> (abertura com senha restrita: <b><code>1307</code></b>), preservando este dossiê para circulação institucional e comitês de crédito sem exposição de dados sensíveis.
+      </div>
       <table class="data-table">
         <thead>
           <tr>
             <th>Portal / Instituição</th>
             <th>Usuário / Chave de Acesso</th>
-            <th>Senha / PIN de Segurança</th>
+            <th>Custódia de Segurança</th>
             <th>Status da Conexão</th>
             <th>Observações Técnicas</th>
           </tr>
@@ -626,42 +629,42 @@ async function main() {
           <tr>
             <td><b>Serasa Experian Consumidor</b></td>
             <td><code>317.769.598-92</code></td>
-            <td><code>Jota1307</code></td>
+            <td><span class="badge badge-warning">PROTEGIDO EM COFRE (1307)</span></td>
             <td><span class="badge badge-success">CONECTADO</span></td>
             <td>Score 654 • Histórico limpo</td>
           </tr>
           <tr>
             <td><b>Boa Vista Consumidor Positivo</b></td>
             <td><code>317.769.598-92</code></td>
-            <td><code>290618</code></td>
+            <td><span class="badge badge-warning">PROTEGIDO EM COFRE (1307)</span></td>
             <td><span class="badge badge-success">CONECTADO</span></td>
             <td>Score 800 • Cadastro Positivo ativo</td>
           </tr>
           <tr>
             <td><b>Quod Gestora de Inteligência</b></td>
             <td><code>31776959892</code></td>
-            <td><code>aJfbAtwX7</code></td>
+            <td><span class="badge badge-warning">PROTEGIDO EM COFRE (1307)</span></td>
             <td><span class="badge badge-success">CONECTADO</span></td>
             <td>Score 711 homologado em extrato oficial</td>
           </tr>
           <tr>
             <td><b>Bacen Registrato (SCR / CCS)</b></td>
             <td><code>317.769.598-92</code></td>
-            <td>PIN: <code>123456</code> (Certificado A1)</td>
+            <td><span class="badge badge-info">AUTENTICAÇÃO GOV.BR / A1</span></td>
             <td><span class="badge badge-success">CONECTADO</span></td>
             <td>Autenticação Gov.br Nível Ouro / e-CPF A1</td>
           </tr>
           <tr>
             <td><b>Detran-SP Portal de Serviços</b></td>
             <td><code>317.769.598-92</code></td>
-            <td>PIN: <code>123456</code> (Certificado A1)</td>
+            <td><span class="badge badge-info">AUTENTICAÇÃO E-CPF A1</span></td>
             <td><span class="badge badge-success">CONECTADO</span></td>
             <td>Acesso autenticado via Certificado A1</td>
           </tr>
           <tr>
             <td><b>PGE-SP Dívida Ativa (PRDI)</b></td>
             <td><code>317.769.598-92</code></td>
-            <td>PIN: <code>123456</code> (Certificado A1)</td>
+            <td><span class="badge badge-info">AUTENTICAÇÃO E-CPF A1</span></td>
             <td><span class="badge badge-success">CONECTADO</span></td>
             <td>Acesso para emissão e gestão de CRDA Estadual</td>
           </tr>
