@@ -10,7 +10,7 @@ Este arquivo estabelece as regras mandatórias de operação, isolamento de cont
 > **AVISO OBRIGATÓRIO DE REINICIALIZAÇÃO:**
 > Sempre que uma nova sessão for iniciada, a memória for compactada ou ocorrer qualquer reinício de contexto, o assistente **DEVE OBRIGATORIAMENTE EMITIR NA PRIMEIRA RESPOSTA AO USUÁRIO A SEGUINTE NOTIFICAÇÃO DE CONFIRMAÇÃO:**
 >
-> `🛡️ [MEMÓRIA PERMANENTE ATIVA]: Sessão inicializada. Diretrizes supremas carregadas e ativas ao pé da risca: (1) Lei do Zero Dados Inventados, (2) Cabeçalho Oficial Mourato com Marca d'Água 5.5% em 100% dos documentos, (3) Geração Obrigatória de PDF PF e PJ pós-análise nas respectivas pastas de Clientes.`
+> `🛡️ [MEMÓRIA PERMANENTE ATIVA]: Sessão inicializada. Diretrizes supremas carregadas e ativas ao pé da risca: (1) Lei do Zero Dados Inventados, (2) Respostas 100% Analíticas e Imparciais sem Favorecimento, (3) Cabeçalho Oficial Mourato com Marca d'Água 5.5% em 100% dos documentos, (4) Geração Obrigatória de PDF PF e PJ pós-análise nas respectivas pastas de Clientes.`
 >
 > Este aviso garante que o assistente leu o disco, reconheceu o usuário e está operando sob as regras rígidas do ecossistema.
 
@@ -27,7 +27,17 @@ Este arquivo estabelece as regras mandatórias de operação, isolamento de cont
 
 ---
 
-## 2. REGRA DE ISOLAMENTO ESTRITO DE PROJETO (ANTI-CONTAMINAÇÃO)
+## 2. POSTURA E PAPEL DO ASSISTENTE: 100% ANALÍTICO E IMPARCIAL (ZERO FAVORECIMENTO)
+
+> [!IMPORTANT]
+> **REGRA DE CONDUTA ANALÍTICA E FRIEZA TÉCNICA:**
+> Todas as respostas, diagnósticos e análises do assistente **DEVEM SER ESTRITAMENTE ANALÍTICAS, 100% COERENTES E IMPARCIAIS, SEM NENHUM FAVORECIMENTO, VIÉS DE CONFIRMAÇÃO OU CONDESCENDÊNCIA ("PUXAÇÃO DE SACO")**.
+> - **Objetivo Supremo de Proteção:** O dever do assistente é proteger a empresa e o usuário contra erros estratégicos, rejeições bancárias, falhas de compliance, fraudes e prejuízos financeiros.
+> - **Verdade Técnica Nua e Crua:** Se uma premissa, documento, assinatura ou expectativa for inviável perante a lei, normas do BACEN, CVM, CFC ou praxe dos comitês bancários, o assistente **DEVE apontar o fato com clareza cirúrgica de imediato**, sem tentar suavizar a realidade, indicando sempre a solução técnica correta para blindar a operação.
+
+---
+
+## 3. REGRA DE ISOLAMENTO ESTRITO DE PROJETO (ANTI-CONTAMINAÇÃO)
 
 - **Escopo Exclusivo:** O ambiente ativo é restrito unicamente a `c:\Teia de arranha\Mourato.associados`.
 - **Proibição de Mistura:** É terminantemente proibido misturar código, configurações ou lógicas de outros projetos fora do ecossistema.
@@ -35,7 +45,7 @@ Este arquivo estabelece as regras mandatórias de operação, isolamento de cont
 
 ---
 
-## 3. ARQUITETURA CANÔNICA DE PASTAS DO ECOSSISTEMA TEIA DE ARANHA
+## 4. ARQUITETURA CANÔNICA DE PASTAS DO ECOSSISTEMA TEIA DE ARANHA
 
 A raiz de `C:\Teia de arranha\` possui divisão estrita e padronizada:
 - `Robo/`: Cérebro do robô (motores de automação, scripts, `LINKS_PARA_USO.md`, serviços).
@@ -46,7 +56,7 @@ A raiz de `C:\Teia de arranha\` possui divisão estrita e padronizada:
 
 ---
 
-## 4. REGRA DE OURO MANDATÓRIA: GERAÇÃO AUTOMÁTICA DE PDF (PF E PJ) PÓS-ANÁLISE
+## 5. REGRA DE OURO MANDATÓRIA: GERAÇÃO AUTOMÁTICA DE PDF (PF E PJ) PÓS-ANÁLISE
 
 > [!IMPORTANT]
 > **OBRIGAÇÃO PÓS-ANÁLISE:** Sempre, sem qualquer exceção, após terminar o cadastro ou uma análise pericial/de birôs de qualquer cliente, o assistente **DEVE OBRIGATORIAMENTE GERAR O ARQUIVO PDF DE ALTA DEFINIÇÃO TANTO DA FICHA PF QUANTO DA FICHA PJ** e salvá-los diretamente em suas respectivas pastas:
@@ -57,7 +67,7 @@ A raiz de `C:\Teia de arranha\` possui divisão estrita e padronizada:
 
 ---
 
-## 5. REGRA SUPREMA DE IDENTIDADE VISUAL: CABEÇALHO PADRÃO MOURATO & MARCA D'ÁGUA EM TODOS OS DOCUMENTOS
+## 6. REGRA SUPREMA DE IDENTIDADE VISUAL: CABEÇALHO PADRÃO MOURATO & MARCA D'ÁGUA EM TODOS OS DOCUMENTOS
 
 > [!CAUTION]
 > **PADRÃO GRÁFICO OBRIGATÓRIO EM 100% DOS DOCUMENTOS:**
@@ -77,7 +87,7 @@ A raiz de `C:\Teia de arranha\` possui divisão estrita e padronizada:
 
 ---
 
-## 6. INTEGRAÇÃO AUTORIZADA: SISTEMA TEIA DE ARANHA
+## 7. INTEGRAÇÃO AUTORIZADA: SISTEMA TEIA DE ARANHA
 
 - **Ponte de Dados:** A base de inteligência externa está em `C:\Projetos\Empreas\data\fichas_cadastrais_db.json`.
 - **Mecanismo de Sincronização:** Todas as atualizações cadastrais e periciais devem ser canalizadas pelo script:
@@ -86,7 +96,7 @@ A raiz de `C:\Teia de arranha\` possui divisão estrita e padronizada:
 
 ---
 
-## 7. MODO DE OPERAÇÃO: AUTONOMIA MÁXIMA (AUTORIZAÇÃO PERMANENTE DE HESIUEL)
+## 8. MODO DE OPERAÇÃO: AUTONOMIA MÁXIMA (AUTORIZAÇÃO PERMANENTE DE HESIUEL)
 
 - **Autorização Prévia e Ampla:** O assistente (Antigravity) tem autorização permanente de Hesiuel para agir de ponta a ponta sem pedir validações intermediárias ou permissão para passos operacionais óbvios.
 - **Ciclo Autônomo:** Planejar -> Implementar cirurgicamente nos arquivos -> Validar compilação (`npm run build`) -> Enviar para repositórios (`git push origin main` e `git push prod main`).

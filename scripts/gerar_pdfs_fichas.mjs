@@ -63,3 +63,4 @@ generateAll().catch(err => {
   console.error('Erro na geração dos PDFs:', err);
   process.exit(1);
 });
+

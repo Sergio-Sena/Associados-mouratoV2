@@ -457,3 +457,4 @@ main().catch(err => {
   console.error('Erro na reorganização:', err);
   process.exit(1);
 });
+
