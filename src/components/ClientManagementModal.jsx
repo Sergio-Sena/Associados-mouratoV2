@@ -40,6 +40,7 @@ import {
   Send,
   Sparkles,
   Briefcase,
+  MessageSquare,
   TrendingUp,
   Award,
   FileCheck,
@@ -47,6 +48,7 @@ import {
   Car,
   Printer,
   Activity,
+  Bot,
   Edit,
   Edit2,
   Save,
@@ -551,6 +553,164 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [activeView, setActiveView] = useState(initialView || 'leads');
+
+  // Estados da Secretária Executiva Mica (WhatsApp Baileys & Atendimento a Clientes)
+  const [micaTargetPhone, setMicaTargetPhone] = useState('');
+  const [micaTargetClientName, setMicaTargetClientName] = useState('');
+  const [micaMessageText, setMicaMessageText] = useState('');
+  const [micaRecentMessages, setMicaRecentMessages] = useState([
+    { id: 1, to: 'Adilson Lima', phone: '5511988887777', text: 'Olá Adilson! Seu dossiê pericial foi conferido e validado com sucesso pelo Chefe Mourato.', time: 'Hoje, 14:32', status: 'Enviada' },
+    { id: 2, to: 'José Jailson', phone: '5511977776666', text: 'Prezado José Jailson, solicitamos o envio dos extratos bancários em PDF para finalizarmos a habilitação bancária.', time: 'Hoje, 11:15', status: 'Enviada' }
+  ]);
+
+  // Estados da Esteira Autônoma 3 Agentes (Mica -> Questão -> Alfred -> Mourato)
+  const [pipelineCnpj, setPipelineCnpj] = useState('57.433.630/0001-77');
+  const [pipelinePhone, setPipelinePhone] = useState('(11) 5824-5410');
+  const [pipelineEmail, setPipelineEmail] = useState('jessymourato@hotmail.com');
+  const [pipelineName, setPipelineName] = useState('Jessica Mourato');
+  const [pipelineLoading, setPipelineLoading] = useState(false);
+  const [pipelineResult, setPipelineResult] = useState(null);
+  const [pipelineLeads, setPipelineLeads] = useState([]);
+
+  const fetchPipelineLeads = async () => {
+    try {
+      const res = await fetch('http://127.0.0.1:9000/api/pipeline/leads');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.leads) setPipelineLeads(data.leads);
+      }
+    } catch (_) {}
+  };
+
+  useEffect(() => {
+    if (activeView === 'secretaria_executiva') {
+      fetchPipelineLeads();
+    }
+  }, [activeView]);
+
+  const handleRunPipeline = async () => {
+    if (!pipelineCnpj) return;
+    setPipelineLoading(true);
+    try {
+      const res = await fetch('http://127.0.0.1:9000/api/pipeline/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cnpj: pipelineCnpj,
+          telefone: pipelinePhone,
+          email: pipelineEmail,
+          nome_contato: pipelineName,
+          simular_consentimento_imediato: true
+        })
+      });
+      const data = await res.json();
+      setPipelineResult(data);
+      fetchPipelineLeads();
+    } catch (err) {
+      alert('Erro ao acionar esteira no servidor Alfred: ' + err.message);
+    } finally {
+      setPipelineLoading(false);
+    }
+  };
+
+  const handleMouratoDecide = async (protocolo, decisao) => {
+    try {
+      const res = await fetch('http://127.0.0.1:9000/api/pipeline/decide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ protocolo, decisao })
+      });
+      const data = await res.json();
+      alert(`Comando do Chefe Mourato [${decisao}] registrado com sucesso!`);
+      fetchPipelineLeads();
+    } catch (err) {
+      alert('Erro ao registrar decisão: ' + err.message);
+    }
+  };
+
+  const handleAdvanceOnboarding = async (protocolo) => {
+    try {
+      const res = await fetch('http://127.0.0.1:9000/api/pipeline/onboarding-step', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ protocolo, confirmacao: true })
+      });
+      const data = await res.json();
+      alert(`Mica avançou o onboarding: ${data.biro || data.status || 'Concluído'}`);
+      fetchPipelineLeads();
+    } catch (err) {
+      alert('Erro ao avançar onboarding: ' + err.message);
+    }
+  };
+
+  // Handler de Validação Final do Chefe Mourato para PDFs
+  const handleFinalValidation = (client) => {
+    if (!client) return;
+    const now = new Date();
+    const dataHoraStr = now.toLocaleDateString('pt-BR') + ' às ' + now.toLocaleTimeString('pt-BR');
+    
+    const updated = {
+      ...client,
+      statusValidacaoFinal: 'APROVADO PELO CHEFE MOURATO',
+      dataValidacaoFinal: dataHoraStr,
+      validadoPor: 'Chefe Mourato',
+      hashAutenticidade: 'MOURATO-PERICIAL-' + Math.random().toString(36).substring(2, 8).toUpperCase() + '-' + Date.now().toString(36).toUpperCase()
+    };
+    
+    const updatedList = clients.map(c => c.id === client.id ? updated : c);
+    setClients(updatedList);
+    setSelectedClient(updated);
+    
+    try {
+      localStorage.setItem(STORAGE_CLIENTS_KEY, JSON.stringify(updatedList));
+      window.dispatchEvent(new CustomEvent('mourato_client_saved'));
+    } catch (e) {
+      console.error('Erro ao persistir validação final:', e);
+    }
+    
+    showToast(
+      '🛡️ Validação Final Homologada!',
+      `Dossiê de "${client.nomeRazao || client.nome}" aprovado pelo Chefe Mourato com marca d'água 5.5% e cabeçalho oficial.`
+    );
+    
+    handlePrintClientFormAndBureau(updated);
+  };
+
+  // Handler de Envio de Mensagem WhatsApp da Mica
+  const handleSendMicaWhatsApp = (phone, text, clientName) => {
+    const cleanPhone = (phone || '').replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length < 10) {
+      alert('Por favor, selecione um cliente ou digite um número de WhatsApp com DDD (ex: 11988887777).');
+      return;
+    }
+    if (!text || !text.trim()) {
+      alert('Por favor, digite ou selecione um modelo de resposta para enviar ao cliente.');
+      return;
+    }
+
+    const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+    const waUrl = `https://api.whatsapp.com/send?phone=${fullPhone}&text=${encodeURIComponent(text.trim())}`;
+    
+    const newEntry = {
+      id: Date.now(),
+      to: clientName || 'Cliente',
+      phone: fullPhone,
+      text: text.trim(),
+      time: 'Hoje, ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      status: 'Enviada'
+    };
+    setMicaRecentMessages(prev => [newEntry, ...prev]);
+
+    fetch('http://localhost:3005/api/mica/notify-lead', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: fullPhone, message: text.trim(), client: clientName })
+    }).catch(() => {});
+
+    window.open(waUrl, '_blank');
+    setMicaMessageText('');
+    showToast('💬 WhatsApp Preparado!', `A mensagem da Secretária Mica foi aberta no WhatsApp para envio a ${clientName || fullPhone}.`);
+  };
 
   const handleCloseModal = () => {
     setIsAuthenticated(false);
@@ -3255,261 +3415,249 @@ Website: https://www.mouratoassociados.com.br`;
             </div>
           </div>
 
-          {/* Navigation Items */}
-          <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '1.25rem' }}>
+          {/* Navigation Items - 6 Standalone Modular Buttons Matching the Wireframe */}
+          <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', marginTop: '1.25rem' }}>
             
-            {/* 0. Leads / Solicitações */}
+            {/* 1. Leads & Solicitações */}
             <button
               onClick={() => { setActiveView('leads'); setSelectedClient(null); setSidebarOpen(false); }}
               style={{
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0.75rem 0.85rem',
-                borderRadius: 'var(--radius-sm)',
-                background: activeView === 'leads' ? 'rgba(197, 168, 105, 0.15)' : 'transparent',
-                border: activeView === 'leads' ? '1px solid var(--gold-border)' : '1px solid transparent',
-                color: activeView === 'leads' ? 'var(--gold-light)' : '#94A3B8',
-                fontWeight: activeView === 'leads' ? 700 : 500,
-                fontSize: '0.82rem',
+                justifyContent: 'center',
+                padding: '0.85rem 1rem',
+                borderRadius: '8px',
+                background: activeView === 'leads' ? 'rgba(197, 168, 105, 0.2)' : 'rgba(11, 15, 23, 0.7)',
+                border: activeView === 'leads' ? '2.5px solid #C5A869' : '2px solid rgba(255, 255, 255, 0.18)',
+                boxShadow: activeView === 'leads' ? '0 0 16px rgba(197, 168, 105, 0.35), inset 0 0 10px rgba(197, 168, 105, 0.12)' : '0 2px 6px rgba(0,0,0,0.3)',
+                color: activeView === 'leads' ? '#FFFFFF' : '#CBD5E1',
                 cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.2s'
+                textAlign: 'center',
+                transition: 'all 0.2s',
+                minHeight: '62px',
+                width: '100%',
+                position: 'relative'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                <Sparkles size={16} color={activeView === 'leads' ? 'var(--gold-primary)' : '#64748B'} />
-                <span>Leads & Solicitações</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
+                <Sparkles size={16} color={activeView === 'leads' ? '#C5A869' : '#94A3B8'} />
+                <span style={{ fontWeight: 800, fontSize: '0.86rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                  Leads &amp; Solicitações
+                </span>
+              </div>
+              <div style={{ fontSize: '0.64rem', color: activeView === 'leads' ? '#C5A869' : '#64748B', marginTop: '0.2rem', fontWeight: 600 }}>
+                📁 Pasta: leads/ • Formulário Site
               </div>
               {leads.length > 0 && (
                 <span style={{
-                  fontSize: '0.68rem', padding: '0.1rem 0.45rem', borderRadius: '9999px',
-                  background: 'rgba(197, 168, 105, 0.3)', color: 'var(--gold-light)', fontWeight: 700
+                  position: 'absolute', top: '6px', right: '8px',
+                  fontSize: '0.62rem', padding: '0.1rem 0.45rem', borderRadius: '9999px',
+                  background: activeView === 'leads' ? '#C5A869' : 'rgba(255, 255, 255, 0.12)',
+                  color: activeView === 'leads' ? '#0A0D14' : '#CBD5E1', fontWeight: 700
                 }}>
                   {leads.length}
                 </span>
               )}
             </button>
 
-            {/* 1. Novos Clientes (Planilhas Cadastradas via Link ou Manual) */}
+            {/* 2. CLIENTES (Visualização Completa, Correção e Validação Final) */}
             <button
               onClick={() => { setActiveView('clients_list'); setSelectedClient(null); setSidebarOpen(false); }}
               style={{
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0.75rem 0.85rem',
-                borderRadius: 'var(--radius-sm)',
-                background: activeView === 'clients_list' ? 'rgba(197, 168, 105, 0.15)' : 'transparent',
-                border: activeView === 'clients_list' ? '1px solid var(--gold-border)' : '1px solid transparent',
-                color: activeView === 'clients_list' ? 'var(--gold-light)' : '#94A3B8',
-                fontWeight: activeView === 'clients_list' ? 700 : 500,
-                fontSize: '0.82rem',
+                justifyContent: 'center',
+                padding: '0.85rem 1rem',
+                borderRadius: '8px',
+                background: (activeView === 'clients_list' || activeView === 'clients_new' || activeView === 'bureau_scores') ? 'rgba(197, 168, 105, 0.2)' : 'rgba(11, 15, 23, 0.7)',
+                border: (activeView === 'clients_list' || activeView === 'clients_new' || activeView === 'bureau_scores') ? '2.5px solid #C5A869' : '2px solid rgba(255, 255, 255, 0.18)',
+                boxShadow: (activeView === 'clients_list' || activeView === 'clients_new' || activeView === 'bureau_scores') ? '0 0 16px rgba(197, 168, 105, 0.35), inset 0 0 10px rgba(197, 168, 105, 0.12)' : '0 2px 6px rgba(0,0,0,0.3)',
+                color: (activeView === 'clients_list' || activeView === 'clients_new' || activeView === 'bureau_scores') ? '#FFFFFF' : '#CBD5E1',
                 cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.2s'
+                textAlign: 'center',
+                transition: 'all 0.2s',
+                minHeight: '62px',
+                width: '100%',
+                position: 'relative'
               }}
-              title="Novos Clientes & Planilhas Cadastradas (Preenchidas via link pelo cliente ou pela mesa)"
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                <Users size={16} color={activeView === 'clients_list' ? 'var(--gold-primary)' : '#64748B'} />
-                <span>Novos Clientes</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
+                <Users size={16} color={(activeView === 'clients_list' || activeView === 'clients_new' || activeView === 'bureau_scores') ? '#C5A869' : '#94A3B8'} />
+                <span style={{ fontWeight: 800, fontSize: '0.88rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                  CLIENTES
+                </span>
               </div>
-              <span style={{ 
-                fontSize: '0.68rem', 
-                padding: '0.1rem 0.45rem', 
-                borderRadius: '9999px', 
-                background: activeView === 'clients_list' ? 'var(--gold-primary)' : 'rgba(255, 255, 255, 0.08)',
-                color: activeView === 'clients_list' ? '#0A0D14' : '#94A3B8',
-                fontWeight: 700 
+              <div style={{ fontSize: '0.64rem', color: (activeView === 'clients_list' || activeView === 'clients_new' || activeView === 'bureau_scores') ? '#C5A869' : '#64748B', marginTop: '0.2rem', fontWeight: 600 }}>
+                📁 Informações, Correção &amp; Validação Final
+              </div>
+              <span style={{
+                position: 'absolute', top: '6px', right: '8px',
+                fontSize: '0.62rem', padding: '0.1rem 0.45rem', borderRadius: '9999px',
+                background: (activeView === 'clients_list' || activeView === 'clients_new' || activeView === 'bureau_scores') ? '#C5A869' : 'rgba(255, 255, 255, 0.12)',
+                color: (activeView === 'clients_list' || activeView === 'clients_new' || activeView === 'bureau_scores') ? '#0A0D14' : '#CBD5E1', fontWeight: 700
               }}>
-                {clients.length} Planilhas
+                {clients.length}
               </span>
             </button>
 
-            {/* 2. Cadastro de Clientes */}
+            {/* 3. CIO EXECUTIVO */}
             <button
-              onClick={() => { 
-                setEditingClientId(null);
-                resetNewClientForm();
-                setActiveView('clients_new'); 
-                setSelectedClient(null); 
-                setSidebarOpen(false); 
-              }}
+              onClick={() => { setActiveView('alfred_cio'); setSelectedClient(null); setSidebarOpen(false); }}
               style={{
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
-                gap: '0.65rem',
-                padding: '0.75rem 0.85rem',
-                borderRadius: 'var(--radius-sm)',
-                background: activeView === 'clients_new' ? 'rgba(197, 168, 105, 0.15)' : 'transparent',
-                border: activeView === 'clients_new' ? '1px solid var(--gold-border)' : '1px solid transparent',
-                color: activeView === 'clients_new' ? 'var(--gold-light)' : '#94A3B8',
-                fontWeight: activeView === 'clients_new' ? 700 : 500,
-                fontSize: '0.82rem',
+                justifyContent: 'center',
+                padding: '0.85rem 1rem',
+                borderRadius: '8px',
+                background: (activeView === 'cio_executivo' || activeView === 'alfred_cio') ? 'rgba(197, 168, 105, 0.24)' : 'rgba(11, 15, 23, 0.7)',
+                border: (activeView === 'cio_executivo' || activeView === 'alfred_cio') ? '2.5px solid #C5A869' : '2px solid rgba(255, 255, 255, 0.18)',
+                boxShadow: (activeView === 'cio_executivo' || activeView === 'alfred_cio') ? '0 0 18px rgba(197, 168, 105, 0.4), inset 0 0 10px rgba(197, 168, 105, 0.15)' : '0 2px 6px rgba(0,0,0,0.3)',
+                color: (activeView === 'cio_executivo' || activeView === 'alfred_cio') ? '#FFFFFF' : '#CBD5E1',
                 cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.2s'
-              }}
-              title="Cadastrar Nova Planilha / Cliente Manualmente"
-            >
-              <UserPlus size={16} color={activeView === 'clients_new' ? 'var(--gold-primary)' : '#64748B'} />
-              <span>Nova Planilha / Cadastro</span>
-            </button>
-
-            {/* 2.1 Birôs de Crédito (PF & PJ) */}
-            <button
-              onClick={() => { setActiveView('bureau_scores'); setSelectedClient(null); setSidebarOpen(false); }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0.75rem 0.85rem',
-                borderRadius: 'var(--radius-sm)',
-                background: activeView === 'bureau_scores' ? 'rgba(16, 185, 129, 0.18)' : 'transparent',
-                border: activeView === 'bureau_scores' ? '1px solid rgba(16, 185, 129, 0.5)' : '1px solid transparent',
-                color: activeView === 'bureau_scores' ? '#34D399' : '#94A3B8',
-                fontWeight: activeView === 'bureau_scores' ? 700 : 500,
-                fontSize: '0.82rem',
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.2s'
+                textAlign: 'center',
+                transition: 'all 0.2s',
+                minHeight: '62px',
+                width: '100%',
+                position: 'relative'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                <ShieldCheck size={16} color={activeView === 'bureau_scores' ? '#34D399' : '#64748B'} />
-                <span>Birôs de Crédito (PF &amp; PJ)</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
+                <Bot size={16} color={(activeView === 'cio_executivo' || activeView === 'alfred_cio') ? '#C5A869' : '#C5A869'} />
+                <span style={{ fontWeight: 800, fontSize: '0.86rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                  CIO EXECUTIVO
+                </span>
               </div>
-              <span style={{ 
-                fontSize: '0.68rem', 
-                padding: '0.1rem 0.45rem', 
-                borderRadius: '9999px', 
-                background: activeView === 'bureau_scores' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255, 255, 255, 0.08)',
-                color: activeView === 'bureau_scores' ? '#34D399' : '#94A3B8',
-                fontWeight: 700 
+              <div style={{ fontSize: '0.64rem', color: (activeView === 'cio_executivo' || activeView === 'alfred_cio') ? '#C5A869' : '#64748B', marginTop: '0.2rem', fontWeight: 600 }}>
+                ⭐ Alfred • Livre Acesso Global
+              </div>
+              <span style={{
+                position: 'absolute', top: '6px', right: '8px',
+                fontSize: '0.62rem', padding: '0.1rem 0.45rem', borderRadius: '9999px',
+                background: 'rgba(16, 185, 129, 0.25)', border: '1px solid rgba(16, 185, 129, 0.4)',
+                color: '#34D399', fontWeight: 700
               }}>
-                4 Birôs
+                9000
               </span>
             </button>
 
-            {/* 3. Novos Agendamentos */}
+            {/* 4. SECRETÁRIA EXECUTIVA (Clique) */}
             <button
-              onClick={() => { setActiveView('appointments'); setSelectedClient(null); setSidebarOpen(false); }}
+              onClick={() => { setActiveView('secretaria_executiva'); setSelectedClient(null); setSidebarOpen(false); }}
               style={{
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0.75rem 0.85rem',
-                borderRadius: 'var(--radius-sm)',
-                background: activeView === 'appointments' ? 'rgba(197, 168, 105, 0.15)' : 'transparent',
-                border: activeView === 'appointments' ? '1px solid var(--gold-border)' : '1px solid transparent',
-                color: activeView === 'appointments' ? 'var(--gold-light)' : '#94A3B8',
-                fontWeight: activeView === 'appointments' ? 700 : 500,
-                fontSize: '0.82rem',
+                justifyContent: 'center',
+                padding: '0.85rem 1rem',
+                borderRadius: '8px',
+                background: activeView === 'secretaria_executiva' ? 'rgba(197, 168, 105, 0.2)' : 'rgba(11, 15, 23, 0.7)',
+                border: activeView === 'secretaria_executiva' ? '2.5px solid #C5A869' : '2px solid rgba(255, 255, 255, 0.18)',
+                boxShadow: activeView === 'secretaria_executiva' ? '0 0 16px rgba(197, 168, 105, 0.35), inset 0 0 10px rgba(197, 168, 105, 0.12)' : '0 2px 6px rgba(0,0,0,0.3)',
+                color: activeView === 'secretaria_executiva' ? '#FFFFFF' : '#CBD5E1',
                 cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.2s'
+                textAlign: 'center',
+                transition: 'all 0.2s',
+                minHeight: '62px',
+                width: '100%',
+                position: 'relative'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                <CalendarPlus size={16} color={activeView === 'appointments' ? 'var(--gold-primary)' : '#64748B'} />
-                <span>Novos Agendamentos</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
+                <ShieldCheck size={16} color={activeView === 'secretaria_executiva' ? '#C5A869' : '#94A3B8'} />
+                <span style={{ fontWeight: 800, fontSize: '0.84rem', letterSpacing: '0.03em', textTransform: 'uppercase' }}>
+                  SECRETÁRIA EXECUTIVA (Clique)
+                </span>
+              </div>
+              <div style={{ fontSize: '0.64rem', color: activeView === 'secretaria_executiva' ? '#C5A869' : '#64748B', marginTop: '0.2rem', fontWeight: 600 }}>
+                📁 Pastas PJ &amp; PF • Mica Radar CNDs
+              </div>
+            </button>
+
+            {/* 5. AGENDAR CONSULTAS (TEIA DE ARANHA) */}
+            <button
+              onClick={() => { setActiveView('agente_consulta'); setSelectedClient(null); setSidebarOpen(false); }}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '0.85rem 1rem',
+                borderRadius: '8px',
+                background: (activeView === 'agente_consulta' || activeView === 'appointments') ? 'rgba(197, 168, 105, 0.2)' : 'rgba(11, 15, 23, 0.7)',
+                border: (activeView === 'agente_consulta' || activeView === 'appointments') ? '2.5px solid #C5A869' : '2px solid rgba(255, 255, 255, 0.18)',
+                boxShadow: (activeView === 'agente_consulta' || activeView === 'appointments') ? '0 0 16px rgba(197, 168, 105, 0.35), inset 0 0 10px rgba(197, 168, 105, 0.12)' : '0 2px 6px rgba(0,0,0,0.3)',
+                color: (activeView === 'agente_consulta' || activeView === 'appointments') ? '#FFFFFF' : '#CBD5E1',
+                cursor: 'pointer',
+                textAlign: 'center',
+                transition: 'all 0.2s',
+                minHeight: '62px',
+                width: '100%',
+                position: 'relative'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
+                <CalendarPlus size={16} color={(activeView === 'agente_consulta' || activeView === 'appointments') ? '#C5A869' : '#94A3B8'} />
+                <span style={{ fontWeight: 800, fontSize: '0.86rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                  AGENDAR CONSULTAS
+                </span>
+              </div>
+              <div style={{ fontSize: '0.64rem', color: (activeView === 'agente_consulta' || activeView === 'appointments') ? '#C5A869' : '#64748B', marginTop: '0.2rem', fontWeight: 600 }}>
+                📁 Teia de Aranha • Consultas &amp; Audiências
               </div>
               {appointments.filter(a => a.status === 'Agendado').length > 0 && (
-                <span style={{ 
-                  fontSize: '0.68rem', 
-                  padding: '0.1rem 0.45rem', 
-                  borderRadius: '9999px', 
-                  background: 'rgba(59, 130, 246, 0.2)',
-                  color: '#60A5FA',
-                  fontWeight: 700 
+                <span style={{
+                  position: 'absolute', top: '6px', right: '8px',
+                  fontSize: '0.62rem', padding: '0.1rem 0.45rem', borderRadius: '9999px',
+                  background: 'rgba(59, 130, 246, 0.25)', border: '1px solid rgba(59, 130, 246, 0.4)',
+                  color: '#60A5FA', fontWeight: 700
                 }}>
                   {appointments.filter(a => a.status === 'Agendado').length}
                 </span>
               )}
             </button>
 
-            {/* 4. Despesas da Empresa */}
+            {/* 6. MÃO DE OBRA MANUAL */}
             <button
-              onClick={() => { setActiveView('expenses'); setSelectedClient(null); setSidebarOpen(false); }}
+              onClick={() => { setActiveView('mao_obra'); setSelectedClient(null); setSidebarOpen(false); }}
               style={{
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0.75rem 0.85rem',
-                borderRadius: 'var(--radius-sm)',
-                background: activeView === 'expenses' ? 'rgba(197, 168, 105, 0.15)' : 'transparent',
-                border: activeView === 'expenses' ? '1px solid var(--gold-border)' : '1px solid transparent',
-                color: activeView === 'expenses' ? 'var(--gold-light)' : '#94A3B8',
-                fontWeight: activeView === 'expenses' ? 700 : 500,
-                fontSize: '0.82rem',
+                justifyContent: 'center',
+                padding: '0.85rem 1rem',
+                borderRadius: '8px',
+                background: activeView === 'mao_obra' ? 'rgba(197, 168, 105, 0.2)' : 'rgba(11, 15, 23, 0.7)',
+                border: activeView === 'mao_obra' ? '2.5px solid #C5A869' : '2px solid rgba(255, 255, 255, 0.18)',
+                boxShadow: activeView === 'mao_obra' ? '0 0 16px rgba(197, 168, 105, 0.35), inset 0 0 10px rgba(197, 168, 105, 0.12)' : '0 2px 6px rgba(0,0,0,0.3)',
+                color: activeView === 'mao_obra' ? '#FFFFFF' : '#CBD5E1',
                 cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.2s'
+                textAlign: 'center',
+                transition: 'all 0.2s',
+                minHeight: '62px',
+                width: '100%',
+                position: 'relative'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                <Receipt size={16} color={activeView === 'expenses' ? 'var(--gold-primary)' : '#64748B'} />
-                <span>Despesas da Empresa</span>
-              </div>
-              {expenses.filter(e => e.status === 'Pendente').length > 0 && (
-                <span style={{ 
-                  fontSize: '0.68rem', 
-                  padding: '0.1rem 0.45rem', 
-                  borderRadius: '9999px', 
-                  background: 'rgba(239, 68, 68, 0.2)',
-                  color: '#F87171',
-                  fontWeight: 700 
-                }}>
-                  {expenses.filter(e => e.status === 'Pendente').length}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
+                <Briefcase size={16} color={activeView === 'mao_obra' ? '#C5A869' : '#94A3B8'} />
+                <span style={{ fontWeight: 800, fontSize: '0.86rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                  MÃO DE OBRA MANUAL
                 </span>
-              )}
-            </button>
-
-            {/* 5. Recebíveis (Mercado Pago) */}
-            <button
-              onClick={() => { setActiveView('receivables'); setSelectedClient(null); setSidebarOpen(false); }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.65rem',
-                padding: '0.75rem 0.85rem',
-                borderRadius: 'var(--radius-sm)',
-                background: activeView === 'receivables' ? 'rgba(197, 168, 105, 0.15)' : 'transparent',
-                border: activeView === 'receivables' ? '1px solid var(--gold-border)' : '1px solid transparent',
-                color: activeView === 'receivables' ? 'var(--gold-light)' : '#94A3B8',
-                fontWeight: activeView === 'receivables' ? 700 : 500,
-                fontSize: '0.82rem',
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.2s'
-              }}
-            >
-              <CreditCard size={16} color={activeView === 'receivables' ? 'var(--gold-primary)' : '#64748B'} />
-              <span>Gestão de Recebíveis</span>
-            </button>
-
-            {/* 6. Configurações */}
-            <button
-              onClick={() => { setActiveView('settings'); setSelectedClient(null); setSidebarOpen(false); }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.65rem',
-                padding: '0.75rem 0.85rem',
-                borderRadius: 'var(--radius-sm)',
-                background: activeView === 'settings' ? 'rgba(197, 168, 105, 0.15)' : 'transparent',
-                border: activeView === 'settings' ? '1px solid var(--gold-border)' : '1px solid transparent',
-                color: activeView === 'settings' ? 'var(--gold-light)' : '#94A3B8',
-                fontWeight: activeView === 'settings' ? 700 : 500,
-                fontSize: '0.82rem',
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.2s'
-              }}
-            >
-              <Settings size={16} color={activeView === 'settings' ? 'var(--gold-primary)' : '#64748B'} />
-              <span>Configurações &amp; API</span>
+              </div>
+              <div style={{ fontSize: '0.64rem', color: activeView === 'mao_obra' ? '#C5A869' : '#64748B', marginTop: '0.2rem', fontWeight: 600 }}>
+                📁 Pasta: Flix/ • Porta 8765 Esteira
+              </div>
+              <span style={{
+                position: 'absolute', top: '6px', right: '8px',
+                fontSize: '0.62rem', padding: '0.1rem 0.45rem', borderRadius: '9999px',
+                background: 'rgba(59, 130, 246, 0.25)', border: '1px solid rgba(59, 130, 246, 0.4)',
+                color: '#60A5FA', fontWeight: 700
+              }}>
+                8765
+              </span>
             </button>
 
           </nav>
@@ -3592,6 +3740,7 @@ Website: https://www.mouratoassociados.com.br`;
                 {activeView === 'clients_list' && 'Novos Clientes & Planilhas Cadastradas'}
                 {activeView === 'clients_new' && 'Cadastro de Nova Planilha / Cliente'}
                 {activeView === 'bureau_scores' && 'Pontuação nos Birôs de Crédito & Banco Central'}
+                {activeView === 'alfred_cio' && 'Central Executiva Alfred CIO & Inteligência Pericial'}
                 {activeView === 'appointments' && 'Novos Agendamentos & Audiências'}
                 {activeView === 'expenses' && 'Gestão de Despesas da Empresa'}
                 {activeView === 'receivables' && 'Gestão de Recebíveis & Faturamento'}
@@ -3603,6 +3752,7 @@ Website: https://www.mouratoassociados.com.br`;
               {activeView === 'clients_list' && 'Planilhas enviadas pelo cliente via link direto ou preenchidas manualmente — conectadas diretamente aos Birôs de Crédito.'}
               {activeView === 'clients_new' && 'Cadastre empresas e sócios com contas bancárias, extratos anexados e senhas opcionais sem trava.'}
               {activeView === 'bureau_scores' && 'Auditoria de Scores em tempo real (Serasa, Boa Vista, Quod e Bacen SCR) para Empresas (PJ) e Sócios (PF).'}
+              {activeView === 'alfred_cio' && 'Auditoria de PDFs em tempo real, Radar de CNDs da Secretária Mica e Protocolo 75/25 com Marca d\'Água 5.5% Mourato.'}
               {activeView === 'appointments' && 'Agende e acompanhe reuniões estratégicas com sócios e clientes.'}
               {activeView === 'expenses' && 'Acompanhe contas de consumo, energia, aluguel e status de pagamento.'}
               {activeView === 'receivables' && 'Emissão de cobranças com PIX Dinâmico, Cartão e Boletos homologados.'}
@@ -3611,6 +3761,28 @@ Website: https://www.mouratoassociados.com.br`;
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <button
+              onClick={() => window.open('http://localhost:3000', '_blank')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                padding: '0.5rem 0.9rem',
+                borderRadius: 'var(--radius-sm)',
+                background: 'rgba(16, 185, 129, 0.15)',
+                border: '1px solid rgba(16, 185, 129, 0.45)',
+                color: '#34D399',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+              title="Abrir o Servidor Local Dedicado da Teia de Aranha (Porta 3000)"
+            >
+              <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10B981', boxShadow: '0 0 6px #10B981' }} />
+              Servidor Teia (3000)
+            </button>
+
             <button
               onClick={() => handleOpenNewCharge()}
               style={{
@@ -3656,8 +3828,76 @@ Website: https://www.mouratoassociados.com.br`;
           </div>
         </header>
 
-        {/* Scrollable View Content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '2rem' }}>
+        {/* Scrollable View Content with Tall Rounded Container */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 1.5rem', background: '#060910' }}>
+          
+          {/* TALL ROUNDED CONTAINER DIRECTLY FROM THE USER WIREFRAME */}
+          <div style={{
+            minHeight: 'calc(100vh - 120px)',
+            borderRadius: '36px',
+            border: '2.5px solid rgba(197, 168, 105, 0.45)',
+            background: 'linear-gradient(180deg, #0C101D 0%, #080B13 100%)',
+            boxShadow: '0 24px 64px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
+            padding: '2.25rem 2.25rem',
+            display: 'flex',
+            flexDirection: 'column',
+            position: 'relative'
+          }}>
+
+            {/* Cabeçalho do Módulo Ativo no topo do container arredondado */}
+            <div style={{
+              textAlign: 'center',
+              borderBottom: '1px solid rgba(197, 168, 105, 0.25)',
+              paddingBottom: '1.25rem',
+              marginBottom: '2rem'
+            }}>
+              <h1 style={{
+                fontFamily: "var(--font-serif, 'Georgia', serif)",
+                fontSize: '2.2rem',
+                fontWeight: 800,
+                color: '#FFFFFF',
+                letterSpacing: '0.03em',
+                margin: '0 0 0.5rem'
+              }}>
+                {activeView === 'leads' && 'Leads & Solicitações'}
+                {(activeView === 'clients_list' || activeView === 'clients_new' || activeView === 'bureau_scores') && 'CLIENTES'}
+                {(activeView === 'cio_executivo' || activeView === 'alfred_cio') && 'CIO EXECUTIVO'}
+                {activeView === 'secretaria_executiva' && 'SECRETÁRIA EXECUTIVA (Clique)'}
+                {(activeView === 'agente_consulta' || activeView === 'appointments') && 'AGENDAR CONSULTAS — TEIA DE ARANHA'}
+                {activeView === 'mao_obra' && 'MÃO DE OBRA MANUAL'}
+                {activeView === 'appointments' && 'Novos Agendamentos'}
+                {activeView === 'expenses' && 'Despesas da Empresa'}
+                {activeView === 'receivables' && 'Gestão de Recebíveis'}
+                {activeView === 'settings' && 'Configurações'}
+              </h1>
+              
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.3rem 1rem',
+                borderRadius: '9999px',
+                background: 'rgba(197, 168, 105, 0.12)',
+                border: '1px solid rgba(197, 168, 105, 0.3)',
+                fontSize: '0.76rem',
+                color: '#C5A869',
+                fontWeight: 600
+              }}>
+                {activeView === 'leads' && '📁 Pasta: Mourato.associados/src/data • Módulo Autônomo de Leads'}
+                {(activeView === 'clients_list' || activeView === 'clients_new' || activeView === 'bureau_scores') && '📁 Pastas: C:\\Teia de arranha\\ClientesPJ & ClientesPF • Visualização Completa, Correção e Validação Final de PDFs'}
+                {(activeView === 'cio_executivo' || activeView === 'alfred_cio') && '⭐ Pasta: C:\\Projetos\\Boss.Cio • Alfred CIO com Livre Acesso Global'}
+                {activeView === 'secretaria_executiva' && '📁 Pastas: ClientesPJ & ClientesPF • Secretária Mica (Radar CNDs & Protocolos)'}
+                {(activeView === 'agente_consulta' || activeView === 'appointments') && '📁 Pasta: C:\\Teia de arranha\\Robo • Central de Consultas & Agendamentos da Teia de Aranha'}
+                {activeView === 'mao_obra' && '📁 Pasta: C:\\Projetos\\Flix • Esteira Operacional & Minutas (Porta 8765)'}
+                {activeView === 'appointments' && '📁 Módulo de Agendamentos'}
+                {activeView === 'expenses' && '📁 Módulo de Despesas'}
+                {activeView === 'receivables' && '📁 Módulo de Recebíveis'}
+                {activeView === 'settings' && '📁 Módulo de Configurações'}
+              </div>
+            </div>
+
+            {/* Conteúdo Interno do Módulo Ativo */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           
           {/* ======================================================== */}
           {/* TAB 0: LEADS & SOLICITAÇÕES                                */}
@@ -5899,6 +6139,909 @@ Website: https://www.mouratoassociados.com.br`;
           )}
 
           {/* ======================================================== */}
+          {/* TAB EXECUTIVA: ALFRED CIO & PERÍCIA                      */}
+          {/* ======================================================== */}
+          {(activeView === 'alfred_cio' || activeView === 'cio_executivo') && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', minHeight: 'calc(100vh - 220px)' }}>
+              
+              {/* Top Banner de Governança */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0.9rem 1.25rem',
+                background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(11, 15, 23, 0.95))',
+                border: '1px solid rgba(197, 168, 105, 0.35)',
+                borderRadius: 'var(--radius-md)',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+                flexWrap: 'wrap',
+                gap: '0.75rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                  <div style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: '50%',
+                    border: '2px solid #C5A869',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: '#0B0F19',
+                    boxShadow: '0 0 12px rgba(197, 168, 105, 0.4)'
+                  }}>
+                    <img src="/mourato-seal-circle.png" alt="Mourato" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 800, color: '#FFFFFF', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      ALFRED CIO EXECUTIVO <span style={{ color: '#C5A869', fontSize: '0.75rem', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', background: 'rgba(197, 168, 105, 0.15)' }}>100% AUTORIDADE</span>
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: '#94A3B8', marginTop: '2px' }}>
+                      Chefe Supremo: <b style={{ color: '#F8FAFC' }}>Mourato</b> • Motores: <b style={{ color: '#34D399' }}>Gemini 3.5 Flash</b> + <b style={{ color: '#60A5FA' }}>Qwen 2.5 Offline</b> • Servidor: <b style={{ color: '#C5A869' }}>Porta 9000 Ativa</b>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <button
+                    onClick={() => window.open('http://127.0.0.1:9000', '_blank')}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.4rem',
+                      padding: '0.55rem 0.95rem', background: 'rgba(197, 168, 105, 0.15)',
+                      border: '1px solid var(--gold-border)', borderRadius: 'var(--radius-sm)',
+                      color: 'var(--gold-light)', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <ExternalLink size={14} /> Abrir Alfred em Nova Janela
+                  </button>
+                  <button
+                    onClick={() => window.open('http://127.0.0.1:8765', '_blank')}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.4rem',
+                      padding: '0.55rem 0.95rem', background: 'rgba(16, 185, 129, 0.15)',
+                      border: '1px solid rgba(16, 185, 129, 0.4)', borderRadius: 'var(--radius-sm)',
+                      color: '#34D399', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    🛠️ Flix Studio (Porta 8765)
+                  </button>
+                </div>
+              </div>
+
+              {/* Iframe Nativo Embutido */}
+              <div style={{
+                flex: 1,
+                minHeight: '700px',
+                background: '#090D16',
+                border: '1px solid rgba(197, 168, 105, 0.25)',
+                borderRadius: 'var(--radius-md)',
+                overflow: 'hidden',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)'
+              }}>
+                <iframe
+                  src="http://127.0.0.1:9000"
+                  title="Alfred CIO Central"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    minHeight: '700px',
+                    border: 'none'
+                  }}
+                />
+              </div>
+
+            </div>
+          )}
+
+          {/* ======================================================== */}
+          
+          {/* ======================================================== */}
+          {/* MÓDULO AUTÔNOMO: SECRETÁRIA EXECUTIVA (CLIQUE) - MICA     */}
+          {/* ======================================================== */}
+          {activeView === 'secretaria_executiva' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              
+              {/* Banner da Secretária Executiva Mica */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '1.25rem 1.5rem', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(11, 15, 23, 0.95))',
+                border: '1px solid rgba(197, 168, 105, 0.35)', borderRadius: '16px', flexWrap: 'wrap', gap: '1rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{
+                    width: 52, height: 52, borderRadius: '50%', border: '2px solid #25D366',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0B0F19',
+                    boxShadow: '0 0 16px rgba(37, 211, 102, 0.35)'
+                  }}>
+                    <MessageSquare size={26} color="#25D366" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                      SECRETÁRIA EXECUTIVA — MICA (WHATSAPP BUSINESS)
+                      <span style={{ fontSize: '0.7rem', padding: '0.2rem 0.6rem', borderRadius: '4px', background: 'rgba(37, 211, 102, 0.2)', color: '#25D366', fontWeight: 700 }}>
+                        ● WHATSAPP ATIVO
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#94A3B8', marginTop: '0.25rem' }}>
+                      Atendimento, orientações e respostas automatizadas/executivas aos clientes da Mourato &amp; Associados via WhatsApp
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                  <button
+                    onClick={() => window.open('http://localhost:3005/qrcode', '_blank')}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.45rem', padding: '0.6rem 1.1rem',
+                      background: 'rgba(37, 211, 102, 0.15)', border: '1px solid rgba(37, 211, 102, 0.4)', borderRadius: '8px',
+                      color: '#25D366', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer'
+                    }}
+                    title="Abrir página com o QR Code do WhatsApp para pareamento com a Mica"
+                  >
+                    <QrCode size={15} /> Parear / QR Code WhatsApp
+                  </button>
+                </div>
+              </div>
+
+              {/* PAINEL OFICIAL: ESTEIRA AUTÔNOMA DE CRÉDITO (MICA -> QUESTÃO -> ALFRED -> MOURATO) */}
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(11, 15, 23, 0.98), rgba(15, 23, 42, 0.98))',
+                border: '1.5px solid rgba(197, 168, 105, 0.45)', borderRadius: '18px', padding: '1.5rem',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)', display: 'flex', flexDirection: 'column', gap: '1.25rem'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', borderBottom: '1px solid rgba(197, 168, 105, 0.2)', paddingBottom: '1rem' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1.15rem', color: '#FFFFFF', margin: 0, fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.65rem', fontFamily: 'Cinzel, Georgia, serif' }}>
+                      <span style={{ color: '#C5A869' }}>⚡ ESTEIRA AUTÔNOMA DE CRÉDITO</span> — 3 AGENTES &amp; MOURATO
+                    </h3>
+                    <p style={{ fontSize: '0.78rem', color: '#94A3B8', margin: '0.3rem 0 0 0' }}>
+                      Mica (WhatsApp &amp; Onboarding) ➔ Questão (Varredura 75% Pública) ➔ Alfred (Auditoria &amp; Parecer) ➔ <b>Chefe Mourato (Aval Soberano)</b>
+                    </p>
+                  </div>
+                  <button
+                    onClick={fetchPipelineLeads}
+                    style={{
+                      background: 'rgba(197, 168, 105, 0.15)', border: '1px solid rgba(197, 168, 105, 0.35)',
+                      color: '#C5A869', borderRadius: '8px', padding: '0.5rem 1rem', fontSize: '0.78rem',
+                      fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem'
+                    }}
+                  >
+                    🔄 Atualizar Fila
+                  </button>
+                </div>
+
+                {/* Formulário de Disparo Rápido de Teste */}
+                <div style={{ background: '#070A10', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '1.2rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', alignItems: 'end' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.72rem', color: '#C5A869', fontWeight: 700, marginBottom: '0.35rem' }}>
+                      CNPJ DA EMPRESA:
+                    </label>
+                    <input
+                      type="text"
+                      value={pipelineCnpj}
+                      onChange={(e) => setPipelineCnpj(e.target.value)}
+                      placeholder="Ex: 57.433.630/0001-77"
+                      style={{ width: '100%', padding: '0.65rem 0.8rem', background: '#0D1322', border: '1px solid rgba(197, 168, 105, 0.3)', borderRadius: '6px', color: '#FFFFFF', fontSize: '0.82rem' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.72rem', color: '#CBD5E1', fontWeight: 600, marginBottom: '0.35rem' }}>
+                      NOME DO CONTATO / SÓCIO:
+                    </label>
+                    <input
+                      type="text"
+                      value={pipelineName}
+                      onChange={(e) => setPipelineName(e.target.value)}
+                      placeholder="Ex: Jessica Mourato"
+                      style={{ width: '100%', padding: '0.65rem 0.8rem', background: '#0D1322', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '6px', color: '#FFFFFF', fontSize: '0.82rem' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.72rem', color: '#CBD5E1', fontWeight: 600, marginBottom: '0.35rem' }}>
+                      WHATSAPP DO CLIENTE:
+                    </label>
+                    <input
+                      type="text"
+                      value={pipelinePhone}
+                      onChange={(e) => setPipelinePhone(e.target.value)}
+                      placeholder="(11) 5824-5410"
+                      style={{ width: '100%', padding: '0.65rem 0.8rem', background: '#0D1322', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '6px', color: '#FFFFFF', fontSize: '0.82rem' }}
+                    />
+                  </div>
+                  <button
+                    onClick={handleRunPipeline}
+                    disabled={pipelineLoading}
+                    style={{
+                      height: '40px', background: pipelineLoading ? '#475569' : 'linear-gradient(135deg, #C5A869, #9A7B38)',
+                      border: 'none', borderRadius: '8px', color: '#0F172A', fontWeight: 800, fontSize: '0.84rem',
+                      cursor: pipelineLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', gap: '0.5rem', boxShadow: '0 4px 14px rgba(197, 168, 105, 0.35)'
+                    }}
+                  >
+                    {pipelineLoading ? '⏳ Executando Varredura...' : '🚀 DISPARAR ESTEIRA (90% AUTOPILOTO)'}
+                  </button>
+                </div>
+
+                {/* Exibição dos Leads e Protocolos Ativos */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                  <div style={{ fontSize: '0.78rem', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>
+                    PROTOCOLOS ATIVOS &amp; CADEIA DE CUSTÓDIA ({pipelineLeads.length})
+                  </div>
+
+                  {pipelineLeads.length === 0 ? (
+                    <div style={{ padding: '1.5rem', background: '#070A10', borderRadius: '10px', textAlign: 'center', color: '#64748B', fontSize: '0.8rem' }}>
+                      Nenhum protocolo ativo no momento. Dispare um teste acima para ver a esteira operar em tempo real.
+                    </div>
+                  ) : (
+                    pipelineLeads.map(lead => {
+                      const auditoria = lead.auditoria_alfred || {};
+                      const dossieQ = lead.dossie_questao || {};
+                      const onb = lead.onboarding_biros || {};
+                      const isApproved = lead.decisao_mourato === 'APROVADO';
+                      const isDenied = lead.decisao_mourato === 'NEGADO';
+
+                      return (
+                        <div key={lead.protocolo} style={{
+                          background: '#070A10', border: '1px solid rgba(197, 168, 105, 0.25)', borderRadius: '12px',
+                          padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.9rem'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                              <span style={{ background: '#C5A869', color: '#0F172A', padding: '0.25rem 0.65rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 800 }}>
+                                📋 {lead.protocolo}
+                              </span>
+                              <span style={{ fontSize: '0.92rem', color: '#FFFFFF', fontWeight: 800 }}>
+                                {auditoria.razao_social || lead.nome_contato || lead.cnpj}
+                              </span>
+                              <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>
+                                (CNPJ: {dossieQ.cnpj || lead.cnpj})
+                              </span>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                              <span style={{
+                                padding: '0.3rem 0.75rem', borderRadius: '20px', fontSize: '0.72rem', fontWeight: 800,
+                                background: isApproved ? 'rgba(37, 211, 102, 0.2)' : isDenied ? 'rgba(239, 68, 68, 0.2)' : 'rgba(234, 179, 8, 0.2)',
+                                color: isApproved ? '#25D366' : isDenied ? '#EF4444' : '#EAB308',
+                                border: `1px solid ${isApproved ? '#25D366' : isDenied ? '#EF4444' : '#EAB308'}`
+                              }}>
+                                ● {lead.status_etapa}
+                              </span>
+                              {auditoria.score_viabilidade !== undefined && (
+                                <span style={{ background: '#1E293B', border: '1px solid #C5A869', color: '#C5A869', padding: '0.3rem 0.65rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 800 }}>
+                                  Score: {auditoria.score_viabilidade}/100
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Parecer do Alfred & Diagnóstico */}
+                          {auditoria.recomendacao_acao && (
+                            <div style={{ background: '#0D1322', borderLeft: '3px solid #C5A869', borderRadius: '0 8px 8px 0', padding: '0.85rem 1rem', fontSize: '0.78rem', color: '#E2E8F0' }}>
+                              <div style={{ fontWeight: 800, color: '#C5A869', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                                🛡️ PARECER DO CIO ALFRED: <span style={{ color: auditoria.recomendacao_acao === 'PROSSEGUIR' ? '#25D366' : '#EF4444' }}>{auditoria.recomendacao_acao}</span> ({auditoria.parecer_categoria})
+                              </div>
+                              <ul style={{ margin: '0.35rem 0 0 1.2rem', padding: 0, color: '#CBD5E1', lineHeight: 1.5 }}>
+                                {(auditoria.justificativa_analitica || []).map((j, idx) => (
+                                  <li key={idx}>{j}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {/* Seletor de Decisão do Chefe Mourato & Birôs */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                            <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
+                              <span style={{ fontSize: '0.72rem', color: '#C5A869', fontWeight: 700 }}>DECISÃO MOURATO:</span>
+                              <button
+                                onClick={() => handleMouratoDecide(lead.protocolo, 'PROSSEGUIR')}
+                                style={{
+                                  background: isApproved ? '#25D366' : 'rgba(37, 211, 102, 0.15)',
+                                  color: isApproved ? '#0F172A' : '#25D366', border: '1px solid #25D366',
+                                  borderRadius: '6px', padding: '0.4rem 0.85rem', fontSize: '0.74rem', fontWeight: 800, cursor: 'pointer'
+                                }}
+                              >
+                                ✓ [PROSSEGUIR]
+                              </button>
+                              <button
+                                onClick={() => handleMouratoDecide(lead.protocolo, 'NEGAR')}
+                                style={{
+                                  background: isDenied ? '#EF4444' : 'rgba(239, 68, 68, 0.15)',
+                                  color: isDenied ? '#FFFFFF' : '#EF4444', border: '1px solid #EF4444',
+                                  borderRadius: '6px', padding: '0.4rem 0.85rem', fontSize: '0.74rem', fontWeight: 800, cursor: 'pointer'
+                                }}
+                              >
+                                ✕ [NEGAR]
+                              </button>
+                            </div>
+
+                            {/* Progresso dos 3 Birôs */}
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                              <span style={{ fontSize: '0.7rem', color: '#94A3B8' }}>BIRÔS MICA:</span>
+                              <span style={{ fontSize: '0.68rem', padding: '0.2rem 0.5rem', borderRadius: '4px', background: onb.serasa?.confirmado ? 'rgba(37, 211, 102, 0.2)' : 'rgba(255, 255, 255, 0.05)', color: onb.serasa?.confirmado ? '#25D366' : '#64748B' }}>
+                                1. Serasa {onb.serasa?.confirmado ? '✓' : ''}
+                              </span>
+                              <span style={{ fontSize: '0.68rem', padding: '0.2rem 0.5rem', borderRadius: '4px', background: onb.boavista?.confirmado ? 'rgba(37, 211, 102, 0.2)' : 'rgba(255, 255, 255, 0.05)', color: onb.boavista?.confirmado ? '#25D366' : '#64748B' }}>
+                                2. Boa Vista {onb.boavista?.confirmado ? '✓' : ''}
+                              </span>
+                              <span style={{ fontSize: '0.68rem', padding: '0.2rem 0.5rem', borderRadius: '4px', background: onb.quod?.confirmado ? 'rgba(37, 211, 102, 0.2)' : 'rgba(255, 255, 255, 0.05)', color: onb.quod?.confirmado ? '#25D366' : '#64748B' }}>
+                                3. Quod {onb.quod?.confirmado ? '✓' : ''}
+                              </span>
+                              {isApproved && !lead.materiais_entregues && (
+                                <button
+                                  onClick={() => handleAdvanceOnboarding(lead.protocolo)}
+                                  style={{
+                                    background: 'rgba(59, 130, 246, 0.2)', border: '1px solid #3B82F6', color: '#60A5FA',
+                                    borderRadius: '4px', padding: '0.25rem 0.6rem', fontSize: '0.68rem', fontWeight: 700, cursor: 'pointer'
+                                  }}
+                                >
+                                  Confirmar Birô ➔
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Download PDF Oficial com Marca d'Água 5.5% */}
+                            <button
+                              onClick={() => window.open(`http://127.0.0.1:9000/api/pipeline/download-pdf/${lead.protocolo}`, '_blank')}
+                              style={{
+                                background: 'rgba(197, 168, 105, 0.15)', border: '1px solid rgba(197, 168, 105, 0.4)',
+                                color: '#C5A869', borderRadius: '6px', padding: '0.4rem 0.85rem', fontSize: '0.74rem',
+                                fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem'
+                              }}
+                            >
+                              📄 Abrir Dossiê PDF (5.5%)
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Painel Central de Resposta aos Clientes */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem' }}>
+                
+                {/* Coluna 1: Compor e Disparar Mensagem para o Cliente */}
+                <div style={{ background: '#0B0F19', border: '1px solid rgba(197, 168, 105, 0.25)', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <h3 style={{ fontSize: '1rem', color: '#FFFFFF', margin: 0, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Send size={16} color="#C5A869" /> Enviar Resposta para o Cliente
+                  </h3>
+
+                  {/* 1. Selecionar Cliente da Base */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.74rem', color: '#CBD5E1', marginBottom: '0.35rem', fontWeight: 600 }}>
+                      1. Selecione o Cliente Cadastrado:
+                    </label>
+                    <select
+                      value={micaTargetClientName}
+                      onChange={(e) => {
+                        const selName = e.target.value;
+                        setMicaTargetClientName(selName);
+                        const found = clients.find(c => (c.nomeRazao || c.nome) === selName);
+                        if (found) {
+                          setMicaTargetPhone(found.telefone || found.celular || found.whatsapp || '');
+                        }
+                      }}
+                      style={{
+                        width: '100%', padding: '0.65rem 0.85rem', background: '#070A10',
+                        border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '6px',
+                        color: '#FFFFFF', fontSize: '0.82rem', outline: 'none'
+                      }}
+                    >
+                      <option value="">-- Escolha um cliente da lista --</option>
+                      {clients.map(c => (
+                        <option key={c.id} value={c.nomeRazao || c.nome}>
+                          {c.nomeRazao || c.nome} ({c.tipo || 'PJ'})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 2. Número de WhatsApp */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.74rem', color: '#CBD5E1', marginBottom: '0.35rem', fontWeight: 600 }}>
+                      2. Número do WhatsApp com DDD:
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: 11988887777"
+                      value={micaTargetPhone}
+                      onChange={(e) => setMicaTargetPhone(e.target.value)}
+                      style={{
+                        width: '100%', padding: '0.65rem 0.85rem', background: '#070A10',
+                        border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '6px',
+                        color: '#FFFFFF', fontSize: '0.82rem', outline: 'none'
+                      }}
+                    />
+                  </div>
+
+                  {/* 3. Modelos de Resposta Rápida */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.74rem', color: '#CBD5E1', marginBottom: '0.35rem', fontWeight: 600 }}>
+                      3. Modelos Rápidos de Resposta Executiva:
+                    </label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                      {[
+                        {
+                          label: '📋 Dossiê em Validação com Chefe Mourato',
+                          text: `Olá ${micaTargetClientName || 'prezado cliente'}! Sou a Mica, secretária executiva da Mourato & Associados. Seu dossiê cadastral foi revisado e encaminhado para validação final com o Chefe Mourato.`
+                        },
+                        {
+                          label: '📑 Solicitação de Extratos Bancários (PDF)',
+                          text: `Olá ${micaTargetClientName || 'prezado cliente'}! Para finalizarmos a habilitação bancária do seu processo, solicitamos por gentileza o envio dos extratos bancários dos últimos 3 meses em PDF.`
+                        },
+                        {
+                          label: '🔗 Envio de Link para Preenchimento de Ficha',
+                          text: `Olá ${micaTargetClientName || 'prezado cliente'}! Segue o link seguro e criptografado para conferência e preenchimento da sua ficha cadastral executiva da Mourato & Associados.`
+                        },
+                        {
+                          label: '✅ Certidões Negativas (CNDs) Validadas',
+                          text: `Prezado(a) ${micaTargetClientName || 'cliente'}, informamos que suas Certidões Negativas de Débitos (CND Federal, FGTS e Trabalhista) foram emitidas com 100% de regularidade pericial.`
+                        }
+                      ].map((tpl, tIdx) => (
+                        <button
+                          key={tIdx}
+                          type="button"
+                          onClick={() => setMicaMessageText(tpl.text)}
+                          style={{
+                            textAlign: 'left', padding: '0.5rem 0.75rem', background: 'rgba(255, 255, 255, 0.04)',
+                            border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '6px',
+                            color: '#E2E8F0', fontSize: '0.72rem', cursor: 'pointer', transition: 'all 0.2s'
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#C5A869'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)'; }}
+                        >
+                          {tpl.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 4. Campo de Mensagem Livre */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.74rem', color: '#CBD5E1', marginBottom: '0.35rem', fontWeight: 600 }}>
+                      4. Mensagem Personalizada:
+                    </label>
+                    <textarea
+                      rows={4}
+                      placeholder="Digite a mensagem ou selecione um modelo acima..."
+                      value={micaMessageText}
+                      onChange={(e) => setMicaMessageText(e.target.value)}
+                      style={{
+                        width: '100%', padding: '0.65rem 0.85rem', background: '#070A10',
+                        border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '6px',
+                        color: '#FFFFFF', fontSize: '0.82rem', outline: 'none', resize: 'vertical'
+                      }}
+                    />
+                  </div>
+
+                  {/* Botão de Disparo */}
+                  <button
+                    onClick={() => handleSendMicaWhatsApp(micaTargetPhone, micaMessageText, micaTargetClientName)}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                      padding: '0.8rem', background: 'linear-gradient(135deg, #25D366, #128C7E)',
+                      border: 'none', borderRadius: '8px', color: '#FFFFFF', fontWeight: 800,
+                      fontSize: '0.86rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(37, 211, 102, 0.35)'
+                    }}
+                  >
+                    <Send size={16} /> Disparar Resposta via WhatsApp
+                  </button>
+                </div>
+
+                {/* Coluna 2: Histórico de Respostas Recentes da Mica */}
+                <div style={{ background: '#0B0F19', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                    <h3 style={{ fontSize: '1rem', color: '#FFFFFF', margin: 0, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Clock size={16} color="#34D399" /> Mensagens Recentes da Mica
+                    </h3>
+                    <span style={{ fontSize: '0.7rem', color: '#25D366', fontWeight: 700, background: 'rgba(37, 211, 102, 0.15)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
+                      WhatsApp 24/7
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', overflowY: 'auto', maxHeight: '480px' }}>
+                    {micaRecentMessages.map(msg => (
+                      <div key={msg.id} style={{ background: '#070A10', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '10px', padding: '0.9rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                          <span style={{ fontSize: '0.78rem', color: '#FFFFFF', fontWeight: 700 }}>
+                            👤 {msg.to} ({msg.phone})
+                          </span>
+                          <span style={{ fontSize: '0.68rem', color: '#94A3B8' }}>{msg.time}</span>
+                        </div>
+                        <p style={{ fontSize: '0.76rem', color: '#CBD5E1', margin: 0, lineHeight: 1.4 }}>
+                          "{msg.text}"
+                        </p>
+                        <div style={{ marginTop: '0.45rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.66rem', color: '#25D366', fontWeight: 600 }}>
+                            ✓ {msg.status}
+                          </span>
+                          <button
+                            onClick={() => {
+                              setMicaTargetClientName(msg.to);
+                              setMicaTargetPhone(msg.phone);
+                              setMicaMessageText(msg.text);
+                            }}
+                            style={{
+                              background: 'none', border: 'none', color: '#C5A869', fontSize: '0.68rem',
+                              fontWeight: 700, cursor: 'pointer', textDecoration: 'underline'
+                            }}
+                          >
+                            Reenviar / Editar
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          )}
+
+          {/* ======================================================== */}
+          {/* MÓDULO AUTÔNOMO: AGENTE DE CONSULTA - TEIA DE ARANHA      */}
+          {/* ======================================================== */}
+          {(activeView === 'agente_consulta' || activeView === 'appointments') && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+              
+              {/* Banner de Governança Teia de Aranha */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '1.25rem 1.5rem', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(11, 15, 23, 0.95))',
+                border: '1px solid rgba(197, 168, 105, 0.35)', borderRadius: '16px', flexWrap: 'wrap', gap: '1rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{
+                    width: 52, height: 52, borderRadius: '50%', border: '2px solid #C5A869',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0B0F19',
+                    boxShadow: '0 0 16px rgba(197, 168, 105, 0.35)'
+                  }}>
+                    <CalendarPlus size={26} color="#C5A869" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                      AGENDAR CONSULTAS — TEIA DE ARANHA
+                      <span style={{ fontSize: '0.7rem', padding: '0.2rem 0.6rem', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.2)', color: '#34D399', fontWeight: 700 }}>
+                        ● TEIA CONECTADA (PORTA 3000)
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#94A3B8', marginTop: '0.25rem' }}>
+                      Agendamento estratégico de consultas, audiências bancárias e consultas cadastrais periciais na base da <b style={{ color: '#E2E8F0' }}>Teia de Aranha</b>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button
+                    onClick={() => window.open('http://localhost:3000', '_blank')}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1.2rem',
+                      background: 'rgba(197, 168, 105, 0.15)', border: '1px solid rgba(197, 168, 105, 0.4)', borderRadius: '8px',
+                      color: 'var(--gold-light)', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer'
+                    }}
+                    title="Abrir o Servidor Dedicado da Teia de Aranha na Porta 3000"
+                  >
+                    <ExternalLink size={14} /> Abrir Servidor Teia (Porta 3000)
+                  </button>
+                </div>
+              </div>
+
+              {/* Grid Principal: Formulário de Agendamento + Consultas da Teia */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem' }}>
+                
+                {/* 1. Formulário de Novo Agendamento de Consulta */}
+                <div style={{
+                  background: '#0B0F17',
+                  border: '1px solid rgba(197, 168, 105, 0.25)',
+                  borderRadius: '16px',
+                  padding: '1.75rem',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '1.25rem'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                    <CalendarPlus size={20} color="var(--gold-primary)" />
+                    <h3 style={{ fontSize: '1.1rem', color: '#FFFFFF', margin: 0, fontWeight: 700 }}>
+                      Agendar Nova Consulta / Audiência
+                    </h3>
+                  </div>
+
+                  <form onSubmit={handleSaveAppointment} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.74rem', color: '#CBD5E1', marginBottom: '0.35rem', fontWeight: 600 }}>
+                        Cliente / Empresa da Teia *
+                      </label>
+                      <input 
+                        type="text" 
+                        required
+                        list="teia-clients-list"
+                        placeholder="Selecione ou digite o nome do cliente..."
+                        value={newAppointment.cliente}
+                        onChange={(e) => setNewAppointment({ ...newAppointment, cliente: e.target.value })}
+                        style={{
+                          width: '100%', padding: '0.65rem 0.85rem', background: '#070A10',
+                          border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '6px',
+                          color: '#FFFFFF', fontSize: '0.84rem', outline: 'none'
+                        }}
+                      />
+                      <datalist id="teia-clients-list">
+                        {clients.map(c => <option key={c.id} value={c.nomeRazao || c.nome} />)}
+                      </datalist>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.74rem', color: '#CBD5E1', marginBottom: '0.35rem', fontWeight: 600 }}>
+                          Data da Consulta *
+                        </label>
+                        <input 
+                          type="date" 
+                          required
+                          value={newAppointment.data}
+                          onChange={(e) => setNewAppointment({ ...newAppointment, data: e.target.value })}
+                          style={{
+                            width: '100%', padding: '0.65rem 0.85rem', background: '#070A10',
+                            border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '6px',
+                            color: '#FFFFFF', fontSize: '0.84rem', outline: 'none'
+                          }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.74rem', color: '#CBD5E1', marginBottom: '0.35rem', fontWeight: 600 }}>
+                          Horário *
+                        </label>
+                        <input 
+                          type="time" 
+                          required
+                          value={newAppointment.horario}
+                          onChange={(e) => setNewAppointment({ ...newAppointment, horario: e.target.value })}
+                          style={{
+                            width: '100%', padding: '0.65rem 0.85rem', background: '#070A10',
+                            border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '6px',
+                            color: '#FFFFFF', fontSize: '0.84rem', outline: 'none'
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.74rem', color: '#CBD5E1', marginBottom: '0.35rem', fontWeight: 600 }}>
+                          Modalidade
+                        </label>
+                        <select
+                          value={newAppointment.modalidade}
+                          onChange={(e) => setNewAppointment({ ...newAppointment, modalidade: e.target.value })}
+                          style={{
+                            width: '100%', padding: '0.65rem 0.85rem', background: '#070A10',
+                            border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '6px',
+                            color: '#FFFFFF', fontSize: '0.82rem', outline: 'none'
+                          }}
+                        >
+                          <option value="Videoconferência Segura">Videoconferência Segura</option>
+                          <option value="Sede Mourato (Presencial)">Sede Mourato (Presencial)</option>
+                          <option value="Comitê de Crédito Bancário">Comitê de Crédito Bancário</option>
+                          <option value="Alinhamento Estratégico">Alinhamento Estratégico</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.74rem', color: '#CBD5E1', marginBottom: '0.35rem', fontWeight: 600 }}>
+                          Pauta Pericial
+                        </label>
+                        <select
+                          value={newAppointment.pauta}
+                          onChange={(e) => setNewAppointment({ ...newAppointment, pauta: e.target.value })}
+                          style={{
+                            width: '100%', padding: '0.65rem 0.85rem', background: '#070A10',
+                            border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '6px',
+                            color: '#FFFFFF', fontSize: '0.82rem', outline: 'none'
+                          }}
+                        >
+                          <option value="Habilitação Bancária &amp; Limites">Habilitação Bancária &amp; Limites</option>
+                          <option value="Repactuação de Dívidas &amp; Spread">Repactuação de Dívidas &amp; Spread</option>
+                          <option value="Auditoria Pericial Bacen / SCR">Auditoria Pericial Bacen / SCR</option>
+                          <option value="Estruturação &amp; Blindagem Patrimonial">Estruturação &amp; Blindagem</option>
+                          <option value="Defesa Fiscal / Regularização PGFN">Defesa Fiscal / PGFN</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      style={{
+                        marginTop: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                        padding: '0.8rem', background: 'linear-gradient(135deg, #C5A869, #9A7B38)',
+                        border: 'none', borderRadius: '8px', color: '#0A0D14', fontWeight: 800,
+                        fontSize: '0.86rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(197, 168, 105, 0.35)'
+                      }}
+                    >
+                      <CalendarPlus size={16} /> Agendar Consulta na Teia de Aranha
+                    </button>
+                  </form>
+                </div>
+
+                {/* 2. Lista de Consultas Agendadas na Teia */}
+                <div style={{
+                  background: '#0B0F17',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '16px',
+                  padding: '1.75rem',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+                  display: 'flex',
+                  flexDirection: 'column'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                    <h3 style={{ fontSize: '1.1rem', color: '#FFFFFF', margin: 0, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Clock size={18} color="#C5A869" /> Consultas Agendadas
+                    </h3>
+                    <span style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 600 }}>
+                      {appointments.length} agendamentos
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', overflowY: 'auto', maxHeight: '420px' }}>
+                    {appointments.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#94A3B8', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '12px' }}>
+                        Nenhuma consulta agendada no momento.
+                      </div>
+                    ) : (
+                      appointments.map(app => (
+                        <div key={app.id} style={{
+                          background: '#070A10', border: '1px solid rgba(255, 255, 255, 0.08)',
+                          borderRadius: '10px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem'
+                        }}>
+                          <div>
+                            <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#FFFFFF' }}>
+                              {app.cliente}
+                            </div>
+                            <div style={{ fontSize: '0.74rem', color: '#C5A869', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span>📅 {app.data} às {app.horario}</span>
+                              <span>•</span>
+                              <span>{app.modalidade}</span>
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '0.25rem' }}>
+                              Pauta: <b style={{ color: '#E2E8F0' }}>{app.pauta}</b>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.4rem' }}>
+                            <span style={{
+                              fontSize: '0.68rem', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 700,
+                              background: app.status === 'Agendado' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                              color: app.status === 'Agendado' ? '#60A5FA' : '#34D399'
+                            }}>
+                              {app.status}
+                            </span>
+                            <button
+                              onClick={() => handleDeleteAppointment(app.id)}
+                              style={{ background: 'none', border: 'none', color: '#F87171', fontSize: '0.7rem', cursor: 'pointer', padding: '0.2rem' }}
+                              title="Remover agendamento"
+                            >
+                              Remover
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* 3. Motor Pericial de Consulta de CNPJ / CPF da Teia de Aranha */}
+              <div style={{ background: '#0B0F19', border: '1px solid rgba(197, 168, 105, 0.25)', borderRadius: '16px', padding: '1.5rem' }}>
+                <h3 style={{ fontSize: '1rem', color: '#FFFFFF', margin: '0 0 0.4rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Search size={16} color="#C5A869" /> Consulta Cadastral Prévia na Teia de Aranha
+                </h3>
+                <p style={{ fontSize: '0.76rem', color: '#94A3B8', margin: '0 0 1rem' }}>
+                  Consulte os 75% públicos de dados imediatos (Receita Federal, Sintegra, Cenprot Protestos, Tribunais e Listas Restritivas) da empresa ou sócio antes da consulta.
+                </p>
+
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <input
+                    type="text"
+                    placeholder="Digite CNPJ da empresa ou CPF do sócio para auditar na Teia..."
+                    style={{
+                      flex: 1, minWidth: '280px', padding: '0.85rem 1rem', background: '#060910',
+                      border: '1.5px solid rgba(255, 255, 255, 0.15)', borderRadius: '8px',
+                      color: '#FFFFFF', fontSize: '0.9rem', outline: 'none'
+                    }}
+                  />
+                  <button
+                    onClick={() => alert('Teia de Aranha: Consulta pericial iniciada. Verificando Receita Federal, Sintegra, CNDs e Tribunais na base da Teia.')}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.85rem 1.5rem',
+                      background: 'linear-gradient(135deg, #C5A869, #9A7B38)', border: 'none', borderRadius: '8px',
+                      color: '#0A0D14', fontWeight: 800, fontSize: '0.86rem', cursor: 'pointer', boxShadow: '0 4px 12px rgba(197, 168, 105, 0.3)'
+                    }}
+                  >
+                    <Search size={16} /> Consultar na Teia
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {activeView === 'mao_obra' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', minHeight: 'calc(100vh - 240px)' }}>
+              
+              {/* Barra Superior de Governança do Flix Studio */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '0.9rem 1.25rem', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(11, 15, 23, 0.95))',
+                border: '1px solid rgba(197, 168, 105, 0.35)', borderRadius: '12px', flexWrap: 'wrap', gap: '0.75rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                  <div style={{
+                    width: 44, height: 44, borderRadius: '50%', border: '2px solid #3B82F6',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0B0F19',
+                    boxShadow: '0 0 12px rgba(59, 130, 246, 0.4)'
+                  }}>
+                    <Briefcase size={22} color="#3B82F6" />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 800, color: '#FFFFFF', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      MÃO DE OBRA MANUAL — FLIX STUDIO
+                      <span style={{ color: '#34D399', fontSize: '0.74rem', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.15)' }}>
+                        ● ONLINE NA PORTA 8765
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: '#94A3B8', marginTop: '2px' }}>
+                      Esteira Operacional Nativamente Integrada • Pasta: <b style={{ color: '#E2E8F0' }}>C:\Projetos\Flix</b> • Servidor: <b style={{ color: '#60A5FA' }}>http://127.0.0.1:8765</b>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <button
+                    onClick={() => window.open('http://127.0.0.1:8765', '_blank')}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.45rem',
+                      padding: '0.6rem 1.15rem', background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)',
+                      border: 'none', borderRadius: '8px', color: '#FFFFFF',
+                      fontSize: '0.82rem', fontWeight: 800, cursor: 'pointer',
+                      boxShadow: '0 4px 14px rgba(59, 130, 246, 0.35)'
+                    }}
+                  >
+                    <ExternalLink size={15} /> Abrir Flix Studio em Nova Aba (Porta 8765)
+                  </button>
+                </div>
+              </div>
+
+              {/* Iframe Embutido Diretamente em Tela Cheia do Flix Studio */}
+              <div style={{
+                flex: 1,
+                minHeight: '720px',
+                background: '#070A10',
+                border: '1px solid rgba(197, 168, 105, 0.3)',
+                borderRadius: '16px',
+                overflow: 'hidden',
+                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.6)'
+              }}>
+                <iframe
+                  src="http://127.0.0.1:8765"
+                  title="Flix Studio Engine"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    minHeight: '720px',
+                    border: 'none'
+                  }}
+                />
+              </div>
+
+            </div>
+          )}
+
           {/* TAB 3: NOVOS AGENDAMENTOS                                */}
           {/* ======================================================== */}
           {activeView === 'appointments' && (
@@ -8226,6 +9369,8 @@ Website: https://www.mouratoassociados.com.br`;
             );
           })()}
 
+                    </div>
+          </div>
         </div>
       </main>
 
@@ -8274,6 +9419,29 @@ Website: https://www.mouratoassociados.com.br`;
 
             {/* Cabeçalho do Dossiê */}
             <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '1.2rem' }}>
+              {selectedClient.statusValidacaoFinal === 'APROVADO PELO CHEFE MOURATO' && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '0.85rem 1.25rem', marginBottom: '1rem',
+                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(197, 168, 105, 0.15) 100%)',
+                  border: '1.5px solid #C5A869', borderRadius: '10px', flexWrap: 'wrap', gap: '0.5rem'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                    <ShieldCheck size={22} color="#C5A869" />
+                    <div>
+                      <div style={{ color: '#FFFFFF', fontWeight: 800, fontSize: '0.86rem' }}>
+                        LAUDO PERICIAL VALIDADO PELO CHEFE MOURATO (VALIDAÇÃO FINAL)
+                      </div>
+                      <div style={{ color: '#94A3B8', fontSize: '0.72rem' }}>
+                        Autenticidade: <b style={{ color: '#C5A869' }}>{selectedClient.hashAutenticidade || 'MOURATO-AUTH-OK'}</b> • Homologado em: <b style={{ color: '#E2E8F0' }}>{selectedClient.dataValidacaoFinal}</b>
+                      </div>
+                    </div>
+                  </div>
+                  <span style={{ fontSize: '0.72rem', padding: '0.25rem 0.65rem', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.25)', color: '#34D399', fontWeight: 700 }}>
+                    ✓ VALIDAÇÃO FINAL ATIVA
+                  </span>
+                </div>
+              )}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: '0.7rem', color: 'var(--gold-light)', letterSpacing: '0.1em', fontWeight: 700 }}>
                   DOSSIÊ PERICIAL CONFIDENCIAL • MOURATO &amp; ASSOCIADOS
@@ -8842,6 +10010,44 @@ Website: https://www.mouratoassociados.com.br`;
 
             {/* AÇÕES NO RODAPÉ DO DOSSIÊ */}
             <div style={{ marginTop: '1.75rem', display: 'flex', justifyContent: 'flex-end', gap: '0.65rem', flexWrap: 'wrap' }}>
+              
+              {/* Botão de Correção de Dados do Cliente */}
+              <button
+                type="button"
+                onClick={() => {
+                  const target = selectedClient;
+                  setSelectedClient(null);
+                  handleEditClient(target);
+                }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.45rem',
+                  padding: '0.65rem 1.15rem', fontSize: '0.82rem', fontWeight: 700,
+                  borderRadius: 'var(--radius-sm)', background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)', color: '#FFFFFF', cursor: 'pointer'
+                }}
+                title="Corrigir campos cadastrais, extratos ou contas deste cliente"
+              >
+                <Edit2 size={15} color="#C5A869" />
+                Corrigir Dados
+              </button>
+
+              {/* Botão Supremo de Validação Final do Chefe Mourato */}
+              <button
+                type="button"
+                onClick={() => handleFinalValidation(selectedClient)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.5rem',
+                  padding: '0.75rem 1.35rem', fontSize: '0.84rem', fontWeight: 800,
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'linear-gradient(135deg, #C5A869 0%, #9A7B38 100%)',
+                  border: '1px solid #E8D5A3', color: '#0A0D14', cursor: 'pointer',
+                  boxShadow: '0 4px 18px rgba(197, 168, 105, 0.4)'
+                }}
+                title="Aprovar com autoridade máxima do Chefe Mourato e emitir o PDF oficial com marca d'água 5.5%"
+              >
+                <ShieldCheck size={16} />
+                DAR VALIDAÇÃO FINAL (PDF 5.5%)
+              </button>
               <button
                 type="button"
                 onClick={() => handlePrintClientFormAndBureau(selectedClient)}
