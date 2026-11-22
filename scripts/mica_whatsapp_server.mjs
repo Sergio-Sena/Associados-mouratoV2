@@ -690,17 +690,18 @@ Assim que concluir o seu cadastro, responda *[ SIM ]* aqui para podermos prosseg
           writeMicaLog(`🎉 [ONBOARDING CONCLUÍDO] Todos os 3 birôs validados com sucesso por ${pushName}! Liberando Questão e Alfred.`);
 
           const conclusaoMsg = 
-`🎉 *Parabéns! Todos os 3 birôs (Serasa, Boa Vista e Quod) foram confirmados com sucesso!*
+`Prezado(a) cliente,
 
-📊 *Etapa 4 — Planilha Pericial Mourato & Associados:*
-Acesse diretamente o link oficial para envio dos dados complementares:
-👉 https://www.mouratoassociados.com.br/cadastro
+Para darmos continuidade ao seu atendimento e prosseguirmos com a estruturação pericial, acesse a nossa Planilha Oficial de Cadastro vinculada ao portal:
 
-🏛️ *Bacen Registrato (Opcional - SCR & Contas):*
-👉 https://registrato.bcb.gov.br/
+👉 *[ PLANILHA DE CADASTRO OFICIAL ]*
+https://www.mouratoassociados.com.br/cadastro
 
-🔍 *Auditoria Liberada:* O Agente Questão já foi acionado com 1000% de autoridade em segundo plano para compilar o seu primeiro Dossiê Pericial.
-O nosso CIO executivo Alfred já está averiguando os apontamentos e salvando o seu laudo oficial em PDF na sua pasta de cliente.`;
+🔒 *Segurança Jurídica & Compliance:*
+O preenchimento desta planilha é essencial para a formalização cadastral, validação pericial das informações e estrito cumprimento das leis vigentes e das normas de segurança da Mourato & Associados.
+
+🏛️ *Consulta Oficial ao Banco Central (Bacen):*
+Informamos que a nossa equipe técnica entrará em contato em breve para agendarmos um horário e realizarmos juntos a consulta oficial do Bacen (Registrato SCR).`;
 
           await sock.sendMessage(sender, { text: conclusaoMsg });
 
