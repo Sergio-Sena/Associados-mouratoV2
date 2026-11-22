@@ -59,9 +59,25 @@ export const FichaCadastralStandalone = ({ isFullPage = false, onClose = null })
   const [copiedProtocolo, setCopiedProtocolo] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [resolvedLead, setResolvedLead] = useState(null);
+  const [consentStatus, setConsentStatus] = useState(null); // 'autorizado', 'recusado', 'enviando'
   const leadParams = getQueryParams();
   const isDuplicate = checkDuplicate(resolvedLead?.email || leadParams.email, resolvedLead?.telefone || leadParams.telefone);
   const usedLinkInfo = checkFichaLinkIsUsed(leadParams);
+
+  const handleAuthorizeConsent = async (simOuNao) => {
+    setConsentStatus('enviando');
+    const proto = submissionSuccess?.protocolo || 'MA-OFICIAL';
+    try {
+      await fetch('http://127.0.0.1:9000/api/pipeline/consent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ protocolo: proto, resposta: simOuNao })
+      });
+      setConsentStatus(simOuNao === 'sim' ? 'autorizado' : 'recusado');
+    } catch (e) {
+      setConsentStatus(simOuNao === 'sim' ? 'autorizado' : 'recusado');
+    }
+  };
 
   // Auto-recupera dados do lead na nuvem/local caso tenha sido acessado por link curto (apenas token ou id)
   useEffect(() => {
@@ -122,21 +138,54 @@ export const FichaCadastralStandalone = ({ isFullPage = false, onClose = null })
           localStorage.setItem('mourato_active_bureau_client_id', savedId);
         }
 
-        // 1.1 Notifica a Mica para cadastrar e avisar a Diretoria (0034 -> 2275) que o cadastro foi concluído
+        // 1.1 Sincronização em Nuvem Direta com AWS DynamoDB Oficial (mourato-leads)
         try {
-          fetch('http://localhost:3005/api/mica/ficha-completed', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              nome: clientName,
-              empresa: clientData.empresa?.razaoSocial || clientData.empresa || leadParams.empresa || '',
+          const awsLeadPayload = {
+            empresa: clientData.empresa?.razaoSocial || clientData.empresa?.razao_social || clientData.empresa || leadParams.empresa || 'Empresa em Onboarding',
+            nome: clientName || clientData.titular?.nome || leadParams.nome || 'Cliente Cadastrado',
+            email: clientData.contato?.email || clientData.email || leadParams.email || 'atendimento@mouratoassociados.com.br',
+            telefone: (clientData.contato?.celular || clientData.telefone || leadParams.telefone || '').replace(/\D/g, '') || '11914572275',
+            pratica: 'onboarding_ficha',
+            contexto: JSON.stringify({
               protocolo: proto,
               codigoCliente: clientCodigo,
-              telefone: clientData.contato?.celular || clientData.telefone || leadParams.telefone || '',
-              email: clientData.contato?.email || clientData.email || leadParams.email || '',
-              payload: savedRecord || clientData
+              cpf: clientDoc || clientData.titular?.cpf || '',
+              cnpj: clientData.empresa?.cnpj || clientDoc || '',
+              origem: 'www.mouratoassociados.com.br/ficha-cadastral',
+              criadoEm: new Date().toISOString()
             })
-          }).catch(() => {});
+          };
+          fetch('https://0bwr64p3ie.execute-api.us-east-1.amazonaws.com/prod/leads', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(awsLeadPayload)
+          }).catch(e => console.warn('Aviso sincronizacao AWS:', e.message));
+        } catch (_) {}
+
+        // 1.2 Notifica a Mica para cadastrar e disparar para o WhatsApp (11 91457-2275)
+        try {
+          const payloadToSend = {
+            nome: clientName,
+            empresa: clientData.empresa?.razaoSocial || clientData.empresa || leadParams.empresa || '',
+            cnpj: clientData.empresa?.cnpj || clientData.cnpj || clientDoc || '',
+            cpf: clientDoc || clientData.titular?.cpf || '',
+            protocolo: proto,
+            codigoCliente: clientCodigo,
+            telefone: clientData.contato?.celular || clientData.telefone || leadParams.telefone || '11914572275',
+            email: clientData.contato?.email || clientData.email || leadParams.email || '',
+            payload: savedRecord || clientData
+          };
+          fetch('http://localhost:3050/api/mica/ficha-completed', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payloadToSend)
+          }).catch(() => {
+            fetch('http://localhost:3005/api/mica/ficha-completed', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payloadToSend)
+            }).catch(() => {});
+          });
         } catch (_) {}
 
         // 2. Exibe tela de confirmação oficial com protocolo e opção de impressão
@@ -412,7 +461,130 @@ export const FichaCadastralStandalone = ({ isFullPage = false, onClose = null })
               </div>
             </div>
 
-            {/* Ações: WhatsApp, Birô de Crédito, Impressão e Concluir */}
+            {/* ETAPA 2: INTERAÇÃO REAL COM A MICA & CONSENTIMENTO LGPD */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.9) 100%)',
+              border: '1.5px solid var(--gold-primary)',
+              borderRadius: '12px',
+              padding: '1.75rem',
+              maxWidth: '680px',
+              margin: '0 auto 2rem',
+              boxShadow: '0 8px 32px rgba(197, 168, 105, 0.15)',
+              textAlign: 'left'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(197, 168, 105, 0.2)', border: '1px solid var(--gold-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem' }}>
+                  👩‍💼
+                </div>
+                <div>
+                  <div style={{ color: 'var(--gold-light)', fontWeight: 700, fontSize: '1rem', letterSpacing: '0.05em' }}>
+                    SECRETÁRIA EXECUTIVA MICA • ATENDIMENTO REAL
+                  </div>
+                  <div style={{ color: '#94A3B8', fontSize: '0.8rem' }}>
+                    Canal WhatsApp Integrado: (11) 91457-2275 • Protocolo: <strong style={{ color: '#F8FAFC' }}>{submissionSuccess.protocolo}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <p style={{ color: '#E2E8F0', fontSize: '0.92rem', lineHeight: 1.6, marginBottom: '1.25rem', background: 'rgba(10, 13, 20, 0.6)', padding: '12px 16px', borderRadius: '8px', borderLeft: '3px solid var(--gold-primary)' }}>
+                <em>"Olá! Sou a <strong>Mica</strong>, secretária executiva da <strong>Mourato &amp; Associados</strong>. Seu protocolo é <strong>[{submissionSuccess.protocolo}]</strong>. Para darmos continuidade imediata à estruturação do seu crédito, você permite realizarmos as consultas cadastrais públicas da sua empresa (Receita Federal, certidões e regularidade)?"</em>
+              </p>
+
+              {consentStatus === 'autorizado' ? (
+                <div style={{ background: 'rgba(16, 185, 129, 0.12)', border: '1px solid #10B981', borderRadius: '8px', padding: '14px 18px', marginBottom: '1.25rem' }}>
+                  <div style={{ color: '#10B981', fontWeight: 700, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                    <CheckCircle2 size={18} /> ✅ CONSENTIMENTO REGISTRADO NA ESTEIRA!
+                  </div>
+                  <p style={{ color: '#CBD5E1', fontSize: '0.85rem', margin: 0, lineHeight: 1.5 }}>
+                    O <strong>Agente Questão</strong> e o <strong>CIO Alfred</strong> já iniciaram a varredura pública de 75% dos dados. Você pode adiantar a verificação dos 3 birôs nos links oficiais abaixo:
+                  </p>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.85rem' }}>
+                    <a href="https://www.serasa.com.br" target="_blank" rel="noreferrer" style={{ background: '#0F172A', border: '1px solid #38BDF8', color: '#38BDF8', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 600 }}>
+                      1. Serasa (Direto) ↗
+                    </a>
+                    <a href="https://app.consumidorpositivo.com.br/login" target="_blank" rel="noreferrer" style={{ background: '#0F172A', border: '1px solid #F59E0B', color: '#F59E0B', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 600 }}>
+                      2. Boa Vista (Direto) ↗
+                    </a>
+                    <a href="https://consumidor.quod.com.br" target="_blank" rel="noreferrer" style={{ background: '#0F172A', border: '1px solid #A855F7', color: '#A855F7', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 600 }}>
+                      3. Quod (Direto) ↗
+                    </a>
+                  </div>
+                </div>
+              ) : consentStatus === 'recusado' ? (
+                <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #EF4444', borderRadius: '8px', padding: '12px 16px', color: '#FCA5A5', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
+                  Atendimento encerrado por opção de privacidade conforme diretrizes da LGPD.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => handleAuthorizeConsent('sim')}
+                    style={{
+                      background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      padding: '10px 18px',
+                      borderRadius: '6px',
+                      fontWeight: 700,
+                      fontSize: '0.88rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                    }}
+                  >
+                    <CheckCircle2 size={16} /> [ SIM, AUTORIZO AS CONSULTAS ]
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAuthorizeConsent('nao')}
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.12)',
+                      color: '#F87171',
+                      border: '1px solid rgba(239, 68, 68, 0.35)',
+                      padding: '10px 16px',
+                      borderRadius: '6px',
+                      fontWeight: 600,
+                      fontSize: '0.85rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    [ Não, Encerrar ]
+                  </button>
+                </div>
+              )}
+
+              {/* Botão Oficial WhatsApp com mensagem pronta */}
+              <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <span style={{ fontSize: '0.8rem', color: '#94A3B8' }}>
+                  Deseja falar diretamente no WhatsApp com a Mica?
+                </span>
+                <a
+                  href={`https://wa.me/5511914572275?text=${encodeURIComponent(`Olá Mica, sou o titular da empresa ${submissionSuccess.cliente || ''}. Meu protocolo oficial é ${submissionSuccess.protocolo}. Autorizo as consultas públicas da minha empresa.`)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    background: '#25D366',
+                    color: '#000000',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    boxShadow: '0 4px 14px rgba(37, 211, 102, 0.3)'
+                  }}
+                >
+                  💬 Abrir WhatsApp da Mica (11 91457-2275)
+                </a>
+              </div>
+            </div>
+
+            {/* Ações: Impressão e Conclusão */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
 
 

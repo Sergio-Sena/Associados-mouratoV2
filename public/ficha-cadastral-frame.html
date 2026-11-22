@@ -2395,6 +2395,31 @@
         console.warn('Backend local não acessível na nuvem estática, prosseguindo com armazenamento seguro e protocolo oficial:', err);
       }
 
+      // TRANSMISSÃO DIRETA PARA O BANCO DE DADOS DA NUVEM (AWS DYNAMODB)
+      try {
+        const awsLead = {
+          empresa: payloadParaTransmitir.empresa?.razao_social || payloadParaTransmitir.empresa?.nome || 'Cliente Ficha',
+          nome: payloadParaTransmitir.titular?.nome || 'Cliente Cadastrado',
+          email: payloadParaTransmitir.contato?.email || 'atendimento@mouratoassociados.com.br',
+          telefone: (payloadParaTransmitir.contato?.celular || payloadParaTransmitir.contato?.telefone_fixo || '').replace(/\D/g, '') || '0000000000',
+          pratica: 'onboarding_ficha',
+          contexto: JSON.stringify({
+            protocolo: protocolo,
+            codigoCliente: codigoCliente,
+            cpf: payloadParaTransmitir.titular?.cpf || '',
+            cnpj: payloadParaTransmitir.empresa?.cnpj || '',
+            origem: 'www.mouratoassociados.com.br/ficha-cadastral'
+          })
+        };
+        await fetch('https://0bwr64p3ie.execute-api.us-east-1.amazonaws.com/prod/leads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(awsLead)
+        });
+      } catch (awsErr) {
+        console.warn('Erro ao sincronizar com AWS DynamoDB:', awsErr);
+      }
+
       // Armazena cópia auditável com metadados de blindagem jurídica e consentimento LGPD
       const fichaFinalBlindada = {
         codigoCliente: codigoCliente,

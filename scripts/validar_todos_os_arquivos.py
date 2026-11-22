@@ -73,3 +73,4 @@ if erros:
 else:
     print("STATUS: 100% PERFEITO! ZERO ERROS! TODOS OS CLIENTES EM CONFORMIDADE TOTAL.")
 print(f"==========================================")
+

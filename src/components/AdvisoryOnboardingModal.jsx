@@ -179,14 +179,21 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
         });
       } catch (_) {}
 
-      // 3.1. Aciona o robô autônomo da Mica para disparar diretamente no WhatsApp da empresa (11 97899-0034)
+      // 3.1. Aciona o robô autônomo da Mica para disparar diretamente no WhatsApp
       try {
-        fetch('http://localhost:3005/api/mica/notify-lead', {
+        fetch('http://localhost:3050/api/mica/notify-lead', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(leadPayload),
           signal: AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined
-        }).catch(() => {});
+        }).catch(() => {
+          fetch('http://localhost:3005/api/mica/notify-lead', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(leadPayload),
+            signal: AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined
+          }).catch(() => {});
+        });
       } catch (_) {}
 
       // 4. Dispara o Bot Oficial de Notificação para a Diretoria (11 97899-0034)

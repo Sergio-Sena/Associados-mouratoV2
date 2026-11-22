@@ -53,6 +53,10 @@ export function App() {
     cleanPath.startsWith('/onboarding') ||
     cleanPath === '/cadastro' ||
     cleanPath.startsWith('/cadastro') ||
+    cleanPath === '/area-cliente/planilha-coleta' ||
+    cleanPath.startsWith('/area-cliente') ||
+    cleanPath === '/planilha' ||
+    cleanPath.startsWith('/planilha') ||
     search.includes('standalone=true') ||
     search.includes('confirmar=true') ||
     search.includes('confirmacao=true') ||
@@ -96,6 +100,22 @@ export function App() {
     const h = window.location.hash.toLowerCase();
     if (s.includes('view=bureau') || s.includes('bureau=true') || h === '#bureau' || h === '#biros-admin') {
       setClientModalInitialView('bureau_scores');
+      setIsClientModalOpen(true);
+    }
+    if (s.includes('view=alfred') || s.includes('view=cio') || s.includes('alfred=true') || h === '#alfred' || h === '#cio') {
+      setClientModalInitialView('cio_executivo');
+      setIsClientModalOpen(true);
+    }
+    if (s.includes('view=mica') || h === '#mica') {
+      setClientModalInitialView('secretaria_executiva');
+      setIsClientModalOpen(true);
+    }
+    if (s.includes('view=teia') || h === '#teia') {
+      setClientModalInitialView('agente_consulta');
+      setIsClientModalOpen(true);
+    }
+    if (s.includes('view=flix') || h === '#flix') {
+      setClientModalInitialView('mao_obra');
       setIsClientModalOpen(true);
     }
     if (s.includes('contact') || s.includes('solicitar') || s.includes('agendar') || h === '#contact' || h === '#solicitar') {

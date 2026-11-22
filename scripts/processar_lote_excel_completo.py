@@ -96,3 +96,4 @@ for tipo in ["ClientesPF", "ClientesPJ"]:
         wb2.save(c / "02_PLANILHA_DOSSIE_E_BIROS.xlsx")
 
 print("✓ Todas as planilhas Excel (01_PLANILHA e 02_PLANILHA) geradas em lote com sucesso!")
+

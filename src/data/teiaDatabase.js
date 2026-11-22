@@ -1,6 +1,6 @@
 /**
  * Base Oficial da Teia de Aranha - Mourato & Associados
- * Sincronizado automaticamente por scripts/sync_from_teia.mjs em 2026-11-12T16:43:53.202Z
+ * Sincronizado automaticamente por scripts/sync_from_teia.mjs em 2026-11-21T19:38:13.425Z
  * Origem Pericial: C:\Projetos\Empreas\data
  * Diretriz: ZERO DADOS INVENTADOS (Scores não periciados constam como "Pendente")
  */
@@ -74,73 +74,6 @@ export const TEIA_INITIAL_CLIENTS = [
     "limiteAprovado": "Potencial Pronampe/FGO sob consulta",
     "observacoesSigilosas": "Empresa com contas ativas no CCS Bacen e balanço estruturado. Laudos de birôs em auditoria contínua.",
     "dataCadastro": "2026-09-08"
-  },
-  {
-    "id": "cli-pj-jessica-mourato",
-    "tipo": "PJ",
-    "nomeRazao": "57.433.630 JESSICA MOURATO DA SILVA",
-    "documento": "57.433.630/0001-77",
-    "documentoTipo": "CNPJ",
-    "natureza": "213-5 - Empresário (Individual)",
-    "situacao": "ATIVA",
-    "dataAbertura": "25/09/2024",
-    "socioVinculado": "JESSICA MOURATO DA SILVA",
-    "responsavel": "JESSICA MOURATO DA SILVA",
-    "contato": "(11) 5824-5410",
-    "email": "jessymourato@hotmail.com",
-    "endereco": "Estrada Pirajussara-Valo Velho, 1403, Sala 20 - Jardim Mitsutani, São Paulo - SP",
-    "cep": "05791-220",
-    "protocolo": "MA-20261121-57433630",
-    "statusValidacaoFinal": "APROVADO PELO CHEFE MOURATO",
-    "validadoPor": "Chefe Mourato",
-    "dataValidacaoFinal": "21/11/2026",
-    "hashAutenticidade": "MOURATO-PERICIAL-MA20261121-57433630",
-    "scorePericial": 85,
-    "parecerCio": "PROSSEGUIR (Viável com Estruturação)",
-    "balanco": {
-      "exercicio": "2026 (Preliminar)",
-      "capitalSocial": "R$ 30.000,00",
-      "regime": "SIMEI (MEI)",
-      "tempoAtividade": "26 meses"
-    },
-    "contasBancarias": [],
-    "serasaScore": "Pendente",
-    "serasaStatus": "Em Análise Pericial",
-    "boaVistaScore": "Pendente",
-    "boaVistaStatus": "Em Análise Pericial",
-    "quodScore": "Pendente",
-    "quodStatus": "Em Análise Pericial",
-    "bacenScr": "Em Auditoria",
-    "govNivel": "Prata / Ouro",
-    "limiteAprovado": "Linha Microcrédito/Pronampe sob análise",
-    "observacoesSigilosas": "Cliente aprovada na esteira autônoma pelo Chefe Mourato. Dossiê pericial emitido com marca d'água 5.5% e pasta física criada.",
-    "linkFicha": "http://localhost:5173/ficha-cadastral?nome=JESSICA%20MOURATO%20DA%20SILVA&empresa=57.433.630%20JESSICA%20MOURATO%20DA%20SILVA&cnpj=57433630000177",
-    "dataCadastro": "2026-11-21"
-  },
-  {
-    "id": "cli-pf-jessica-mourato",
-    "tipo": "PF",
-    "nomeRazao": "JESSICA MOURATO DA SILVA",
-    "documento": "Pendente de Documento",
-    "documentoTipo": "CPF",
-    "profissao": "Empresária / Estética",
-    "empresaVinculada": "57.433.630 JESSICA MOURATO DA SILVA",
-    "responsavel": "JESSICA MOURATO DA SILVA",
-    "contato": "(11) 5824-5410",
-    "email": "jessymourato@hotmail.com",
-    "endereco": "Estrada Pirajussara-Valo Velho, 1403, Sala 20 - Jardim Mitsutani, São Paulo - SP",
-    "cep": "05791-220",
-    "protocolo": "MA-20261121-57433630",
-    "statusValidacaoFinal": "APROVADO PELO CHEFE MOURATO",
-    "validadoPor": "Chefe Mourato",
-    "dataValidacaoFinal": "21/11/2026",
-    "hashAutenticidade": "MOURATO-PERICIAL-PF-JESSICA",
-    "scorePericial": 85,
-    "serasaScore": "Pendente",
-    "boaVistaScore": "Pendente",
-    "quodScore": "Pendente",
-    "linkFicha": "http://localhost:5173/ficha-cadastral?nome=JESSICA%20MOURATO%20DA%20SILVA&empresa=57.433.630%20JESSICA%20MOURATO%20DA%20SILVA",
-    "dataCadastro": "2026-11-21"
   },
   {
     "id": "cli-pf-angela",
@@ -675,98 +608,6 @@ export const TEIA_INITIAL_CLIENTS = [
     "limiteAprovado": "Sob auditoria de capacidade de pagamento",
     "observacoesSigilosas": "Cadastro pericial sob monitoramento da Teia de Aranha.",
     "dataCadastro": "2026-11-03T01:31:18.408Z"
-  },
-  {
-    "id": "cli-pj-sergio",
-    "tipo": "PJ",
-    "nomeRazao": "SS TECHNOLOGIES CLOUD",
-    "documento": "",
-    "documentoTipo": "CNPJ",
-    "natureza": "Sociedade Empresária",
-    "nire": "",
-    "situacao": "ATIVA",
-    "dataAbertura": "2026-11-03",
-    "socioVinculado": "SERGIO PEREIRA SENA",
-    "responsavel": "SERGIO PEREIRA SENA (Sócio-Titular)",
-    "contato": "(11) 98269-9176",
-    "email": "senanetworker@gmail.com",
-    "endereco": "São Paulo - SP",
-    "cep": "",
-    "protocolo": "MA-20261103-8269",
-    "balanco": {
-      "exercicio": "2026 (Auditando)",
-      "ativo": "Aguardando DRE/Balanço",
-      "patrimonioLiquido": "Aguardando DRE/Balanço",
-      "capitalSocial": "Aguardando DRE/Balanço",
-      "faturamentoAnual": "Aguardando DRE/Balanço",
-      "contadorResponsavel": "Em auditoria"
-    },
-    "contasBancarias": [
-      {
-        "id": 1,
-        "banco": "Conta Corporativa PJ",
-        "bancoOutro": "",
-        "agencia": "0001",
-        "conta": "Conta de Pagamento PJ",
-        "senhaAcesso": "",
-        "statusConta": "Aberta e Operando (CCS Bacen Ativo)"
-      }
-    ],
-    "serasaScore": "Pendente",
-    "serasaStatus": "Em Análise Pericial",
-    "boaVistaScore": "Pendente",
-    "boaVistaStatus": "Em Análise Pericial",
-    "quodScore": "Pendente",
-    "quodStatus": "Em Análise Pericial",
-    "bacenScr": "CCS Bacen em Auditoria",
-    "govNivel": "Pendente",
-    "govProtocolo": "Validação Gov.br em andamento",
-    "limiteAprovado": "Sob auditoria de capacidade de pagamento",
-    "observacoesSigilosas": "Cartão PJ vinculado ao sócio titular SERGIO PEREIRA SENA. Monitorado pela Teia de Aranha.",
-    "dataCadastro": "2026-11-03"
-  },
-  {
-    "id": "cli-pf-sergio",
-    "tipo": "PF",
-    "nomeRazao": "SERGIO PEREIRA SENA",
-    "documento": "",
-    "documentoTipo": "CPF",
-    "profissao": "Diretor de Tecnologia / Sócio-Administrador",
-    "empresaVinculada": "SS TECHNOLOGIES CLOUD (CNPJ Em cadastramento)",
-    "responsavel": "Titular",
-    "contato": "(11) 98269-9176",
-    "email": "senanetworker@gmail.com",
-    "protocolo": "MA-20261103-8269",
-    "endereco": "São Paulo - SP",
-    "cep": "",
-    "rendaPatrimonio": {
-      "proLabore": "Aguardando DRE/Balanço",
-      "bens": "Ativos e quotas societárias",
-      "veiculos": ""
-    },
-    "contasBancarias": [
-      {
-        "id": 1,
-        "banco": "Itaú / Nubank",
-        "bancoOutro": "",
-        "agencia": "0001",
-        "conta": "Conta Corrente",
-        "senhaAcesso": "",
-        "statusConta": "Aberta e Operando"
-      }
-    ],
-    "serasaScore": "Pendente",
-    "serasaStatus": "Em Análise Pericial",
-    "boaVistaScore": "Pendente",
-    "boaVistaStatus": "Em Análise Pericial",
-    "quodScore": "Pendente",
-    "quodStatus": "Em Análise Pericial",
-    "bacenScr": "Pendente",
-    "govNivel": "Pendente",
-    "govProtocolo": "Validação Gov.br em andamento",
-    "limiteAprovado": "Sob auditoria de capacidade de pagamento",
-    "observacoesSigilosas": "Lead aprovado pelo portal oficial. Par ordenado PJ e PF gerado.",
-    "dataCadastro": "2026-11-03"
   },
   {
     "id": "cli-pj-adilson_lima",

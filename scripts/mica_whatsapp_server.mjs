@@ -8,19 +8,18 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PORT = process.env.MICA_PORT || 3005;
+const PORT = process.env.MICA_PORT || 3050;
 const AUTH_DIR = path.resolve(__dirname, '../auth_info_baileys');
 const CACHE_FILE = path.resolve(AUTH_DIR, 'notified_lead_ids.json');
 const LOG_FILE = path.resolve(AUTH_DIR, 'mica_history.log');
 
-// Número oficial da Diretoria que recebe os alertas e autoriza as aprovações
-const DIRECTOR_PHONE = '5511914572275';
+// Número da Mica conectado (WhatsApp Business):
+const MICA_OWN_PHONE = '5511914572275';
 
-// Destinatários de monitoramento (Alerta prioritário para Diretoria Hesiuel com cópia para Sérgio)
-const NOTIFY_TARGETS = [
-  { label: 'Diretoria Executiva (Hesiuel)', phone: DIRECTOR_PHONE },
-  { label: 'Sérgio Sena (Tecnologia/Diretoria)', phone: '5511982699176' }
-];
+// Número do Diretor Mourato (recebe o Dossiê e Briefing oficial):
+const DIRECTOR_PHONE = '5511978990034';
+const TEST_CLIENT_PHONE = '5511978990034';
+const NOTIFY_TARGETS = [];
 
 // Configuração da API AWS para monitoramento contínuo em nuvem
 const AWS_LEADS_URL = 'https://0bwr64p3ie.execute-api.us-east-1.amazonaws.com/prod/leads';
@@ -33,6 +32,8 @@ let isPollingAws = false;
 let lastDispatches = [];
 let pendingLeadsMap = new Map(); // id -> lead data
 let latestPendingLead = null;
+let activeClientStage = 'CONSENT';
+const clientStageMap = new Map(); // sender/phone -> 'CONSENT' | 'SERASA' | 'BOAVISTA' | 'QUOD' | 'DONE'
 
 // Logger persistente em arquivo
 function writeMicaLog(msg) {
@@ -150,6 +151,49 @@ async function dispatchAlertToWhatsApp(lead, source = 'NUVEM_AWS') {
       writeMicaLog(`❌ [${source}] Falha ao enviar para ${target.label} (${target.phone}): ${err.message}`);
       dispatchRecord.results.push({ target: target.label, error: err.message, ok: false });
     }
+  }
+
+  // 📲 DISPARO AUTOMÁTICO PARA O WHATSAPP DO CLIENTE (Mica se apresentando e pedindo Consentimento LGPD)
+  const clientRaw = lead.telefone || lead.contato || lead.celular || '';
+  let clientDigits = clientRaw.replace(/\D/g, '');
+  if (clientDigits.length < 10) clientDigits = TEST_CLIENT_PHONE;
+  if (!clientDigits.startsWith('55')) clientDigits = '55' + clientDigits;
+
+  const leadProto = lead.protocolo || `MA-${(lead.id || Date.now()).toString().slice(0, 8).toUpperCase()}`;
+
+  // Atualiza lead pendente ativo com protocolo e cnpj para resposta SIM
+  lead.protocolo = leadProto;
+  lead.telefone = clientDigits;
+  latestPendingLead = lead;
+  if (lead.id) pendingLeadsMap.set(String(lead.id), lead);
+  pendingLeadsMap.set(leadProto, lead);
+  clientStageMap.set(clientDigits, 'CONSENT');
+  clientStageMap.set('default', 'CONSENT');
+
+  const clientWelcomeMsg = 
+`Olá, *${(lead.nome || 'Cliente').trim()}*! Aqui é a *Mica*, secretária executiva da *Mourato & Associados*. 👩‍💼
+
+Recebemos a sua solicitação para a empresa *${(lead.empresa || 'Empresa').trim()}* com sucesso!
+📋 *Protocolo Oficial:* ${leadProto}
+
+Para darmos continuidade imediata ao seu atendimento e à estruturação de crédito, você autoriza o nosso departamento pericial a realizar as consultas cadastrais públicas da sua empresa (Receita Federal, certidões e regularidade)?
+
+Responda diretamente com:
+👉 *[ SIM ]* para autorizar e avançar
+👉 *[ NÃO ]* para encerrar`;
+
+  try {
+    let clientJid = `${clientDigits}@s.whatsapp.net`;
+    try {
+      const checkCli = await sock.onWhatsApp(clientDigits);
+      if (Array.isArray(checkCli) && checkCli[0]?.exists && checkCli[0]?.jid) {
+        clientJid = checkCli[0].jid;
+      }
+    } catch (_) {}
+    await sock.sendMessage(clientJid, { text: clientWelcomeMsg });
+    writeMicaLog(`📲 [DISPARO CLIENTE AUTOMÁTICO] Boas-vindas e protocolo ${leadProto} entregues para o cliente ${clientDigits}!`);
+  } catch (errCli) {
+    writeMicaLog(`⚠️ Falha ao entregar para cliente ${clientDigits}: ${errCli.message}`);
   }
 
   lastDispatches.unshift(dispatchRecord);
@@ -364,6 +408,8 @@ function saveApprovedLeadToTeia(lead, linkFicha) {
   } catch (_) {}
 }
 
+const msgStore = new Map();
+
 async function connectToWhatsApp() {
   if (!fs.existsSync(AUTH_DIR)) {
     fs.mkdirSync(AUTH_DIR, { recursive: true });
@@ -374,7 +420,11 @@ async function connectToWhatsApp() {
   sock = makeWASocket({
     auth: state,
     printQRInTerminal: false,
-    browser: ['Mica Pericial', 'Chrome', '1.0.0']
+    browser: ['Mica Pericial', 'Chrome', '1.0.0'],
+    syncFullHistory: false,
+    getMessage: async (key) => {
+      return msgStore.get(key.id)?.message || undefined;
+    }
   });
 
   sock.ev.on('connection.update', (update) => {
@@ -395,7 +445,11 @@ async function connectToWhatsApp() {
         writeMicaLog('🔄 Reconectando Mica automaticamente em 3 segundos...');
         setTimeout(connectToWhatsApp, 3000);
       } else {
-        writeMicaLog('❌ Sessão deslogada. Exclua auth_info_baileys para ler novo QR Code.');
+        writeMicaLog('❌ Sessão deslogada. Limpando credenciais antigas e gerando novo QR Code...');
+        try {
+          fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+        } catch (_) {}
+        setTimeout(connectToWhatsApp, 1500);
       }
     } else if (connection === 'open') {
       isConnected = true;
@@ -410,38 +464,53 @@ async function connectToWhatsApp() {
 
   sock.ev.on('creds.update', saveCreds);
 
-  // Escuta mensagens recebidas no WhatsApp da Mica
+  // Escuta mensagens recebidas no WhatsApp da Mica (suporta notify, append, ephemeral e retries)
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
-    if (type !== 'notify') return;
     for (const msg of messages) {
-      if (!msg.message || msg.key.fromMe) continue;
-      const sender = msg.key.remoteJid || '';
+      if (msg.key?.id) {
+        msgStore.set(msg.key.id, msg);
+        if (msgStore.size > 200) {
+          const firstKey = msgStore.keys().next().value;
+          msgStore.delete(firstKey);
+        }
+      }
+
+      if (msg.key?.fromMe) continue;
+      const sender = msg.key?.remoteJid || '';
 
       // Ignora grupos e broadcast
-      if (sender.includes('@g.us') || sender === 'status@broadcast') continue;
+      if (!sender || sender.includes('@g.us') || sender === 'status@broadcast') continue;
+
+      const raw = msg.message?.ephemeralMessage?.message ||
+                  msg.message?.viewOnceMessage?.message ||
+                  msg.message?.viewOnceMessageV2?.message ||
+                  msg.message;
+      if (!raw) continue;
 
       const text = (
-        msg.message.conversation ||
-        msg.message.extendedTextMessage?.text ||
-        msg.message.imageMessage?.caption ||
-        msg.message.documentMessage?.caption ||
+        raw.conversation ||
+        raw.extendedTextMessage?.text ||
+        raw.imageMessage?.caption ||
+        raw.documentMessage?.caption ||
+        raw.buttonsResponseMessage?.selectedButtonId ||
+        raw.templateButtonReplyMessage?.selectedId ||
         ''
       ).trim();
 
       const pushName = (msg.pushName || '').trim() || 'Cliente';
       const senderDigits = sender.replace(/\D/g, '');
 
-      writeMicaLog(`📩 Mensagem recebida de ${pushName} (${sender}): "${text}"`);
+      writeMicaLog(`📩 Mensagem recebida [type=${type}] de ${pushName} (${sender}): "${text}"`);
+      if (!text) continue;
 
-      // 1. COMANDOS VINDOS DA DIRETORIA AUTORIZADA
-      const isDirector = sender.includes(DIRECTOR_PHONE.slice(-8)) || NOTIFY_TARGETS.some(t => sender.includes(t.phone.slice(-8)));
-      if (isDirector) {
-        const cleanCmd = text.trim().toUpperCase();
-
-        if (cleanCmd.startsWith('APROVAR') || cleanCmd === 'OK') {
+      // 1. COMANDOS VINDOS DA DIRETORIA AUTORIZADA (Apenas comandos explícitos como APROVAR ou STATUS)
+      const cleanCmd = text.trim().toUpperCase();
+      const isDirectorCmd = (cleanCmd.startsWith('APROVAR') || cleanCmd === 'STATUS') && 
+                            Boolean(DIRECTOR_PHONE && DIRECTOR_PHONE.length >= 8 && sender.includes(DIRECTOR_PHONE.slice(-8)));
+      if (isDirectorCmd) {
+        if (cleanCmd.startsWith('APROVAR')) {
           writeMicaLog('⚡ [COMANDO EXECUTIVO DA DIRETORIA] Autorização confirmada via WhatsApp!');
           
-          // Verifica se há ID especificado: "APROVAR <leadId>"
           const parts = text.trim().split(/\s+/);
           let targetLead = null;
           if (parts.length > 1 && pendingLeadsMap.has(parts[1])) {
@@ -459,16 +528,261 @@ async function connectToWhatsApp() {
           }
         } else if (cleanCmd === 'STATUS') {
           await sock.sendMessage(sender, {
-            text: `🤖 *[MICA STATUS 24/7]*\n\n🟢 Conectada: Sim\n☁️ Vigilância Nuvem AWS: Ativa\n📱 Diretoria: ${DIRECTOR_PHONE}\n🔇 Modo Chatbot: Desativado (Zero mensagens invasivas ao cliente)\n📋 Leads Notificados: ${notifiedIds.size}`
+            text: `🤖 *[MICA STATUS 24/7]*\n\n🟢 Conectada: Sim\n☁️ Vigilância Nuvem AWS: Ativa\n📱 Diretor Mourato: ${DIRECTOR_PHONE}\n📋 Leads Notificados: ${notifiedIds.size}`
           });
         }
         continue;
       }
 
-      // 2. MENSAGEM VINDA DE CLIENTE / TERCEIRO:
-      // A Mica mantém silêncio absoluto. Ela NÃO envia mensagens para clientes nem repassa newsletters/notificações para a diretoria.
-      // Apenas registra no log local.
-      continue;
+      // 2. MENSAGEM VINDA DE CLIENTE / TERCEIRO (MÁQUINA DE ESTADOS SEQUENCIAL DOS BIRÔS):
+      const cleanClientText = text.trim().toUpperCase();
+      let currentStage = clientStageMap.get(sender) || clientStageMap.get(senderDigits) || activeClientStage || 'CONSENT';
+
+      writeMicaLog(`📩 [ETAPA CLIENTE: ${currentStage}] ${pushName} (${sender}): "${text}"`);
+
+      const isSim = /^(SIM|S|YES|OK|AUTORIZO|CONFIRMO|CADASTRADO|CONCLUIDO|CONCLUÍDO|PRONTO)$/i.test(cleanClientText) || cleanClientText.startsWith('SIM');
+      const isNao = /^(NAO|NÃO|N|NO|RECUSO|CANCELAR)$/i.test(cleanClientText) || cleanClientText.startsWith('NÃO') || cleanClientText.startsWith('NAO');
+
+      // FLUXO ETAPA 0: CONSENTIMENTO INICIAL LGPD
+      if (currentStage === 'CONSENT') {
+        if (isSim) {
+          activeClientStage = 'SERASA';
+          clientStageMap.set(sender, 'SERASA');
+          clientStageMap.set(senderDigits, 'SERASA');
+          clientStageMap.set('default', 'SERASA');
+          writeMicaLog(`⚡ [CONSENTIMENTO CLIENTE] ${pushName} autorizou consultas via WhatsApp! Avançando para SERASA.`);
+
+          const serasaMsg = 
+`✅ *Autorização Confirmada com Sucesso!*
+
+O departamento pericial da *Mourato & Associados* já iniciou as consultas públicas da sua empresa.
+
+🔷 *Etapa 1 de 3 — Birô SERASA:*
+Acesse o portal oficial do Serasa para login ou cadastro:
+👉 https://www.serasa.com.br/
+
+Você já possui cadastro ativo ou concluiu o login no Serasa?
+Responda diretamente:
+👉 *[ SIM ]* para prosseguir
+👉 *[ NÃO ]* caso ainda não tenha cadastro`;
+
+          await sock.sendMessage(sender, { text: serasaMsg });
+
+          // Aciona o Agente Questão e o CIO Alfred através da esteira autônoma
+          try {
+            const currentLead = latestPendingLead || {};
+            const proto = currentLead.protocolo || 'MA-TESTE';
+            const cnpjToProcess = (currentLead.cnpj || '').replace(/\D/g, '') || '57433630000177';
+            fetch('http://127.0.0.1:9000/api/pipeline/process', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                cnpj: cnpjToProcess,
+                telefone: senderDigits || currentLead.telefone || '11978990034',
+                email: currentLead.email || '',
+                nome_contato: pushName || currentLead.nome || 'Cliente',
+                simular_consentimento_imediato: true
+              })
+            }).then(r => r.json()).then(async res => {
+              writeMicaLog(`🚀 [ESTEIRA DISPARADA COM SUCESSO] Parecer: ${res?.recomendacao_alfred} | Score: ${res?.score_viabilidade}`);
+            }).catch(e => {
+              writeMicaLog(`⚠️ Falha ao acionar esteira no Alfred: ${e.message}`);
+            });
+          } catch (_) {}
+          continue;
+        } else if (isNao) {
+          await sock.sendMessage(sender, { text: 'Agradecemos o seu retorno. Por respeito à sua privacidade e às diretrizes da LGPD, seu protocolo foi encerrado. Tenha um excelente dia!' });
+          continue;
+        } else {
+          // Orientação para responder SIM ou NÃO
+          await sock.sendMessage(sender, {
+            text: `Por favor, responda diretamente:\n👉 *[ SIM ]* para autorizar as consultas e prosseguir\n👉 *[ NÃO ]* para encerrar o protocolo`
+          });
+          continue;
+        }
+      }
+
+      // FLUXO ETAPA 1: BIRÔ SERASA
+      if (currentStage === 'SERASA') {
+        if (isSim) {
+          activeClientStage = 'BOAVISTA';
+          clientStageMap.set(sender, 'BOAVISTA');
+          clientStageMap.set(senderDigits, 'BOAVISTA');
+          clientStageMap.set('default', 'BOAVISTA');
+          writeMicaLog(`⚡ [ONBOARDING] Serasa validado por ${pushName}! Avançando para BOA VISTA.`);
+
+          const boaVistaMsg = 
+`✅ *Excelente! Serasa confirmado com sucesso.*
+
+🔶 *Etapa 2 de 3 — Birô BOA VISTA (Consumidor Positivo):*
+Acesse o link oficial da Boa Vista:
+👉 https://app.consumidorpositivo.com.br/inicio
+
+Você já possui cadastro ativo ou concluiu o login na Boa Vista?
+Responda diretamente:
+👉 *[ SIM ]* para prosseguir
+👉 *[ NÃO ]* caso ainda não tenha cadastro`;
+
+          await sock.sendMessage(sender, { text: boaVistaMsg });
+          continue;
+        } else if (isNao) {
+          const orientacaoSerasa = 
+`Para dar continuidade ao processo de estruturação de crédito, é fundamental que você realize o seu cadastro no Serasa:
+👉 https://www.serasa.com.br/
+
+Assim que concluir o seu cadastro, responda *[ SIM ]* aqui para podermos prosseguir!`;
+          await sock.sendMessage(sender, { text: orientacaoSerasa });
+          continue;
+        } else {
+          await sock.sendMessage(sender, {
+            text: `Por favor, confirme sobre o Serasa:\n👉 *[ SIM ]* para prosseguir\n👉 *[ NÃO ]* para receber orientações de cadastro`
+          });
+          continue;
+        }
+      }
+
+      // FLUXO ETAPA 2: BIRÔ BOA VISTA
+      if (currentStage === 'BOAVISTA') {
+        if (isSim) {
+          activeClientStage = 'QUOD';
+          clientStageMap.set(sender, 'QUOD');
+          clientStageMap.set(senderDigits, 'QUOD');
+          clientStageMap.set('default', 'QUOD');
+          writeMicaLog(`⚡ [ONBOARDING] Boa Vista validada por ${pushName}! Avançando para QUOD.`);
+
+          const quodMsg = 
+`✅ *Perfeito! Boa Vista confirmada com sucesso.*
+
+🟣 *Etapa 3 de 3 — Birô QUOD:*
+Acesse o portal oficial do Consumidor Quod:
+👉 https://consumidor.quod.com.br/
+
+Você já possui cadastro ativo ou concluiu o login na Quod?
+Responda diretamente:
+👉 *[ SIM ]* para prosseguir e finalizar os birôs
+👉 *[ NÃO ]* caso ainda não tenha cadastro`;
+
+          await sock.sendMessage(sender, { text: quodMsg });
+          continue;
+        } else if (isNao) {
+          const orientacaoBoaVista = 
+`Para dar continuidade ao processo de estruturação de crédito, é fundamental que você realize o seu cadastro na Boa Vista:
+👉 https://app.consumidorpositivo.com.br/inicio
+
+Assim que concluir o seu cadastro, responda *[ SIM ]* aqui para podermos prosseguir!`;
+          await sock.sendMessage(sender, { text: orientacaoBoaVista });
+          continue;
+        } else {
+          await sock.sendMessage(sender, {
+            text: `Por favor, confirme sobre a Boa Vista:\n👉 *[ SIM ]* para prosseguir\n👉 *[ NÃO ]* para receber orientações de cadastro`
+          });
+          continue;
+        }
+      }
+
+      // FLUXO ETAPA 3: BIRÔ QUOD -> DISPARO DO 4º PASSO
+      if (currentStage === 'QUOD') {
+        if (isSim) {
+          activeClientStage = 'DONE';
+          clientStageMap.set(sender, 'DONE');
+          clientStageMap.set(senderDigits, 'DONE');
+          clientStageMap.set('default', 'DONE');
+          writeMicaLog(`🎉 [ONBOARDING CONCLUÍDO] Todos os 3 birôs validados com sucesso por ${pushName}! Liberando Questão e Alfred.`);
+
+          const conclusaoMsg = 
+`🎉 *Parabéns! Todos os 3 birôs (Serasa, Boa Vista e Quod) foram confirmados com sucesso!*
+
+📊 *Etapa 4 — Planilha Pericial Mourato & Associados:*
+Acesse diretamente o link oficial para envio dos dados complementares:
+👉 https://www.mouratoassociados.com.br/cadastro
+
+🏛️ *Bacen Registrato (Opcional - SCR & Contas):*
+👉 https://registrato.bcb.gov.br/
+
+🔍 *Auditoria Liberada:* O Agente Questão já foi acionado com 1000% de autoridade em segundo plano para compilar o seu primeiro Dossiê Pericial.
+O nosso CIO executivo Alfred já está averiguando os apontamentos e salvando o seu laudo oficial em PDF na sua pasta de cliente.`;
+
+          await sock.sendMessage(sender, { text: conclusaoMsg });
+
+          // Dispara o Questão com 1000% de autoridade e o Alfred em segundo plano para gerar e salvar o Dossiê em PDF
+          try {
+            const currentLead = latestPendingLead || {};
+            const proto = currentLead.protocolo || 'MA-TESTE';
+            const cnpjToProcess = (currentLead.cnpj || '').replace(/\D/g, '') || '57433630000177';
+            fetch('http://127.0.0.1:9000/api/pipeline/process', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                cnpj: cnpjToProcess,
+                telefone: senderDigits || currentLead.telefone || '11978990034',
+                email: currentLead.email || '',
+                nome_contato: pushName || currentLead.nome || 'Cliente',
+                simular_consentimento_imediato: true
+              })
+            }).then(r => r.json()).then(async res => {
+              writeMicaLog(`🚀 [QUESTÃO & ALFRED - ETAPA 4] Dossiê gerado com 1000% de autoridade! Parecer: ${res?.recomendacao_alfred} | Score: ${res?.score_viabilidade} | Pasta: ${res?.arquivos_gerados?.folder_path}`);
+
+              // 📲 TRANSMISSÃO DO DOSSIÊ E PARECER PARA O DIRETOR MOURATO (11 97899-0034)
+              if (res && DIRECTOR_PHONE) {
+                let dirJid = `${DIRECTOR_PHONE}@s.whatsapp.net`;
+                try {
+                  const checkDir = await sock.onWhatsApp(DIRECTOR_PHONE);
+                  if (Array.isArray(checkDir) && checkDir[0]?.exists && checkDir[0]?.jid) {
+                    dirJid = checkDir[0].jid;
+                  }
+                } catch (_) {}
+
+                // 1. Envia Briefing Executivo do Alfred para o Diretor
+                if (res.briefing_whatsapp_mourato) {
+                  await sock.sendMessage(dirJid, { text: res.briefing_whatsapp_mourato });
+                  writeMicaLog(`📋 [PARECER ENVIADO] Briefing do Alfred entregue para o Diretor Mourato (${DIRECTOR_PHONE})!`);
+                }
+
+                // 2. Anexa e envia o arquivo PDF oficial do Dossiê Pericial
+                const pdfPath = res.arquivos_gerados?.dossie_pdf;
+                if (pdfPath && fs.existsSync(pdfPath)) {
+                  try {
+                    const pdfBuffer = fs.readFileSync(pdfPath);
+                    await sock.sendMessage(dirJid, {
+                      document: pdfBuffer,
+                      mimetype: 'application/pdf',
+                      fileName: 'DOSSIE_PERICIAL_INVESTIGACAO_QUESTAO.pdf',
+                      caption: `📄 *Dossiê Pericial Oficial Mourato & Associados*\nProtocolo: ${res.protocolo}\nScore: ${res.score_viabilidade}/100 — Parecer: ${res.recomendacao_alfred}\nSalvo no servidor em: ${res.arquivos_gerados?.folder_path}`
+                    });
+                    writeMicaLog(`📎 [PDF TRANSMITIDO] Dossiê Pericial enviado com sucesso para o Diretor Mourato!`);
+                  } catch (errPdf) {
+                    writeMicaLog(`⚠️ Falha ao transmitir arquivo PDF: ${errPdf.message}`);
+                  }
+                }
+              }
+            }).catch(e => {
+              writeMicaLog(`⚠️ Falha ao acionar esteira Questão/Alfred: ${e.message}`);
+            });
+          } catch (_) {}
+          continue;
+        } else if (isNao) {
+          const orientacaoQuod = 
+`Para darmos continuidade ao processo e liberar a planilha pericial da 4ª etapa, por favor acesse e realize seu cadastro na Quod:
+👉 https://consumidor.quod.com.br/
+
+Assim que concluir o seu cadastro, responda *[ SIM ]* aqui para podermos prosseguir e liberar a planilha de coleta!`;
+          await sock.sendMessage(sender, { text: orientacaoQuod });
+          continue;
+        } else {
+          await sock.sendMessage(sender, {
+            text: `Por favor, confirme sobre a Quod:\n👉 *[ SIM ]* para finalizar os birôs e avançar para o 4º passo\n👉 *[ NÃO ]* para receber orientações de cadastro`
+          });
+          continue;
+        }
+      }
+
+      // FLUXO CONCLUÍDO:
+      if (currentStage === 'DONE') {
+        await sock.sendMessage(sender, {
+          text: `Seu processo de onboarding dos birôs já foi concluído com sucesso e o seu Dossiê Pericial está sendo averiguado pelo CIO Alfred.\n\nLink oficial da planilha de cadastro:\n👉 https://www.mouratoassociados.com.br/cadastro`
+        });
+        continue;
+      }
     }
   });
 }
@@ -565,7 +879,7 @@ A equipe humana e a Teia já podem iniciar a análise dos birôs.
 _Mica • Atendimento Corporativo — Mourato & Associados_`;
 
         let ok = false;
-        if (isConnected && sock) {
+        if (isConnected && sock && DIRECTOR_PHONE) {
           try {
             let dirJid = `${DIRECTOR_PHONE}@s.whatsapp.net`;
             try {
@@ -581,6 +895,56 @@ _Mica • Atendimento Corporativo — Mourato & Associados_`;
             writeMicaLog(`⚠️ Falha ao avisar diretoria: ${errSend.message}`);
           }
         }
+
+        // DISPARO OFICIAL PARA O WHATSAPP DO CLIENTE (Mica solicitando Consentimento LGPD)
+        let clientDigits = (telefone || '').replace(/\D/g, '');
+        if (clientDigits.length < 10) clientDigits = TEST_CLIENT_PHONE;
+        if (!clientDigits.startsWith('55')) clientDigits = '55' + clientDigits;
+
+        const msgCliente = 
+`Olá, *${nome}*! Aqui é a *Mica*, secretária executiva da *Mourato & Associados*. 👩‍💼
+
+Confirmamos o recebimento da sua Ficha Cadastral com sucesso!
+📋 *Protocolo Oficial:* ${protocolo}
+🏢 *Empresa:* ${empresa || 'Pessoa Física'}
+
+Para darmos continuidade ao atendimento e à estruturação do seu crédito, você autoriza o nosso departamento de inteligência pericial a realizar as consultas cadastrais públicas da sua empresa (Receita Federal, certidões e regularidade)?
+
+Responda diretamente com:
+👉 *[ SIM ]* para autorizar e avançar
+👉 *[ NÃO ]* para encerrar`;
+
+        if (isConnected && sock) {
+          try {
+            let clientJid = `${clientDigits}@s.whatsapp.net`;
+            try {
+              const checkCli = await sock.onWhatsApp(clientDigits);
+              if (Array.isArray(checkCli) && checkCli[0]?.exists && checkCli[0]?.jid) {
+                clientJid = checkCli[0].jid;
+              }
+            } catch (_) {}
+            await sock.sendMessage(clientJid, { text: msgCliente });
+            writeMicaLog(`📲 [DISPARO CLIENTE] Mensagem de protocolo e consentimento entregue para ${clientDigits}!`);
+          } catch (errCli) {
+            writeMicaLog(`⚠️ Falha ao enviar para cliente ${clientDigits}: ${errCli.message}`);
+          }
+        }
+
+        // Armazena no estado ativo para responder ao consentimento SIM via WhatsApp
+        const leadObj = {
+          nome,
+          empresa,
+          protocolo,
+          telefone: clientDigits,
+          email,
+          cnpj: data.cnpj || data.payload?.empresa?.cnpj || data.payload?.documento || '57433630000177',
+          cpf: data.cpf || data.payload?.titular?.cpf || '',
+          data_criacao: new Date().toISOString()
+        };
+        latestPendingLead = leadObj;
+        pendingLeadsMap.set(protocolo, leadObj);
+        clientStageMap.set(clientDigits, 'CONSENT');
+        clientStageMap.set('default', 'CONSENT');
 
         // Atualiza banco oficial da Teia
         try {

@@ -17,7 +17,9 @@ const routesToMirror = [
   'ficha-cadastral',
   'onboarding',
   'cadastro',
-  'ficha'
+  'ficha',
+  'planilha',
+  'area-cliente/planilha-coleta'
 ];
 
 console.log('[postbuild] Espelhando index.html para rotas estáticas SPA...');

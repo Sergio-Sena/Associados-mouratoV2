@@ -166,23 +166,6 @@ const CLIENTES_PF_MAP = [
     cenprot: 'Pesquisa Nacional CENPROT em homologação',
     divida_ativa: 'PGFN: Regular',
     rating: 'B+ (AGUARDANDO EXTRATOS DE BIRÔS)'
-  },
-  {
-    folder: 'SERGIO_PEREIRA_SENA_SERGIO',
-    nome: 'SERGIO PEREIRA SENA',
-    cpf: '000.000.000-00 (Sócio Fundador)',
-    rg: 'SSP/SP',
-    nasc: 'São Paulo/SP',
-    filiacao: 'Família Sena',
-    telefones: '(11) 90000-0000',
-    emails: 'sergio.sena@mouratoassociados.com.br',
-    endereco: 'Av. São Luís, 187, República, São Paulo/SP',
-    empresa: 'MOURATO & ASSOCIADOS / TEIA DE ARANHA',
-    scores: { quod: '', boavista: '', serasa: '', bacen: '', spc: '' },
-    scr: { em_dia: '', atraso: '', prejuizo: '', limite: '' },
-    cenprot: 'Diretoria e Tecnologia',
-    divida_ativa: 'Regular',
-    rating: 'AAA (GOVERNANÇA & TECNOLOGIA)'
   }
 ];
 
@@ -270,20 +253,6 @@ const CLIENTES_PJ_MAP = [
     scores: { serasa_pj: '', boavista_pj: '', scr_bacen: 'Extinto' },
     cnds: 'SITUAÇÃO CADASTRAL: BAIXADA (Encerramento regular)',
     rating: 'BAIXADA (HISTÓRICO ENCERRADO SEM DÉBITOS)'
-  },
-  {
-    folder: 'SS_TECHNOLOGIES_CLOUD_00000000000000',
-    razao: 'SS TECHNOLOGIES CLOUD LTDA',
-    cnpj: '00.000.000/0001-00 (Homologação)',
-    abertura: '01/01/2024',
-    capital: 'R$ 500.000,00',
-    cnae: '6201-5/01 — Desenvolvimento de programas de computador sob encomenda',
-    sede: 'São Paulo/SP',
-    socio: 'SERGIO PERERA SENA',
-    regime: 'Lucro Presumido',
-    scores: { serasa_pj: '', boavista_pj: '', scr_bacen: '' },
-    cnds: 'Infraestrutura de tecnologia e inteligência artificial',
-    rating: 'AAA (TECNOLOGIA DA INFORMAÇÃO)'
   }
 ];
 
@@ -1172,3 +1141,4 @@ main().catch(err => {
   console.error('Erro na execução do lote:', err);
   process.exit(1);
 });
+
