@@ -74,7 +74,87 @@ git push origin main
 
 ---
 
+## Ecossistema AWS Completo
+
+```
+[ CONTA AWS — MOURATO & ASSOCIADOS | us-east-1 ]
+│
+├── AWS Amplify (d3309gx1hqzwt1)
+│   └── mouratoassociados.com.br → React SPA
+│       VITE_API_URL → API Gateway
+│       VITE_ADMIN_PASSWORD → @Jota1307
+│
+├── API Gateway REST (0bwr64p3ie) — mourato-leads-api
+│   ├── POST   /prod/leads → Lambda mourato-save-lead
+│   ├── GET    /prod/leads → Lambda mourato-get-leads
+│   ├── DELETE /prod/leads/{id} → Lambda mourato-get-leads
+│   └── PATCH  /prod/leads/{id} → Lambda mourato-get-leads
+│
+├── AWS Lambda
+│   ├── mourato-save-lead (nodejs22.x)
+│   └── mourato-get-leads (nodejs22.x)
+│
+├── AWS DynamoDB
+│   └── mourato-leads (PK: id | PAY_PER_REQUEST)
+│
+└── Amazon Lightsail — mourato-mica-server ($5/mês)
+    ├── IP Estático: 54.84.170.164 (mourato-mica-ip)
+    ├── Plano: micro_3_0 (1GB RAM, 2vCPU, 40GB SSD)
+    ├── OS: Ubuntu 22.04 LTS | Região: us-east-1a
+    ├── Portas abertas: 22 (SSH), 3050 (Mica), 9000 (Alfred)
+    ├── Mica WhatsApp Bot → http://54.84.170.164:3050
+    │   ├── /status  — status da conexão
+    │   ├── /qrcode  — escanear QR Code
+    │   └── Polling DynamoDB a cada 4s
+    └── Alfred & Questão → porta 9000 (pendente — código local do Mourato)
+```
+
+### Tags aplicadas em todos os recursos
+
+| Chave | Valor |
+|---|---|
+| Project | mourato-associados |
+| Owner | jose-jailson-mourato |
+| CNPJ | 38377738000145 |
+| Env | production |
+| ManagedBy | sergio-sena |
+
+### Custo Mensal
+
+| Serviço | USD/mês | R$/mês |
+|---|---|---|
+| AWS Amplify | ~$0,01 | ~R$ 0,06 |
+| Lambda + API Gateway | ~$0,01 | ~R$ 0,06 |
+| DynamoDB | $0,00 | R$ 0,00 |
+| Lightsail (Mica) | $5,00 | R$ 28,75 |
+| **TOTAL** | **~$5,02** | **~R$ 28,87/mês** |
+
+> Câmbio: USD 1,00 = R$ 5,75 (nov/2026)
+
+---
+
+## Pendências
+
+- [ ] Mourato escanear QR Code em `http://54.84.170.164:3050/qrcode` com WhatsApp (11) 91457-2275
+- [ ] Mourato commitar servidor Alfred & Questão (porta 9000) no GitHub para subir no Lightsail
+
+---
+
 ## Histórico de Infraestrutura
+
+### 23/11/2026 — Deploy Ecossistema AWS Completo (Sessão Amazon Q)
+- Levantamento completo dos recursos AWS existentes via CLI
+- Tags aplicadas em todos os recursos: DynamoDB, Lambda (x2), API Gateway, Lightsail
+- Variáveis de ambiente configuradas no Amplify: `VITE_API_URL` e `VITE_ADMIN_PASSWORD`
+- Instância Lightsail `mourato-mica-server` criada (Ubuntu 22.04, micro $5/mês, us-east-1a)
+- IP estático `54.84.170.164` alocado e anexado à instância
+- Portas 3050 e 9000 abertas no firewall Lightsail
+- Script de setup automático executado: Node.js 20, PM2, clone do repo, Mica online
+- Permissões corrigidas (`chown ubuntu`) e `auth_info_baileys` criado
+- Redeploy do Amplify triggerado (Job #77 — SUCCEED em 74s)
+- Mica confirmada online: `{online: true, awsQueueWatcher: true}`
+- Arquivos criados: `projeto/lightsail-setup.sh`, `projeto/lightsail-userdata.sh`, `projeto/LIGHTSAIL-DEPLOY.md`, `projeto/mourato-mica-key.pem`
+- Chave SSH salva em `projeto/mourato-mica-key.pem`
 
 ### 05/08/2026 — Migração Vercel → AWS Amplify
 - Projeto `mourato-associados` (perfumes/cosméticos) estava na Vercel

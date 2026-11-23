@@ -70,8 +70,17 @@
 
 ### Persistência de dados
 - `ClientManagementModal` salva no `localStorage` (5 chaves: clientes, despesas, agendamentos, recebíveis, config Mercado Pago)
-- `AdvisoryOnboardingModal` envia leads via `POST` para `VITE_API_URL/leads` — sem fallback local
+- `AdvisoryOnboardingModal` envia leads via `POST` para `VITE_API_URL/leads` → DynamoDB via API Gateway
 - Supabase **não está integrado** neste projeto — pertence ao y7-service
+
+### Ecossistema AWS (configurado em 23/11/2026)
+- **Amplify:** `VITE_API_URL=https://0bwr64p3ie.execute-api.us-east-1.amazonaws.com/prod`
+- **DynamoDB:** tabela `mourato-leads` (PAY_PER_REQUEST, us-east-1)
+- **Lambda:** `mourato-save-lead` + `mourato-get-leads` (nodejs22.x)
+- **API Gateway:** `mourato-leads-api` (REST, id: `0bwr64p3ie`)
+- **Lightsail:** `mourato-mica-server` — IP fixo `54.84.170.164` — Mica WhatsApp Bot porta 3050
+- **SSH:** `ssh -i projeto/mourato-mica-key.pem ubuntu@54.84.170.164`
+- **Pendente:** Alfred & Questão (porta 9000) — aguardando Mourato commitar código local
 
 ## Padrões visuais
 - Fonte serif: Cinzel (títulos)
