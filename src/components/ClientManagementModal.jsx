@@ -1247,23 +1247,9 @@ Website: https://www.mouratoassociados.com.br`;
       return remaining;
     });
 
-    // 7. Configura e abre o Modal de Envio e Feedback
-    setApprovalModalData({
-      lead: targetLead,
-      linkFicha,
-      wppUrl,
-      wppAppUrl,
-      wppWebUrl,
-      wppMsg,
-      cleanPhone,
-      googleWorkspaceUrl,
-      destEmail,
-      mailtoUrl,
-      emailSubject,
-      emailBody,
-      emailHtml,
-      clientCreated: newClientRecord
-    });
+    // 7. Transição Direta e Imediata para a Aba CLIENTES com os botões pré-cadastrados anteriores
+    setActiveView('clients_list');
+    setApprovalModalData(null);
 
     // 8. Notifica criação do cliente para ouvintes do sistema e dispara envio automático pela Mica
     try {
