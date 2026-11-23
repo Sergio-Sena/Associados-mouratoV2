@@ -48,13 +48,15 @@ export function buildLeadNotification(lead) {
   const leadProtocolo = lead.protocolo || `MA-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
   const leadNome = (lead.nome || 'Cliente').trim();
   const leadEmpresa = (lead.empresa || 'Empresa').trim();
+  const leadCnpj = (lead.cnpj || '').trim();
+  const leadCpf = (lead.cpf || '').trim();
   const leadTelefone = (lead.telefone || '').trim();
   const leadEmail = (lead.email || '').trim().toLowerCase();
   const leadPratica = PRATICAS_MAP[lead.pratica] || lead.pratica || 'Assessoria Corporativa & Rating';
   const leadContexto = (lead.contexto || '').trim();
 
   // 1. Link oficial exclusivo da Ficha Cadastral para este Lead
-  const linkFicha = `${baseUrl}/ficha-cadastral?nome=${encodeURIComponent(leadNome)}&empresa=${encodeURIComponent(leadEmpresa)}&telefone=${encodeURIComponent(leadTelefone)}&email=${encodeURIComponent(leadEmail)}&leadId=${encodeURIComponent(leadId)}&protocolo=${encodeURIComponent(leadProtocolo)}&token=${encodeURIComponent(leadId)}&origem=lead_bot_notificacao`;
+  const linkFicha = `${baseUrl}/ficha-cadastral?nome=${encodeURIComponent(leadNome)}&empresa=${encodeURIComponent(leadEmpresa)}&cnpj=${encodeURIComponent(leadCnpj)}&cpf=${encodeURIComponent(leadCpf)}&telefone=${encodeURIComponent(leadTelefone)}&email=${encodeURIComponent(leadEmail)}&leadId=${encodeURIComponent(leadId)}&protocolo=${encodeURIComponent(leadProtocolo)}&token=${encodeURIComponent(leadId)}&origem=lead_bot_notificacao`;
 
   // 2. Telefone internacional do cliente
   const clientPhoneClean = formatPhoneForWhatsApp(leadTelefone);

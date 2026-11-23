@@ -19,7 +19,7 @@ const AWS_LEADS_API_URL = 'https://0bwr64p3ie.execute-api.us-east-1.amazonaws.co
 export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
   const [visible, setVisible] = useState(false);
   const [formData, setFormData] = useState({
-    empresa: '', nome: '', email: '', telefone: '', pratica: 'hibrido', contexto: ''
+    empresa: '', cnpj: '', nome: '', cpf: '', email: '', telefone: '', pratica: 'hibrido', contexto: ''
   });
   const [submitted, setSubmitted] = useState(false);
   const [submittedProtocol, setSubmittedProtocol] = useState('');
@@ -75,7 +75,7 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
         setCopiedProtocol(false);
         setIsDuplicate(false);
         setBotTrap('');
-        setFormData({ empresa: '', nome: '', email: '', telefone: '', pratica: 'hibrido', contexto: '' });
+        setFormData({ empresa: '', cnpj: '', nome: '', cpf: '', email: '', telefone: '', pratica: 'hibrido', contexto: '' });
       }, 300);
       return () => clearTimeout(t);
     }
@@ -136,7 +136,9 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
       const leadPayload = {
         ...formData,
         empresa: sanitize(formData.empresa),
+        cnpj: sanitize(formData.cnpj),
         nome: sanitize(formData.nome),
+        cpf: sanitize(formData.cpf),
         contexto: sanitize(formData.contexto),
         id: 'lead-' + Date.now(),
         protocolo: protocol,
@@ -289,22 +291,41 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
                 </div>
               </div>
 
-              {/* Empresa */}
-              <div>
-                <label style={{ fontSize: '0.8rem', color: 'var(--text-subtle)', display: 'block', marginBottom: '0.25rem' }}>
-                  Razão Social / Nome da Empresa:
-                </label>
-                <input
-                  required type="text" value={formData.empresa}
-                  onChange={(e) => setFormData({ ...formData, empresa: e.target.value })}
-                  placeholder="Nome da sua companhia"
-                  style={inputStyle}
-                  onFocus={(e) => e.target.style.borderColor = 'var(--gold-border-focus)'}
-                  onBlur={(e) => e.target.style.borderColor = 'var(--border-subtle)'}
-                />
+              {/* Empresa & CNPJ */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.8rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-subtle)', display: 'block', marginBottom: '0.25rem' }}>
+                    Razão Social / Nome da Empresa:
+                  </label>
+                  <input
+                    required type="text" value={formData.empresa}
+                    onChange={(e) => setFormData({ ...formData, empresa: e.target.value })}
+                    placeholder="Nome da sua companhia"
+                    style={inputStyle}
+                    onFocus={(e) => e.target.style.borderColor = 'var(--gold-border-focus)'}
+                    onBlur={(e) => e.target.style.borderColor = 'var(--border-subtle)'}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-subtle)', display: 'block', marginBottom: '0.25rem' }}>
+                    CNPJ da Empresa:
+                  </label>
+                  <input
+                    type="text" value={formData.cnpj}
+                    onChange={(e) => {
+                      let v = e.target.value.replace(/\D/g, '').slice(0, 14);
+                      if (v.length === 14) v = v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+                      setFormData({ ...formData, cnpj: v });
+                    }}
+                    placeholder="00.000.000/0001-00"
+                    style={inputStyle}
+                    onFocus={(e) => e.target.style.borderColor = 'var(--gold-border-focus)'}
+                    onBlur={(e) => e.target.style.borderColor = 'var(--border-subtle)'}
+                  />
+                </div>
               </div>
 
-              {/* Nome + Telefone */}
+              {/* Nome + CPF */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.8rem' }}>
                 <div>
                   <label style={{ fontSize: '0.8rem', color: 'var(--text-subtle)', display: 'block', marginBottom: '0.25rem' }}>
@@ -313,12 +334,33 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
                   <input
                     required type="text" value={formData.nome}
                     onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                    placeholder="Seu nome"
+                    placeholder="Seu nome completo"
                     style={inputStyle}
                     onFocus={(e) => e.target.style.borderColor = 'var(--gold-border-focus)'}
                     onBlur={(e) => e.target.style.borderColor = 'var(--border-subtle)'}
                   />
                 </div>
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-subtle)', display: 'block', marginBottom: '0.25rem' }}>
+                    CPF do Responsável:
+                  </label>
+                  <input
+                    type="text" value={formData.cpf}
+                    onChange={(e) => {
+                      let v = e.target.value.replace(/\D/g, '').slice(0, 11);
+                      if (v.length === 11) v = v.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
+                      setFormData({ ...formData, cpf: v });
+                    }}
+                    placeholder="000.000.000-00"
+                    style={inputStyle}
+                    onFocus={(e) => e.target.style.borderColor = 'var(--gold-border-focus)'}
+                    onBlur={(e) => e.target.style.borderColor = 'var(--border-subtle)'}
+                  />
+                </div>
+              </div>
+
+              {/* WhatsApp + Email */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.8rem' }}>
                 <div>
                   <label style={{ fontSize: '0.8rem', color: 'var(--text-subtle)', display: 'block', marginBottom: '0.25rem' }}>
                     WhatsApp Corporativo:

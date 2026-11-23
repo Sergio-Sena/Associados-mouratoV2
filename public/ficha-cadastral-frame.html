@@ -1725,17 +1725,26 @@
       if (!isOperador && !queryParam) {
         limparFormularioFicha();
 
-        // Se o cliente veio do link de aprovação da Audiência Privada, preenche apenas nome/empresa/contato básicos
+        // Se o cliente veio do link de aprovação da Audiência Privada, preenche nome, empresa, CNPJ, CPF e contatos direto na Planilha!
         const leadNome = urlParams.get('nome');
         const leadEmpresa = urlParams.get('empresa');
+        const leadCnpj = urlParams.get('cnpj');
+        const leadCpf = urlParams.get('cpf');
         const leadTelefone = urlParams.get('telefone');
         const leadEmail = urlParams.get('email');
 
         if (leadNome && document.getElementById('titular-nome')) {
           document.getElementById('titular-nome').value = leadNome;
         }
+        if (leadCpf && document.getElementById('titular-cpf')) {
+          document.getElementById('titular-cpf').value = leadCpf;
+          validarCpfInput(document.getElementById('titular-cpf'));
+        }
         if (leadEmpresa && document.getElementById('pj-razao')) {
           document.getElementById('pj-razao').value = leadEmpresa;
+        }
+        if (leadCnpj && document.getElementById('pj-cnpj')) {
+          document.getElementById('pj-cnpj').value = leadCnpj;
         }
         if (leadTelefone && document.getElementById('contato-celular')) {
           document.getElementById('contato-celular').value = leadTelefone;
