@@ -27,6 +27,9 @@ except ImportError:
         questao_a1_stealth = None
 
 class QuestaoInvestigador:
+    def investigar_75_porcento_pj(self, cnpj: str, protocolo: Optional[str] = None) -> Dict[str, Any]:
+        return self.investigar_empresa(cnpj)
+
     def __init__(self):
         self.nome_agente = "Questão"
         self.versao = "4.0.0 (Titanium Stealth & A1 Engine)"
