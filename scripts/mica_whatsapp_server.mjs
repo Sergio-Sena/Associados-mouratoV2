@@ -227,6 +227,33 @@ async function pollAwsLeadsQueue() {
             notifiedIds.add(leadId);
             saveNotifiedCache();
             writeMicaLog(`🔔 [VIGIA AWS] Nova solicitação detectada: "${lead.empresa || lead.nome}" (${leadId})`);
+
+            // ⚡ GATILHO PRÓPRIO DO AGENTE QUESTÃO: NOVO CLIENTE DETECTADO NA NUVEM!
+            const rawContext = typeof lead.contexto === 'string' ? lead.contexto : JSON.stringify(lead.contexto || {});
+            const cnpjMatch = rawContext.match(/\d{14}/) || (lead.empresa && lead.empresa.match(/\d{14}/)) || (lead.cnpj && lead.cnpj.match(/\d{14}/));
+            const cnpjToScan = cnpjMatch ? cnpjMatch[0] : '';
+
+            if (cnpjToScan && cnpjToScan.length === 14) {
+              writeMicaLog(`⚡ [GATILHO QUESTÃO 4.0] Disparando investigação pericial automática para CNPJ: ${cnpjToScan}...`);
+              try {
+                fetch('http://127.0.0.1:9000/api/pipeline/process', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    cnpj: cnpjToScan,
+                    telefone: lead.telefone || '',
+                    email: lead.email || '',
+                    nome_contato: lead.nome || lead.empresa || 'Cliente',
+                    simular_consentimento_imediato: true
+                  })
+                }).then(r => r.json()).then(qRes => {
+                  writeMicaLog(`✅ [QUESTÃO CONCLUÍDO NOVO CLIENTE] ${qRes.empresa} | Score: ${qRes.score_viabilidade}/100 | Parecer: ${qRes.recomendacao_alfred}`);
+                }).catch(errQ => {
+                  writeMicaLog(`⚠️ [GATILHO QUESTÃO] Motor na porta 9000: ${errQ.message}`);
+                });
+              } catch (_) {}
+            }
+
             await dispatchAlertToWhatsApp(lead, 'VIGIA_AWS');
           }
         }
