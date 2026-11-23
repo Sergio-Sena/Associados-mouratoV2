@@ -33,7 +33,7 @@ let lastDispatches = [];
 let pendingLeadsMap = new Map(); // id -> lead data
 let latestPendingLead = null;
 let activeClientStage = 'CONSENT';
-const clientStageMap = new Map(); // sender/phone -> 'CONSENT' | 'SERASA' | 'BOAVISTA' | 'QUOD' | 'DONE'
+const clientStageMap = new Map(); // sender/phone -> 'CONSENT' | 'SERASA' | 'BOAVISTA' | 'QUOD' | 'PLANILHA' | 'DONE'
 
 // Logger persistente em arquivo
 function writeMicaLog(msg) {
@@ -680,30 +680,69 @@ Assim que concluir o seu cadastro, responda *[ SIM ]* aqui para podermos prosseg
         }
       }
 
-      // FLUXO ETAPA 3: BIRÔ QUOD -> DISPARO DO 4º PASSO
+      // FLUXO ETAPA 3: BIRÔ QUOD -> ENVIO DA PLANILHA OFICIAL (ETAPA 4)
       if (currentStage === 'QUOD') {
+        if (isSim) {
+          activeClientStage = 'PLANILHA';
+          clientStageMap.set(sender, 'PLANILHA');
+          clientStageMap.set(senderDigits, 'PLANILHA');
+          clientStageMap.set('default', 'PLANILHA');
+          writeMicaLog(`🎉 [BIRÔS CONCLUÍDOS] Todos os 3 birôs validados por ${pushName}! Enviando Etapa 4 (Planilha Oficial).`);
+
+          const planilhaMsg = 
+`✅ *Perfeito! Os 3 birôs (Serasa, Boa Vista e Quod) foram confirmados com sucesso.*
+
+📊 *Etapa 4 de 4 — Planilha Oficial de Cadastro & Compliance:*
+Para formalizarmos o seu dossiê e darmos prosseguimento à estruturação pericial, acesse e preencha a nossa Planilha Oficial vinculada ao portal:
+
+👉 *[ PLANILHA DE CADASTRO OFICIAL ]*
+https://www.mouratoassociados.com.br/cadastro
+
+🔒 *Segurança Jurídica & Validação das Leis:*
+O preenchimento desta planilha é obrigatório para a formalização das garantias, qualificação cadastral e estrito cumprimento das normas vigentes de compliance da Mourato & Associados.
+
+Assim que você concluir o preenchimento da planilha no link acima, responda diretamente aqui:
+👉 *[ SIM ]* para confirmar a finalização do seu cadastro!`;
+
+          await sock.sendMessage(sender, { text: planilhaMsg });
+          continue;
+        } else if (isNao) {
+          const orientacaoQuod = 
+`Para darmos continuidade ao processo e liberar a planilha pericial da 4ª etapa, por favor acesse e realize seu cadastro na Quod:
+👉 https://consumidor.quod.com.br/
+
+Assim que concluir o seu cadastro, responda *[ SIM ]* aqui para podermos prosseguir e liberar a planilha de coleta!`;
+          await sock.sendMessage(sender, { text: orientacaoQuod });
+          continue;
+        } else {
+          await sock.sendMessage(sender, {
+            text: `Por favor, confirme sobre a Quod:
+👉 *[ SIM ]* para confirmar e avançar para a Planilha Oficial de Cadastro
+👉 *[ NÃO ]* para receber orientações de cadastro`
+          });
+          continue;
+        }
+      }
+
+      // FLUXO ETAPA 4: CONFIRMAÇÃO DA PLANILHA OFICIAL DE CADASTRO
+      if (currentStage === 'PLANILHA') {
         if (isSim) {
           activeClientStage = 'DONE';
           clientStageMap.set(sender, 'DONE');
           clientStageMap.set(senderDigits, 'DONE');
           clientStageMap.set('default', 'DONE');
-          writeMicaLog(`🎉 [ONBOARDING CONCLUÍDO] Todos os 3 birôs validados com sucesso por ${pushName}! Liberando Questão e Alfred.`);
+          writeMicaLog(`🎉 [TODAS AS 4 ETAPAS CONFIRMADAS] ${pushName} confirmou os 3 birôs e a Planilha Oficial!`);
 
-          const conclusaoMsg = 
-`Prezado(a) cliente,
+          const encerramentoMsg = 
+`🎉 *Excelente! Todas as 4 confirmações foram concluídas com sucesso!*
 
-Para darmos continuidade ao seu atendimento e prosseguirmos com a estruturação pericial, acesse a nossa Planilha Oficial de Cadastro vinculada ao portal:
+🏛️ *Consulta Oficial do Banco Central (Bacen SCR):*
+Informamos que a nossa equipe técnica entrará em contato em breve para agendarmos um horário e realizarmos juntos o levantamento do seu relatório oficial SCR do Registrato Bacen.
 
-👉 *[ PLANILHA DE CADASTRO OFICIAL ]*
-https://www.mouratoassociados.com.br/cadastro
+🤝 *Agradecimento:*
+A *Mourato & Associados* agradece imensamente o seu contato e a sua confiança em nosso trabalho pericial. Tenha um excelente dia e estamos à sua inteira disposição!`;
 
-🔒 *Segurança Jurídica & Compliance:*
-O preenchimento desta planilha é essencial para a formalização cadastral, validação pericial das informações e estrito cumprimento das leis vigentes e das normas de segurança da Mourato & Associados.
-
-🏛️ *Consulta Oficial ao Banco Central (Bacen):*
-Informamos que a nossa equipe técnica entrará em contato em breve para agendarmos um horário e realizarmos juntos a consulta oficial do Bacen (Registrato SCR).`;
-
-          await sock.sendMessage(sender, { text: conclusaoMsg });
+          await sock.sendMessage(sender, { text: encerramentoMsg });
 
           // Dispara o Questão com 1000% de autoridade e o Alfred em segundo plano para gerar e salvar o Dossiê em PDF
           try {
@@ -780,7 +819,7 @@ Assim que concluir o seu cadastro, responda *[ SIM ]* aqui para podermos prosseg
       // FLUXO CONCLUÍDO:
       if (currentStage === 'DONE') {
         await sock.sendMessage(sender, {
-          text: `Seu processo de onboarding dos birôs já foi concluído com sucesso e o seu Dossiê Pericial está sendo averiguado pelo CIO Alfred.\n\nLink oficial da planilha de cadastro:\n👉 https://www.mouratoassociados.com.br/cadastro`
+          text: `Prezado(a) cliente, o seu cadastro e as 4 etapas de onboarding já foram confirmados com sucesso!\n\nNossa equipe técnica já está com o seu protocolo e entrará em contato para agendarmos o seu relatório oficial SCR do Banco Central (Registrato).\n\nA Mourato & Associados agradece novamente o seu contato!`
         });
         continue;
       }
