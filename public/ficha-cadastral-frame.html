@@ -902,14 +902,18 @@
             <input type="text" id="titular-pai" class="form-control" placeholder="">
           </div>
 
-          <div class="form-group col-6">
-            <label>Nacionalidade</label>
-            <input type="text" id="titular-nacionalidade" class="form-control" placeholder="">
+                    <div class="form-group col-6">
+            <label>Nacionalidade <span class="required">*</span></label>
+            <select id="titular-nacionalidade" class="form-control">
+              <option value="Brasileira" selected>Brasileira (Nativa)</option>
+              <option value="Brasileira Naturalizada">Brasileira (Naturalizada)</option>
+              <option value="Estrangeira">Estrangeira</option>
+            </select>
           </div>
 
           <div class="form-group col-6">
             <label>Naturalidade (Cidade / UF)</label>
-            <input type="text" id="titular-naturalidade" class="form-control" placeholder="">
+            <input type="text" id="titular-naturalidade" class="form-control" placeholder="Preenchimento automático ou digite (Ex: São Paulo / SP)">
           </div>
         </div>
       </div>
@@ -967,7 +971,18 @@
 
           <div class="form-group col-1">
             <label>UF <span class="required">*</span></label>
-            <input type="text" id="end-uf" required class="form-control" placeholder="" maxlength="2" style="text-align: center;" onblur="validarCampoSimples(this, 'UF')">
+            <select id="end-uf" required class="form-control" style="text-align: center; padding-left: 2px; padding-right: 2px;" onblur="validarCampoSimples(this, 'UF')">
+              <option value="">UF</option>
+              <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option>
+              <option value="AM">AM</option><option value="BA">BA</option><option value="CE">CE</option>
+              <option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option>
+              <option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option>
+              <option value="MG">MG</option><option value="PA">PA</option><option value="PB">PB</option>
+              <option value="PR">PR</option><option value="PE">PE</option><option value="PI">PI</option>
+              <option value="RJ">RJ</option><option value="RN">RN</option><option value="RS">RS</option>
+              <option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option>
+              <option value="SP" selected>SP</option><option value="SE">SE</option><option value="TO">TO</option>
+            </select>
             <div class="field-error-msg">UF</div>
           </div>
 
@@ -1890,6 +1905,8 @@
 
     function limparFormularioFicha() {
       document.getElementById('form-onboarding').reset();
+      const nacInit = document.getElementById('titular-nacionalidade');
+      if (nacInit) nacInit.value = 'Brasileira';
       const select = document.getElementById('select-cliente-existente');
       if (select) select.value = '';
       document.querySelectorAll('.is-invalid, .is-valid').forEach(el => el.classList.remove('is-invalid', 'is-valid'));
@@ -2113,8 +2130,27 @@
 
         if (data.logradouro) document.getElementById('end-rua').value = data.logradouro;
         if (data.bairro) document.getElementById('end-bairro').value = data.bairro;
-        if (data.localidade) document.getElementById('end-cidade').value = data.localidade;
-        if (data.uf) document.getElementById('end-uf').value = data.uf;
+        if (data.localidade) {
+          document.getElementById('end-cidade').value = data.localidade;
+          document.getElementById('end-cidade')?.classList.remove('is-invalid');
+          document.getElementById('end-cidade')?.classList.add('is-valid');
+        }
+        if (data.uf) {
+          document.getElementById('end-uf').value = data.uf;
+          document.getElementById('end-uf')?.classList.remove('is-invalid');
+          document.getElementById('end-uf')?.classList.add('is-valid');
+        }
+        
+        // Auto-seleciona Nacionalidade e Naturalidade caso estejam em branco
+        const natEl = document.getElementById('titular-naturalidade');
+        if (natEl && !natEl.value.trim() && data.localidade && data.uf) {
+          natEl.value = `${data.localidade} / ${data.uf}`;
+          natEl.classList.add('is-valid');
+        }
+        const nacEl = document.getElementById('titular-nacionalidade');
+        if (nacEl && !nacEl.value) {
+          nacEl.value = 'Brasileira';
+        }
 
         if (statusEl) {
           statusEl.className = 'cep-status-badge ok';
