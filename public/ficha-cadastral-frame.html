@@ -2517,7 +2517,26 @@
         }, '*');
       }
 
-      showToast('Ficha Concluída!', `Cliente ${codigoCliente} cadastrado com sucesso!`, 'success');
+      showToast('Ficha Concluída!', `Cliente ${codigoCliente} cadastrado com sucesso! Protocolo ${protocolo} liberado para envio por e-mail.`, 'success');
+
+      // Disparo do registro de e-mail com protocolo SOMENTE após a finalização completa do processo
+      try {
+        const emailClienteFinal = (payloadParaTransmitir.contato && payloadParaTransmitir.contato.email) ? payloadParaTransmitir.contato.email.trim() : '';
+        if (emailClienteFinal) {
+          fetch('http://127.0.0.1:9000/api/pipeline/protocolo-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              protocolo: protocolo,
+              codigoCliente: codigoCliente,
+              nome: payloadParaTransmitir.titular ? payloadParaTransmitir.titular.nome : '',
+              empresa: payloadParaTransmitir.empresa ? (payloadParaTransmitir.empresa.razao_social || payloadParaTransmitir.empresa.nome || '') : '',
+              email: emailClienteFinal,
+              status: 'PROCESSO_FINALIZADO'
+            })
+          }).catch(() => {});
+        }
+      } catch (_) {}
 
       if (btnModal) {
         btnModal.innerHTML = 'Confirmar e Transmitir Ficha';

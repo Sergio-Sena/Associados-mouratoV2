@@ -6,6 +6,7 @@ Porta: 9000
 
 import os
 import sys
+import json
 import shutil
 import webbrowser
 import threading
@@ -238,6 +239,50 @@ def api_view_pdf(filename: str):
     if os.path.exists(fpath):
         return FileResponse(fpath, media_type="application/pdf")
     raise HTTPException(status_code=404, detail="PDF não encontrado")
+
+@app.get("/api/questao/dossies")
+def api_questao_listar_dossies():
+    """Retorna todos os dossiês periciais reais gerados pelo Questão em ClientesPJ (Lei do Zero Dados Inventados)"""
+    base_pj = r"C:\Teia de arranha\ClientesPJ"
+    resultado = {}
+    if os.path.exists(base_pj):
+        for folder in os.listdir(base_pj):
+            fpath = os.path.join(base_pj, folder, "dossie_auditoria_pericial.json")
+            if os.path.isfile(fpath):
+                try:
+                    with open(fpath, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    cnpj_raw = "".join(ch for ch in str(data.get("cnpj", "")) if ch.isdigit())
+                    if not cnpj_raw:
+                        cnpj_raw = "".join(ch for ch in folder.split("_")[-1] if ch.isdigit())
+                    pdf_questao = os.path.join(base_pj, folder, "DOSSIE_PERICIAL_INVESTIGACAO_QUESTAO.pdf")
+                    pdf_ficha = os.path.join(base_pj, folder, "FICHA_CADASTRAL_E_SENHAS.pdf")
+                    data["_meta_arquivos"] = {
+                        "pasta": folder,
+                        "tem_pdf_questao": os.path.isfile(pdf_questao),
+                        "tem_pdf_ficha": os.path.isfile(pdf_ficha),
+                        "url_pdf_questao": f"http://127.0.0.1:9000/api/questao/pdf/{cnpj_raw}?tipo=dossie" if cnpj_raw and os.path.isfile(pdf_questao) else "",
+                        "url_pdf_ficha": f"http://127.0.0.1:9000/api/questao/pdf/{cnpj_raw}?tipo=ficha" if cnpj_raw and os.path.isfile(pdf_ficha) else ""
+                    }
+                    if cnpj_raw:
+                        resultado[cnpj_raw] = data
+                except Exception:
+                    pass
+    return {"success": True, "total": len(resultado), "dossies": resultado}
+
+@app.get("/api/questao/pdf/{cnpj}")
+def api_questao_pdf(cnpj: str, tipo: str = "dossie"):
+    """Serve o PDF Oficial do Questão ou Ficha Cadastral direto da pasta canônica ClientesPJ"""
+    cnpj_clean = "".join(ch for ch in cnpj if ch.isdigit())
+    base_pj = r"C:\Teia de arranha\ClientesPJ"
+    target_filename = "DOSSIE_PERICIAL_INVESTIGACAO_QUESTAO.pdf" if tipo == "dossie" else "FICHA_CADASTRAL_E_SENHAS.pdf"
+    if os.path.exists(base_pj) and cnpj_clean:
+        for folder in os.listdir(base_pj):
+            if cnpj_clean in folder:
+                fpath = os.path.join(base_pj, folder, target_filename)
+                if os.path.isfile(fpath):
+                    return FileResponse(fpath, media_type="application/pdf", filename=target_filename)
+    raise HTTPException(status_code=404, detail="PDF pericial não localizado para este CNPJ")
 
 @app.get("/", response_class=HTMLResponse)
 def index():

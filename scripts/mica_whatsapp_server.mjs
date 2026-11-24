@@ -167,7 +167,17 @@ async function dispatchAlertToWhatsApp(lead, source = 'NUVEM_AWS') {
   latestPendingLead = lead;
   if (lead.id) pendingLeadsMap.set(String(lead.id), lead);
   pendingLeadsMap.set(leadProto, lead);
+
+  // CRÍTICO: Limpa qualquer estágio antigo (inclusive @s.whatsapp.net / @lid) para reiniciar do CONSENT
+  const last8 = clientDigits.slice(-8);
+  for (const key of Array.from(clientStageMap.keys())) {
+    if (key.includes(last8) || key === 'default' || key.endsWith('@lid')) {
+      clientStageMap.delete(key);
+    }
+  }
+  activeClientStage = 'CONSENT';
   clientStageMap.set(clientDigits, 'CONSENT');
+  clientStageMap.set(`${clientDigits}@s.whatsapp.net`, 'CONSENT');
   clientStageMap.set('default', 'CONSENT');
 
   const clientWelcomeMsg = 
@@ -190,7 +200,10 @@ Responda diretamente com:
         clientJid = checkCli[0].jid;
       }
     } catch (_) {}
+    clientStageMap.set(clientJid, 'CONSENT');
     await sock.sendMessage(clientJid, { text: clientWelcomeMsg });
+    anySuccess = true;
+    dispatchRecord.results.push({ target: clientDigits, jid: clientJid, status: 'sent_welcome' });
     writeMicaLog(`📲 [DISPARO CLIENTE AUTOMÁTICO] Boas-vindas e protocolo ${leadProto} entregues para o cliente ${clientDigits}!`);
   } catch (errCli) {
     writeMicaLog(`⚠️ Falha ao entregar para cliente ${clientDigits}: ${errCli.message}`);

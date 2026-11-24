@@ -555,7 +555,7 @@ export const AdvisoryOnboardingModal = ({ isOpen, onClose }) => {
                 Prezado(a) <strong style={{ color: '#FFFFFF' }}>{formData.nome || 'Cliente'}</strong>, sua mensagem e solicitação para a empresa <strong style={{ color: 'var(--gold-light)' }}>{formData.empresa || 'sua empresa'}</strong> foram registradas com sucesso sob o Protocolo <strong style={{ color: 'var(--gold-light)' }}>{submittedProtocol}</strong>.
               </p>
               <p style={{ color: '#CBD5E1', fontSize: '0.86rem', margin: 0 }}>
-                Nosso Canal Direto já recebeu sua solicitação e <strong>entrará em contato em breve</strong> através do seu WhatsApp corporativo (<strong style={{ color: '#FFFFFF' }}>{formData.telefone}</strong>) ou e-mail para dar andamento ao atendimento e à auditoria pericial preliminar.
+                Nossa Secretária Executiva (Mica) entrará em contato pelo seu WhatsApp corporativo (<strong style={{ color: '#FFFFFF' }}>{formData.telefone}</strong>) para conduzir as etapas obrigatórias. O <strong>e-mail oficial com o comprovante definitivo do protocolo será enviado somente após a finalização completa do processo</strong>.
               </p>
             </div>
 

@@ -719,6 +719,83 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
     onClose();
   };
 
+  // Estado real dos Dossiês Periciais gerados pelo Questão + Alfred (Porta 9000 local)
+  const [questaoDossiesMap, setQuestaoDossiesMap] = useState({});
+  const [questaoRunningCnpj, setQuestaoRunningCnpj] = useState('');
+
+  const fetchQuestaoDossies = async () => {
+    try {
+      const res = await fetch('http://127.0.0.1:9000/api/questao/dossies');
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.dossies && typeof data.dossies === 'object') {
+          setQuestaoDossiesMap(data.dossies);
+        }
+      }
+    } catch (_) {
+      // Servidor local 9000 offline — mantém estado atual sem inventar dados
+    }
+  };
+
+  const getQuestaoDossieForClient = (client) => {
+    if (!client || !questaoDossiesMap) return null;
+    const docDigits = (getClientDocumento(client) || '').replace(/\D/g, '');
+    if (docDigits.length === 14 && questaoDossiesMap[docDigits]) {
+      return questaoDossiesMap[docDigits];
+    }
+    const cnpjEmpresa = (client.empresa?.cnpj || client.cnpj || '').replace(/\D/g, '');
+    if (cnpjEmpresa.length === 14 && questaoDossiesMap[cnpjEmpresa]) {
+      return questaoDossiesMap[cnpjEmpresa];
+    }
+    // Busca por nome da razão social ou sócio/titular vinculado (para par ordenado PF <-> PJ)
+    const nomeTarget = (client.nomeRazao || client.empresaVinculada || '').toUpperCase().trim();
+    if (nomeTarget) {
+      const found = Object.values(questaoDossiesMap).find((d) => {
+        const rz = (d?.razao_social || '').toUpperCase().trim();
+        const tit = (d?.dossie_original_questao?.investigacao_pf_vinculada?.titular_principal || '').toUpperCase().trim();
+        return (rz && (rz === nomeTarget || rz.includes(nomeTarget) || nomeTarget.includes(rz))) ||
+               (tit && (tit === nomeTarget || tit.includes(nomeTarget)));
+      });
+      if (found) return found;
+    }
+    return null;
+  };
+
+  const handleDispararQuestao = async (client) => {
+    if (!client) return;
+    const rawCnpj = (client.tipo === 'PJ' ? getClientDocumento(client) : (client.empresa?.cnpj || client.cnpj || '')).replace(/\D/g, '');
+    if (rawCnpj.length !== 14) {
+      showToast('⚠️ CNPJ Necessário', 'Informe um CNPJ válido de 14 dígitos neste cadastro para disparar a varredura do Questão.');
+      return;
+    }
+    setQuestaoRunningCnpj(rawCnpj);
+    showToast('🕵️ Questão 4.0 Acionado', `Varredura pericial 75% iniciada para o CNPJ ${maskCNPJ(rawCnpj)}...`);
+    try {
+      const res = await fetch('http://127.0.0.1:9000/api/pipeline/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cnpj: rawCnpj,
+          telefone: client.contato || '',
+          email: client.email || '',
+          nome_contato: client.responsavel || client.nomeRazao || '',
+          simular_consentimento_imediato: true
+        })
+      });
+      const data = await res.json();
+      if (data?.success) {
+        await fetchQuestaoDossies();
+        showToast('✅ Dossiê do Questão Concluído!', `Score: ${data.score_viabilidade}/100 • Parecer: ${data.recomendacao_alfred}`);
+      } else {
+        showToast('⚠️ Erro na Varredura', data?.detail || 'Não foi possível concluir a investigação do Questão.');
+      }
+    } catch (err) {
+      showToast('⚠️ Servidor Alfred Offline', 'Verifique se o servidor local do Alfred (porta 9000) está ativo.');
+    } finally {
+      setQuestaoRunningCnpj('');
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       setIsAuthenticated(false);
@@ -728,6 +805,7 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
         setActiveView(initialView);
       }
       fetchLeads();
+      fetchQuestaoDossies();
     }
   }, [isOpen, initialView]);
 
@@ -884,26 +962,41 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
     };
   }, []);
 
+  // Regra oficial de filtragem da aba Leads:
+  // Somente permanecem em LEADS os contatos que NÃO aceitaram os termos (ou recusaram LGPD).
+  // Quem aceitou os termos (SIM) é automaticamente aprovado e migrado para a aba CLIENTES.
+  const isLeadSemAceiteTermos = (lead) => {
+    if (!lead) return false;
+    const st = String(lead.status || '').toLowerCase().trim();
+    const ctx = String(lead.contexto || '').toLowerCase();
+    if (lead.termosAceitos === false || lead.aceiteTermos === false) return true;
+    if (
+      st === 'recusado' ||
+      st === 'recusou_termos' ||
+      st === 'nao_aceitou_termos' ||
+      st === 'sem_termos' ||
+      st === 'aguardando_termos' ||
+      st === 'cancelado' ||
+      st === 'lgpd_recusado'
+    ) {
+      return true;
+    }
+    if (ctx.includes('recusou os termos') || ctx.includes('não aceitou') || ctx.includes('nao aceitou')) {
+      return true;
+    }
+    return false;
+  };
+
   const [leads, setLeads] = useState(() => {
     try {
       const saved = localStorage.getItem('mourato_leads_solicitacoes');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          const approvedSet = getApprovedLeadsSet();
           const deletedIds = getDeletedClientIds();
           return parsed.filter(l => {
-            // Trava de exclusão: se foi deletado, NUNCA sobe para a aba Leads
             if (isRecordDeleted(l, deletedIds)) return false;
-
-            const email = (l.email || '').toLowerCase().trim();
-            const phone = (l.telefone || '').replace(/\D/g, '');
-            const isApproved = 
-              (l.id && approvedSet.has(String(l.id))) ||
-              (email && email !== 'mourato@mouratoassociados.com.br' && email !== 'mourato.importacao@gmail.com' && approvedSet.has(email)) ||
-              (phone && phone !== '11978990034' && approvedSet.has(phone)) ||
-              l.status === 'aprovado';
-            return !isApproved;
+            return isLeadSemAceiteTermos(l);
           });
         }
       }
@@ -990,8 +1083,10 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
       const phone = (lead.telefone || '').replace(/\D/g, '');
       const leadId = String(lead.id || '');
       const alreadyClient = isClientAlreadyInList(currentClients, lead);
+      const semAceiteTermos = isLeadSemAceiteTermos(lead);
 
-      const isApproved = 
+      const isApproved =
+        !semAceiteTermos ||
         alreadyClient ||
         (leadId && approvedSet.has(leadId)) ||
         (email && approvedSet.has(email)) ||
@@ -999,16 +1094,10 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
         lead.status === 'aprovado';
 
       if (isApproved) {
+        markLeadAsApprovedLocally(leadId, lead);
         approvedLeadsToMigrate.push({ ...lead, status: 'aprovado' });
-        // Se já é cliente/aprovado, expurga da esteira de leads na nuvem AWS para não poluir
-        if (lead.id) {
-          fetch(`${apiUrl}/leads/${lead.id}`, {
-            method: 'DELETE',
-            headers: { 'x-admin-password': adminPassword }
-          }).catch(() => {});
-        }
       } else {
-        pendingLeads.push({ ...lead, status: lead.status || 'novo' });
+        pendingLeads.push({ ...lead, status: lead.status || 'nao_aceitou_termos' });
       }
     });
 
@@ -1290,12 +1379,58 @@ Website: https://www.mouratoassociados.com.br`;
       });
     } catch (_) {}
 
-    // 11. Disparo imediato do e-mail oficial no Google Workspace ao aprovar
-    if (googleWorkspaceUrl) {
-      try {
-        window.open(googleWorkspaceUrl, '_blank');
-      } catch (_) {}
+    // 11. E-mail de Protocolo NÃO é disparado aqui (somente após o cliente finalizar todo o processo/planilha)
+  };
+
+  // Disparo oficial do E-mail com Protocolo SOMENTE após o cliente finalizar o processo completo
+  const handleSendProtocolEmailPosFinalizacao = (client) => {
+    if (!client) return;
+    const processoFinalizado = Boolean(
+      client.protocolo && (
+        client.statusValidacaoFinal === 'APROVADO PELO CHEFE MOURATO' ||
+        client.pratica === 'onboarding_ficha' ||
+        client.statusConta?.toLowerCase().includes('conclu') ||
+        client.statusConta?.toLowerCase().includes('ficha') ||
+        client.dataHoraTransmissao ||
+        getQuestaoDossieForClient(client)
+      )
+    );
+    if (!processoFinalizado) {
+      showToast('⏳ Processo em Andamento', 'O e-mail com o protocolo só pode ser enviado depois que o cliente finalizar o processo completo.');
+      return;
     }
+
+    const protocoloOficial = client.protocolo || getQuestaoDossieForClient(client)?.protocolo || generateProtocolo();
+    const destEmail = (client.email || '').trim();
+    const subject = `[Mourato & Associados] Comprovante de Protocolo Oficial — ${protocoloOficial}`;
+    const body = `MOURATO & ASSOCIADOS — GOVERNANÇA E INTELIGÊNCIA FINANCEIRA
+Assessoria Corporativa & Auditoria Pericial de Crédito
+
+Prezado(a) ${client.responsavel || client.nomeRazao || 'Cliente'},
+
+Confirmamos que o seu processo cadastral e documental na Mourato & Associados foi FINALIZADO com sucesso.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 PROTOCOLO OFICIAL DE ATENDIMENTO: ${protocoloOficial}
+🏢 TITULAR / EMPRESA: ${client.nomeRazao || ''}
+📄 DOCUMENTO: ${getClientDocumento(client)}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Nossa equipe pericial dará continuidade à estruturação do seu dossiê e entrará em contato via Canal Direto Oficial para os próximos alinhamentos (incluindo o agendamento do relatório SCR do Banco Central).
+
+────────────────────────────────────────────────────────────────────
+⚠️ ATENÇÃO: ESTA É UMA MENSAGEM AUTOMÁTICA. FAVOR NÃO RESPONDER A ESTE E-MAIL.
+Canal Direto Oficial (WhatsApp/Telefone): (11) 97899-0034
+────────────────────────────────────────────────────────────────────
+
+Atenciosamente,
+MOURATO & ASSOCIADOS LTDA
+CNPJ: 38.377.738/0001-45 • São Paulo/SP
+Website: https://www.mouratoassociados.com.br`;
+
+    const workspaceUrl = `https://mail.google.com/mail/?view=cm&fs=1&authuser=mourato@mouratoassociados.com.br&to=${encodeURIComponent(destEmail)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(workspaceUrl, '_blank');
+    showToast('✉️ E-mail de Protocolo Pronto!', `Protocolo ${protocoloOficial} preparado para envio a ${destEmail || 'o cliente'}.`);
   };
 
   const abrirDisparoEmailWorkspace = (lead) => {
@@ -3891,7 +4026,7 @@ Website: https://www.mouratoassociados.com.br`;
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <span style={{ fontSize: '0.82rem', color: '#94A3B8' }}>
-                  {leads.length} solicitações recebidas
+                  {leads.length} {leads.length === 1 ? 'solicitação sem aceite de termos' : 'solicitações sem aceite de termos'} (clientes que aceitaram os termos migram automaticamente para CLIENTES)
                 </span>
                 <button onClick={fetchLeads} className="btn-secondary-subtle" style={{ padding: '0.5rem 1rem', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                   <RefreshCw size={13} /> Atualizar
@@ -3903,15 +4038,15 @@ Website: https://www.mouratoassociados.com.br`;
               ) : leads.length === 0 ? (
                 <div style={{ padding: '4rem 2rem', textAlign: 'center', background: '#0B0F17', border: '1px dashed rgba(197,168,105,0.25)', borderRadius: 'var(--radius-md)' }}>
                   <Sparkles size={40} color="var(--gold-primary)" style={{ margin: '0 auto 1rem', opacity: 0.7 }} />
-                  <h3 style={{ color: '#FFFFFF', marginBottom: '0.5rem' }}>Nenhuma solicitação ainda</h3>
-                  <p style={{ color: '#94A3B8', fontSize: '0.85rem' }}>As solicitações do formulário público aparecerão aqui.</p>
+                  <h3 style={{ color: '#FFFFFF', marginBottom: '0.5rem' }}>Nenhuma pendência de termos</h3>
+                  <p style={{ color: '#94A3B8', fontSize: '0.85rem' }}>Apenas leads que não aceitaram os termos aparecem aqui. Todos os clientes aprovados já estão na aba CLIENTES.</p>
                 </div>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem' }}>
                   {leads.map(lead => (
                     <div key={lead.id} style={{
                       background: '#0D121D',
-                      border: `1px solid ${lead.status === 'novo' ? 'rgba(197,168,105,0.35)' : 'rgba(255,255,255,0.08)'}`,
+                      border: '1px solid rgba(239,68,68,0.35)',
                       borderRadius: 'var(--radius-md)',
                       padding: '1.4rem',
                       display: 'flex', flexDirection: 'column', gap: '0.75rem'
@@ -3926,10 +4061,10 @@ Website: https://www.mouratoassociados.com.br`;
                         </div>
                         <span style={{
                           fontSize: '0.68rem', padding: '0.15rem 0.5rem', borderRadius: '9999px', fontWeight: 700,
-                          background: lead.status === 'duplicado' ? 'rgba(239,68,68,0.15)' : lead.status === 'novo' ? 'rgba(197,168,105,0.2)' : 'rgba(16,185,129,0.15)',
-                          color: lead.status === 'duplicado' ? '#FCA5A5' : lead.status === 'novo' ? 'var(--gold-light)' : '#34D399'
+                          background: 'rgba(239,68,68,0.15)',
+                          color: '#FCA5A5'
                         }}>
-                          {lead.status === 'duplicado' ? '⚠ DUPLICADO' : lead.status === 'novo' ? 'NOVO' : 'APROVADO'}
+                          ⚠ NÃO ACEITOU TERMOS
                         </span>
                       </div>
 
@@ -4153,51 +4288,7 @@ Website: https://www.mouratoassociados.com.br`;
                     </button>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                    <button 
-                      onClick={handleCopyOnboardingLink}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.45rem',
-                        padding: '0.65rem 1rem',
-                        fontSize: '0.82rem',
-                        fontWeight: 600,
-                        borderRadius: 'var(--radius-sm)',
-                        background: 'rgba(212, 175, 55, 0.1)',
-                        border: '1px solid rgba(212, 175, 55, 0.35)',
-                        color: 'var(--color-gold)',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }}
-                      title="Copiar Link Direto da Ficha Cadastral para enviar por E-mail ou Mensagem"
-                    >
-                      <Copy size={15} />
-                      Copiar Link (E-mail)
-                    </button>
-
-                    <button 
-                      onClick={handleSendOnboardingWhatsApp}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.45rem',
-                        padding: '0.65rem 1rem',
-                        fontSize: '0.82rem',
-                        fontWeight: 700,
-                        borderRadius: 'var(--radius-sm)',
-                        background: 'rgba(37, 211, 102, 0.12)',
-                        border: '1px solid rgba(37, 211, 102, 0.4)',
-                        color: '#25D366',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }}
-                      title="Abrir WhatsApp com mensagem pronta contendo o link da Ficha Cadastral"
-                    >
-                      <Share2 size={15} />
-                      Enviar no WhatsApp
-                    </button>
-
+                  <div style={{ display: 'flex', gap: '0.55rem', flexWrap: 'wrap', alignItems: 'center' }}>
                     <button 
                       onClick={() => {
                         setEditingClientId(null);
@@ -4205,7 +4296,7 @@ Website: https://www.mouratoassociados.com.br`;
                         setActiveView('clients_new');
                       }}
                       className="btn-primary-gold"
-                      style={{ padding: '0.65rem 1.3rem', fontSize: '0.82rem', gap: '0.5rem' }}
+                      style={{ padding: '0.6rem 1.2rem', fontSize: '0.82rem', gap: '0.45rem' }}
                     >
                       <Plus size={16} />
                       Cadastrar Novo Cliente
@@ -4213,47 +4304,26 @@ Website: https://www.mouratoassociados.com.br`;
 
                     <button 
                       type="button"
-                      onClick={() => exportAllClientsForRobot(clients)}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.45rem',
-                        padding: '0.65rem 1.15rem',
-                        fontSize: '0.82rem',
-                        fontWeight: 700,
-                        borderRadius: 'var(--radius-sm)',
-                        background: 'rgba(59, 130, 246, 0.16)',
-                        border: '1px solid rgba(59, 130, 246, 0.45)',
-                        color: '#60A5FA',
-                        cursor: 'pointer'
+                      onClick={() => {
+                        fetchLeads();
+                        fetchQuestaoDossies();
+                        showToast('🔄 Painel Sincronizado', 'Base de clientes e dossiês periciais do Questão atualizados.');
                       }}
-                      title="Exportar todas as fichas dos clientes em JSON estruturado para alimentar o robô local (ClientesPF porta 3000)"
-                    >
-                      <Download size={15} />
-                      Baixar Todas Fichas (Robô)
-                    </button>
-
-                    <button 
-                      type="button"
-                      onClick={handleClearCacheAndSync}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '0.45rem',
-                        padding: '0.65rem 1rem',
-                        fontSize: '0.82rem',
-                        fontWeight: 600,
+                        justifyContent: 'center',
+                        padding: '0.6rem 0.75rem',
                         borderRadius: 'var(--radius-sm)',
-                        background: 'rgba(239, 68, 68, 0.12)',
-                        border: '1px solid rgba(239, 68, 68, 0.35)',
-                        color: '#FCA5A5',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.14)',
+                        color: '#CBD5E1',
                         cursor: 'pointer',
                         transition: 'all 0.2s'
                       }}
-                      title="Limpar memória cache local do navegador e sincronizar os clientes reais"
+                      title="Atualizar lista de clientes e dossiês do Questão"
                     >
-                      <RotateCcw size={14} />
-                      Limpar Cache &amp; Sincronizar
+                      <RefreshCw size={15} />
                     </button>
                   </div>
                 </div>
@@ -4333,9 +4403,35 @@ Website: https://www.mouratoassociados.com.br`;
                   Nenhum cliente encontrado para o filtro selecionado ou termo pesquisado.
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.25rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '1.25rem' }}>
                   {filteredClients.map((client) => {
                     const isPJ = client.tipo === 'PJ';
+                    const dossieQ = getQuestaoDossieForClient(client);
+                    const qOrig = dossieQ?.dossie_original_questao || null;
+                    const rfb = qOrig?.dados_rfb || {};
+                    const bureau = getBureauDataForClient(client);
+
+                    const capSocialNum = rfb.capital_social !== undefined && rfb.capital_social !== null
+                      ? Number(rfb.capital_social)
+                      : parseMonetaryValue(client.empresa?.capitalSocial || client.balanco?.capitalSocial);
+                    const capSocialFmt = capSocialNum > 0
+                      ? capSocialNum.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                      : 'Não informado';
+
+                    const idadeMeses = rfb.tempo_vida_meses ? `${rfb.tempo_vida_meses} meses` : (rfb.data_abertura || client.dataAbertura || 'Não auditado');
+                    const regimeFmt = rfb.optante_simei
+                      ? 'MEI (SIMEI)'
+                      : rfb.optante_simples
+                        ? 'Simples Nacional'
+                        : (client.empresa?.regimeTributario || rfb.porte || 'Não informado');
+
+                    const redCount = qOrig?.red_flags?.length || 0;
+                    const yellowCount = qOrig?.yellow_flags?.length || 0;
+                    const greenCount = qOrig?.green_flags?.length || 0;
+                    const scoreAlfred = dossieQ?.score_viabilidade;
+                    const recAlfred = dossieQ?.recomendacao_acao;
+                    const pdfQuestaoUrl = dossieQ?._meta_arquivos?.url_pdf_questao || '';
+
                     return (
                       <div 
                         key={client.id}
@@ -4343,11 +4439,11 @@ Website: https://www.mouratoassociados.com.br`;
                           background: '#0D121D',
                           border: isPJ ? '1px solid rgba(197, 168, 105, 0.35)' : '1px solid rgba(0, 158, 227, 0.3)',
                           borderRadius: 'var(--radius-md)',
-                          padding: '1.4rem',
+                          padding: '1.35rem',
                           display: 'flex',
                           flexDirection: 'column',
                           justifyContent: 'space-between',
-                          gap: '1rem',
+                          gap: '0.9rem',
                           transition: 'all 0.2s',
                           boxShadow: '0 4px 18px rgba(0, 0, 0, 0.35)',
                           position: 'relative',
@@ -4365,14 +4461,13 @@ Website: https://www.mouratoassociados.com.br`;
                         }} />
 
                         <div>
-                          {/* Cabeçalho do Card */}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem', flexWrap: 'wrap', gap: '0.45rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                              {/* Badge do Tipo (PJ Dourada vs PF Azul) */}
+                          {/* Cabeçalho do Card + Lixeira Sutil */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem', gap: '0.45rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                               {isPJ ? (
                                 <span style={{
-                                  fontSize: '0.68rem',
-                                  padding: '0.2rem 0.6rem',
+                                  fontSize: '0.66rem',
+                                  padding: '0.18rem 0.55rem',
                                   borderRadius: '9999px',
                                   background: 'rgba(197, 168, 105, 0.2)',
                                   color: 'var(--gold-light)',
@@ -4380,16 +4475,15 @@ Website: https://www.mouratoassociados.com.br`;
                                   fontWeight: 700,
                                   display: 'inline-flex',
                                   alignItems: 'center',
-                                  gap: '0.35rem',
-                                  letterSpacing: '0.04em'
+                                  gap: '0.3rem'
                                 }}>
-                                  <Building2 size={12} />
+                                  <Building2 size={11} />
                                   PJ • EMPRESA
                                 </span>
                               ) : (
                                 <span style={{
-                                  fontSize: '0.68rem',
-                                  padding: '0.2rem 0.6rem',
+                                  fontSize: '0.66rem',
+                                  padding: '0.18rem 0.55rem',
                                   borderRadius: '9999px',
                                   background: 'rgba(0, 158, 227, 0.18)',
                                   color: '#38BDF8',
@@ -4397,245 +4491,202 @@ Website: https://www.mouratoassociados.com.br`;
                                   fontWeight: 700,
                                   display: 'inline-flex',
                                   alignItems: 'center',
-                                  gap: '0.35rem',
-                                  letterSpacing: '0.04em'
+                                  gap: '0.3rem'
                                 }}>
-                                  <UserCheck size={12} />
+                                  <UserCheck size={11} />
                                   PF • SÓCIO
                                 </span>
                               )}
-                            </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                              {/* Código Sequencial do Cliente */}
                               <span style={{ 
-                                fontSize: '0.68rem', 
+                                fontSize: '0.66rem', 
                                 fontFamily: 'monospace',
                                 fontWeight: 800,
-                                padding: '0.15rem 0.5rem', 
+                                padding: '0.15rem 0.45rem', 
                                 borderRadius: '4px', 
-                                background: 'rgba(197, 168, 105, 0.15)', 
+                                background: 'rgba(197, 168, 105, 0.12)', 
                                 color: 'var(--gold-light)', 
-                                border: '1px solid rgba(197, 168, 105, 0.4)'
+                                border: '1px solid rgba(197, 168, 105, 0.35)'
                               }}>
                                 {client.codigoCliente || 'CLI-001'}
                               </span>
 
-                              <span style={{ 
-                                fontSize: '0.68rem', 
-                                padding: '0.15rem 0.5rem', 
-                                borderRadius: '9999px', 
-                                background: client.statusValidacao ? 'rgba(16, 185, 129, 0.2)' : ((client.origem === 'Lead do Site Aprovado' || client.statusConta === 'Lead Aprovado / Ficha Enviada')
-                                  ? 'rgba(197, 168, 105, 0.2)'
-                                  : 'rgba(16, 185, 129, 0.12)'), 
-                                color: client.statusValidacao ? '#34D399' : ((client.origem === 'Lead do Site Aprovado' || client.statusConta === 'Lead Aprovado / Ficha Enviada')
-                                  ? 'var(--gold-light)'
-                                  : '#34D399'),
-                                border: client.statusValidacao ? '1px solid rgba(16, 185, 129, 0.45)' : ((client.origem === 'Lead do Site Aprovado' || client.statusConta === 'Lead Aprovado / Ficha Enviada')
-                                  ? '1px solid var(--gold-border)'
-                                  : '1px solid rgba(16, 185, 129, 0.25)'),
-                                fontWeight: 700 
-                              }}>
-                                {client.statusValidacao ? `✓ ${client.statusValidacao}` : ((client.origem === 'Lead do Site Aprovado' || client.statusConta === 'Lead Aprovado / Ficha Enviada') ? '✓ Lead Aprovado' : 'Contas Ativas')}
-                              </span>
+                              {dossieQ ? (
+                                <span style={{
+                                  fontSize: '0.66rem',
+                                  padding: '0.15rem 0.5rem',
+                                  borderRadius: '9999px',
+                                  background: recAlfred === 'PROSSEGUIR' ? 'rgba(16, 185, 129, 0.18)' : 'rgba(245, 158, 11, 0.18)',
+                                  color: recAlfred === 'PROSSEGUIR' ? '#34D399' : '#FBBF24',
+                                  border: recAlfred === 'PROSSEGUIR' ? '1px solid rgba(16, 185, 129, 0.45)' : '1px solid rgba(245, 158, 11, 0.45)',
+                                  fontWeight: 800
+                                }}>
+                                  🕵️ {scoreAlfred}/100 • {recAlfred}
+                                </span>
+                              ) : (
+                                <span style={{
+                                  fontSize: '0.66rem',
+                                  padding: '0.15rem 0.5rem',
+                                  borderRadius: '9999px',
+                                  background: 'rgba(148, 163, 184, 0.12)',
+                                  color: '#94A3B8',
+                                  border: '1px solid rgba(148, 163, 184, 0.25)',
+                                  fontWeight: 600
+                                }}>
+                                  Aguardando Questão
+                                </span>
+                              )}
                             </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteClient(client.id)}
+                              style={{
+                                background: 'transparent',
+                                border: '1px solid rgba(239, 68, 68, 0.22)',
+                                color: '#F87171',
+                                padding: '0.3rem',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                opacity: 0.75
+                              }}
+                              title="Excluir cadastro"
+                            >
+                              <Trash2 size={13} />
+                            </button>
                           </div>
 
                           {/* Razão Social / Nome Completo */}
-                          <h3 style={{ fontSize: '1.08rem', color: '#FFFFFF', margin: '0 0 0.35rem', fontWeight: 700, lineHeight: 1.3 }}>
+                          <h3 style={{ fontSize: '1.06rem', color: '#FFFFFF', margin: '0 0 0.25rem', fontWeight: 800, lineHeight: 1.25 }}>
                             {client.nomeRazao}
                           </h3>
 
-                          {/* Link Direto da Ficha Cadastral se gerado */}
-                          {client.linkFicha && (
+                          {/* Documento + Situação RFB + Contato */}
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem 0.85rem', fontSize: '0.75rem', color: '#94A3B8', marginBottom: '0.75rem' }}>
+                            <span>
+                              {isPJ ? 'CNPJ' : 'CPF'}: <strong style={{ color: '#F8FAFC', fontFamily: 'monospace' }}>{getClientDocumento(client)}</strong>
+                            </span>
+                            {rfb.situacao_cadastral && (
+                              <span style={{ color: rfb.situacao_cadastral === 'ATIVA' ? '#34D399' : '#F87171', fontWeight: 700 }}>
+                                • RFB: {rfb.situacao_cadastral}
+                              </span>
+                            )}
+                            {client.contato && <span>📱 {client.contato}</span>}
+                            {client.email && <span>✉️ {client.email}</span>}
+                          </div>
+
+                          {/* Grid Executivo de 4 Indicadores Reais (Questão + Cadastro) */}
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(2, 1fr)',
+                            gap: '0.45rem',
+                            marginBottom: '0.75rem'
+                          }}>
+                            <div style={{ background: '#070A10', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '6px', padding: '0.45rem 0.6rem' }}>
+                              <div style={{ fontSize: '0.62rem', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Capital Social</div>
+                              <div style={{ fontSize: '0.78rem', color: '#F8FAFC', fontWeight: 700 }}>{capSocialFmt}</div>
+                            </div>
+                            <div style={{ background: '#070A10', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '6px', padding: '0.45rem 0.6rem' }}>
+                              <div style={{ fontSize: '0.62rem', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tempo / Abertura</div>
+                              <div style={{ fontSize: '0.78rem', color: '#F8FAFC', fontWeight: 700 }}>{idadeMeses}</div>
+                            </div>
+                            <div style={{ background: '#070A10', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '6px', padding: '0.45rem 0.6rem' }}>
+                              <div style={{ fontSize: '0.62rem', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Regime / Porte</div>
+                              <div style={{ fontSize: '0.78rem', color: 'var(--gold-light)', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{regimeFmt}</div>
+                            </div>
+                            <div style={{ background: '#070A10', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '6px', padding: '0.45rem 0.6rem' }}>
+                              <div style={{ fontSize: '0.62rem', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Questão 75%</div>
+                              <div style={{ fontSize: '0.76rem', fontWeight: 700, color: dossieQ ? (redCount > 0 ? '#F87171' : '#34D399') : '#94A3B8' }}>
+                                {dossieQ ? `${greenCount} OK • ${yellowCount} Atenção • ${redCount} Crítico` : 'Não auditado'}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Vínculo Sócio <-> Empresa (somente se real) */}
+                          {(isPJ ? (client.socioVinculado || client.responsavel || qOrig?.socios_identificados?.[0]?.nome) : client.empresaVinculada) && (
                             <div style={{
-                              background: 'rgba(197, 168, 105, 0.08)',
-                              border: '1px dashed rgba(197, 168, 105, 0.35)',
-                              borderRadius: '4px',
-                              padding: '0.35rem 0.55rem',
-                              marginBottom: '0.55rem',
+                              background: isPJ ? 'rgba(197, 168, 105, 0.06)' : 'rgba(0, 158, 227, 0.06)',
+                              border: isPJ ? '1px solid rgba(197, 168, 105, 0.18)' : '1px solid rgba(0, 158, 227, 0.18)',
+                              borderRadius: '6px',
+                              padding: '0.45rem 0.65rem',
+                              fontSize: '0.73rem',
+                              marginBottom: '0.75rem',
                               display: 'flex',
-                              alignItems: 'center',
                               justifyContent: 'space-between',
+                              alignItems: 'center',
                               gap: '0.5rem'
                             }}>
-                              <span style={{ fontSize: '0.68rem', color: 'var(--gold-light)', fontWeight: 600 }}>
-                                📋 Ficha Cadastral Enviada
+                              <span style={{ color: isPJ ? 'var(--gold-light)' : '#38BDF8', fontWeight: 600 }}>
+                                {isPJ ? '👤 Sócio Adm:' : '🏢 Empresa:'}
                               </span>
-                              <div style={{ display: 'flex', gap: '0.35rem' }}>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(client.linkFicha);
-                                    showToast('📋 Link Copiado!', 'Link da Ficha Cadastral copiado para a área de transferência.');
-                                  }}
-                                  style={{
-                                    background: 'rgba(255,255,255,0.08)', border: 'none', color: '#FFFFFF',
-                                    fontSize: '0.66rem', padding: '0.15rem 0.4rem', borderRadius: '3px', cursor: 'pointer'
-                                  }}
-                                  title="Copiar link da ficha"
-                                >
-                                  Copiar
-                                </button>
-                                <a
-                                  href={client.linkFicha}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  style={{
-                                    background: 'var(--gold-primary)', color: '#0A0D14', textDecoration: 'none',
-                                    fontSize: '0.66rem', padding: '0.15rem 0.45rem', borderRadius: '3px', fontWeight: 700
-                                  }}
-                                >
-                                  Abrir
-                                </a>
-                              </div>
+                              <strong style={{ color: '#FFFFFF', textAlign: 'right' }}>
+                                {isPJ
+                                  ? (client.socioVinculado || client.responsavel || qOrig?.socios_identificados?.[0]?.nome)
+                                  : client.empresaVinculada}
+                              </strong>
                             </div>
                           )}
 
-                          {/* CNPJ ou CPF */}
-                          <div style={{ fontSize: '0.78rem', color: '#94A3B8', marginBottom: '0.65rem' }}>
-                            {isPJ ? 'CNPJ' : 'CPF'}: <strong style={{ color: '#FFFFFF' }}>{getClientDocumento(client)}</strong>
-                            {client.nire && <span style={{ marginLeft: '0.5rem', color: '#64748B' }}>• NIRE: {client.nire}</span>}
-                          </div>
-
-                          {/* Destaque do Vínculo Sócio <-> Empresa */}
-                          <div style={{
-                            background: isPJ ? 'rgba(197, 168, 105, 0.08)' : 'rgba(0, 158, 227, 0.08)',
-                            border: isPJ ? '1px solid rgba(197, 168, 105, 0.2)' : '1px solid rgba(0, 158, 227, 0.2)',
-                            borderRadius: 'var(--radius-xs)',
-                            padding: '0.55rem 0.75rem',
-                            fontSize: '0.75rem',
-                            marginBottom: '0.85rem'
-                          }}>
-                            {isPJ ? (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                                <div style={{ color: 'var(--gold-light)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                                  <Briefcase size={12} />
-                                  Sócio Administrador:
-                                </div>
-                                <div style={{ color: '#FFFFFF', fontWeight: 500 }}>
-                                  {client.socioVinculado || client.responsavel || 'José Jailson Mourato da Silva'}
-                                </div>
-                                {client.balanco && (
-                                  <div style={{ fontSize: '0.7rem', color: '#94A3B8', marginTop: '0.2rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                    <span>Ativo: <strong style={{ color: '#E2E8F0' }}>{client.balanco.ativo}</strong></span>
-                                    <span>• PL: <strong style={{ color: '#E2E8F0' }}>{client.balanco.patrimonioLiquido}</strong></span>
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                                <div style={{ color: '#38BDF8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                                  <Building2 size={12} />
-                                  Empresa Vinculada:
-                                </div>
-                                <div style={{ color: '#FFFFFF', fontWeight: 500 }}>
-                                  {client.empresaVinculada || 'Mourato & Associados Ltda'}
-                                </div>
-                                <div style={{ fontSize: '0.7rem', color: '#94A3B8', marginTop: '0.2rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                  <span>Cargo: <strong style={{ color: '#E2E8F0' }}>{client.profissao || 'Sócio'}</strong></span>
-                                  {client.rendaPatrimonio?.veiculos && (
-                                    <span>• <strong style={{ color: '#E2E8F0' }}>{client.rendaPatrimonio.veiculos.split('(')[0]}</strong></span>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Contas Bancárias (Preview Chips com Separação Estrita PF x PJ) */}
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '0.85rem' }}>
-                            {client.contasBancarias?.map((b, idx) => {
-                              const isPjConta = Boolean(b.origemCcs || (client.tipo === 'PJ' && b.tipoConta !== 'PF'));
-                              const badgeOrigem = b.origemCcs ? 'PJ • Bacen CCS' : (isPjConta ? 'PJ • Bacen SCR' : 'PF • Quod/SCR');
-                              return (
-                                <span 
-                                  key={idx}
-                                  style={{
-                                    fontSize: '0.68rem',
-                                    padding: '0.2rem 0.55rem',
-                                    borderRadius: 'var(--radius-xs)',
-                                    background: '#131A29',
-                                    border: b.origemCcs ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
-                                    color: b.origemCcs ? '#34D399' : 'var(--gold-light)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.35rem'
-                                  }}
-                                  title={`${badgeOrigem} — ${b.statusConta || 'Conta Ativa'}`}
-                                >
-                                  <Landmark size={11} />
-                                  {b.banco === 'Outro' ? (b.bancoOutro || 'Outro') : b.banco}
-                                  <span style={{
-                                    fontSize: '0.6rem',
-                                    fontWeight: 700,
-                                    color: b.origemCcs ? '#34D399' : '#38BDF8',
-                                    background: 'rgba(255,255,255,0.06)',
-                                    padding: '1px 4px',
-                                    borderRadius: '3px'
-                                  }}>
-                                    [{badgeOrigem}]
-                                  </span>
-                                </span>
-                              );
-                            })}
-                          </div>
-
-                          {/* Bureaus e Órgãos Reguladores */}
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem', fontSize: '0.68rem', color: '#94A3B8' }}>
-                            <span style={{ background: '#070A10', padding: '0.15rem 0.45rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                              Bacen: <strong style={{ color: '#34D399' }}>{client.bacenScr ? client.bacenScr.split(' ')[0] + ' ' + (client.bacenScr.split(' ')[1] || '') : 'A1'}</strong>
-                            </span>
-                            <span style={{ background: '#070A10', padding: '0.15rem 0.45rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                              Serasa: <strong style={{ color: '#FFFFFF' }}>{
-                                typeof client.serasaScore === 'object'
-                                  ? (client.serasaScore?.score || client.serasaScore?.valor || 'Regular')
-                                  : (String(client.serasaScore || '').includes('object Object') ? 'Regular' : (client.serasaScore || client.serasaStatus || 'Regular'))
-                              }</strong>
-                            </span>
-                            <span style={{ background: '#070A10', padding: '0.15rem 0.45rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                              Gov.br: <strong style={{ color: '#FCD34D' }}>{client.govNivel || 'Ouro'}</strong>
-                            </span>
-                          </div>
-
-                          {/* Extratos e Documentos em PDF Anexados */}
-                          {client.anexos && client.anexos.length > 0 && (
-                            <div style={{ marginTop: '0.65rem', display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-                              {client.anexos.map((anx, aIdx) => (
-                                <a
-                                  key={aIdx}
-                                  href={anx.base64}
-                                  download={anx.nome || 'extrato.pdf'}
-                                  style={{
-                                    fontSize: '0.68rem',
-                                    background: 'rgba(197, 168, 105, 0.12)',
-                                    border: '1px solid var(--gold-border)',
-                                    color: 'var(--gold-light)',
-                                    padding: '0.2rem 0.5rem',
-                                    borderRadius: '4px',
-                                    textDecoration: 'none',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '0.3rem',
-                                    fontWeight: 600
-                                  }}
-                                  title={`Baixar ${anx.nome} (${anx.tamanho})`}
-                                >
-                                  <FileText size={11} />
-                                  {anx.tipo === 'quod' ? 'Extrato Quod (PDF)' : anx.tipo === 'bacen' ? 'Extrato Bacen SCR (PDF)' : (anx.nome || 'PDF')}
-                                </a>
-                              ))}
+                          {/* Faixa Unificada dos 4 Birôs (Zero Dados Inventados) */}
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.35rem', fontSize: '0.66rem', color: '#94A3B8' }}>
+                            <div style={{ background: '#070A10', padding: '0.3rem 0.4rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>
+                              <div style={{ color: '#64748B', fontSize: '0.58rem' }}>SERASA</div>
+                              <strong style={{ color: bureau.serasa > 0 ? '#FFFFFF' : '#64748B' }}>{bureau.serasa || 0}</strong>
                             </div>
-                          )}
+                            <div style={{ background: '#070A10', padding: '0.3rem 0.4rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>
+                              <div style={{ color: '#64748B', fontSize: '0.58rem' }}>BOA VISTA</div>
+                              <strong style={{ color: bureau.boavista > 0 ? '#FFFFFF' : '#64748B' }}>{bureau.boavista || 0}</strong>
+                            </div>
+                            <div style={{ background: '#070A10', padding: '0.3rem 0.4rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>
+                              <div style={{ color: '#64748B', fontSize: '0.58rem' }}>QUOD</div>
+                              <strong style={{ color: bureau.quod > 0 ? '#FFFFFF' : '#64748B' }}>{bureau.quod || 0}</strong>
+                            </div>
+                            <div style={{ background: '#070A10', padding: '0.3rem 0.4rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>
+                              <div style={{ color: '#64748B', fontSize: '0.58rem' }}>BACEN SCR</div>
+                              <strong style={{ color: bureau.bacen && !String(bureau.bacen).startsWith('0') ? '#34D399' : '#64748B' }}>
+                                {bureau.bacen && !String(bureau.bacen).startsWith('0') ? String(bureau.bacen).split(' ')[0] : '0'}
+                              </strong>
+                            </div>
+                          </div>
                         </div>
 
-                        {/* Botões de Ação */}
+                        {/* Apenas 3 Botões Estratégicos de Ação */}
                         <div style={{ 
-                          display: 'flex', 
-                          flexWrap: 'wrap', 
-                          gap: '0.45rem', 
+                          display: 'grid',
+                          gridTemplateColumns: '1.35fr 0.85fr 0.95fr',
+                          gap: '0.5rem', 
                           borderTop: '1px solid rgba(255, 255, 255, 0.06)', 
                           paddingTop: '0.85rem' 
                         }}>
+                          <button
+                            onClick={() => {
+                              setSelectedBureauClientId(client.id);
+                              setBureauCategoryFilter(client.tipo === 'PJ' ? 'PJ' : 'PF');
+                              setActiveView('bureau_scores');
+                            }}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '0.35rem',
+                              padding: '0.58rem 0.65rem',
+                              fontSize: '0.76rem',
+                              borderRadius: 'var(--radius-sm)',
+                              background: 'rgba(16, 185, 129, 0.18)',
+                              border: '1px solid rgba(16, 185, 129, 0.5)',
+                              color: '#34D399',
+                              fontWeight: 800,
+                              cursor: 'pointer'
+                            }}
+                            title="Abrir Dossiê do Questão integrado aos 4 Birôs de Crédito"
+                          >
+                            <ShieldCheck size={14} />
+                            Dossiê &amp; Birôs
+                          </button>
+
                           <button
                             onClick={() => handleOpenNewCharge(client)}
                             style={{
@@ -4643,136 +4694,48 @@ Website: https://www.mouratoassociados.com.br`;
                               alignItems: 'center',
                               justifyContent: 'center',
                               gap: '0.35rem',
-                              padding: '0.55rem 0.75rem',
-                              fontSize: '0.78rem',
+                              padding: '0.58rem 0.65rem',
+                              fontSize: '0.76rem',
                               borderRadius: 'var(--radius-sm)',
                               background: 'rgba(0, 158, 227, 0.15)',
                               border: '1px solid rgba(0, 158, 227, 0.4)',
                               color: '#00B4FF',
                               fontWeight: 700,
-                              cursor: 'pointer',
-                              flex: '1 1 auto',
-                              transition: 'background 0.2s'
+                              cursor: 'pointer'
                             }}
-                            title="Gerar Cobrança Bancária Oficial"
+                            title="Emitir Cobrança PIX / Cartão"
                           >
                             <CreditCard size={14} />
                             Cobrar
                           </button>
+
                           <button
+                            type="button"
                             onClick={() => {
-                              setSelectedBureauClientId(client.id);
-                              setBureauCategoryFilter(client.tipo === 'PJ' ? 'PJ' : 'PF');
-                              setActiveView('bureau_scores');
-                              showToast('🛡️ Birôs Conectados', `"${client.nomeRazao}" selecionado para alimentar métricas nos birôs.`);
+                              if (pdfQuestaoUrl) {
+                                window.open(pdfQuestaoUrl, '_blank');
+                              } else {
+                                handlePrintClientFormAndBureau(client);
+                              }
                             }}
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
                               justifyContent: 'center',
                               gap: '0.35rem',
-                              padding: '0.55rem 0.75rem',
-                              fontSize: '0.78rem',
-                              borderRadius: 'var(--radius-sm)',
-                              background: 'rgba(16, 185, 129, 0.18)',
-                              border: '1px solid rgba(16, 185, 129, 0.55)',
-                              color: '#34D399',
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              flex: '1 1 auto'
-                            }}
-                            title="Alimentar e atualizar os 4 Birôs de Crédito para esta planilha/cliente"
-                          >
-                            <ShieldCheck size={14} />
-                            Alimentar Birô
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => downloadClientJsonForRobot(client)}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '0.35rem',
-                              padding: '0.55rem 0.75rem',
-                              fontSize: '0.78rem',
-                              borderRadius: 'var(--radius-sm)',
-                              background: 'rgba(59, 130, 246, 0.16)',
-                              border: '1px solid rgba(59, 130, 246, 0.45)',
-                              color: '#60A5FA',
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              flex: '1 1 auto'
-                            }}
-                            title="Baixar ficha cadastral estruturada em JSON para alimentar o robô local (ClientesPF na porta 3000)"
-                          >
-                            <FileDown size={14} />
-                            Baixar Ficha
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handlePrintClientFormAndBureau(client)}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '0.35rem',
-                              padding: '0.55rem 0.75rem',
-                              fontSize: '0.78rem',
+                              padding: '0.58rem 0.65rem',
+                              fontSize: '0.76rem',
                               borderRadius: 'var(--radius-sm)',
                               background: 'rgba(212, 175, 55, 0.16)',
                               border: '1px solid var(--gold-border)',
                               color: 'var(--gold-light)',
                               fontWeight: 700,
-                              cursor: 'pointer',
-                              flex: '1 1 auto'
+                              cursor: 'pointer'
                             }}
-                            title="Imprimir Formulário Cadastral Completo com Birôs e Relatório da Teia de Aranha"
+                            title={pdfQuestaoUrl ? 'Abrir PDF Oficial do Questão (Marca d\'Água 5.5%)' : 'Imprimir PDF Oficial Mourato (Marca d\'Água 5.5%)'}
                           >
                             <Printer size={14} />
-                            Imprimir
-                          </button>
-
-                          <button
-                            onClick={() => setSelectedClient(client)}
-                            className="btn-secondary-subtle"
-                            style={{ 
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '0.35rem',
-                              padding: '0.55rem 0.75rem', 
-                              fontSize: '0.78rem', 
-                              flex: '1 1 auto' 
-                            }}
-                            title="Visualizar Dossiê Pericial completo deste cliente"
-                          >
-                            <Eye size={13} />
-                            Dossiê
-                          </button>
-
-                          <button
-                            onClick={() => handleDeleteClient(client.id)}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '0.35rem',
-                              background: 'rgba(239, 68, 68, 0.12)',
-                              border: '1px solid rgba(239, 68, 68, 0.35)',
-                              color: '#F87171',
-                              padding: '0.55rem 0.7rem',
-                              borderRadius: 'var(--radius-sm)',
-                              cursor: 'pointer',
-                              fontWeight: 700,
-                              fontSize: '0.78rem'
-                            }}
-                            title="Excluir este cadastro do sistema"
-                          >
-                            <Trash2 size={13} />
-                            Excluir
+                            PDF Oficial
                           </button>
                         </div>
                       </div>
@@ -8107,23 +8070,69 @@ Website: https://www.mouratoassociados.com.br`;
                     </h2>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
-                    <span style={{
-                      fontSize: '0.78rem',
-                      fontFamily: 'monospace',
-                      fontWeight: 700,
-                      padding: '0.4rem 0.9rem',
-                      borderRadius: '9999px',
-                      background: 'rgba(16, 185, 129, 0.12)',
-                      border: '1px solid rgba(16, 185, 129, 0.4)',
-                      color: '#34D399',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.45rem'
-                    }}>
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />
-                      Sincronizado em {bureauSyncClock}
-                    </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => setActiveView('clients_list')}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        padding: '0.45rem 0.85rem',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'rgba(255, 255, 255, 0.06)',
+                        border: '1px solid rgba(255, 255, 255, 0.16)',
+                        color: '#E2E8F0',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      ← Voltar para Clientes
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedClient(activeClient)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        padding: '0.45rem 0.85rem',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'rgba(56, 189, 248, 0.14)',
+                        border: '1px solid rgba(56, 189, 248, 0.4)',
+                        color: '#38BDF8',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Eye size={14} />
+                      Ficha Completa
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSendProtocolEmailPosFinalizacao(activeClient)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        padding: '0.45rem 0.85rem',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'rgba(16, 185, 129, 0.16)',
+                        border: '1px solid rgba(16, 185, 129, 0.45)',
+                        color: '#34D399',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                      title="Enviar E-mail Oficial com o Protocolo (disponível somente após o cliente finalizar o processo)"
+                    >
+                      <Send size={13} />
+                      Enviar E-mail Protocolo
+                    </button>
 
                     <button
                       type="button"
@@ -8137,38 +8146,15 @@ Website: https://www.mouratoassociados.com.br`;
                         background: isBureauEditMode ? 'rgba(234, 179, 8, 0.25)' : 'rgba(197, 168, 105, 0.15)',
                         border: isBureauEditMode ? '1px solid #EAB308' : '1px solid var(--gold-border)',
                         color: isBureauEditMode ? '#FDE047' : 'var(--gold-light)',
-                        fontSize: '0.8rem',
+                        fontSize: '0.78rem',
                         fontWeight: 700,
                         cursor: 'pointer',
                         transition: 'all 0.2s'
                       }}
-                      title="Ativar / desativar edição de métricas, textos e links dos 4 birôs de crédito"
+                      title="Ativar / desativar edição de métricas dos 4 birôs"
                     >
                       {isBureauEditMode ? <Save size={14} /> : <Edit size={14} />}
-                      {isBureauEditMode ? 'Concluir Edição dos Birôs' : 'Editar Métricas & Botões'}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleLoadScoresFromCadastro}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.45rem',
-                        padding: '0.45rem 0.95rem',
-                        borderRadius: 'var(--radius-sm)',
-                        background: 'rgba(56, 189, 248, 0.15)',
-                        border: '1px solid rgba(56, 189, 248, 0.45)',
-                        color: '#38BDF8',
-                        fontSize: '0.8rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }}
-                      title="Subir os valores cadastrados na ficha deste cliente para os birôs"
-                    >
-                      <RotateCcw size={14} />
-                      Puxar Valores do Cadastro
+                      {isBureauEditMode ? 'Concluir Edição' : 'Editar Birôs'}
                     </button>
 
                     <button
@@ -8177,21 +8163,20 @@ Website: https://www.mouratoassociados.com.br`;
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '0.45rem',
-                        padding: '0.45rem 0.95rem',
+                        gap: '0.4rem',
+                        padding: '0.45rem 0.75rem',
                         borderRadius: 'var(--radius-sm)',
-                        background: 'rgba(239, 68, 68, 0.15)',
-                        border: '1px solid rgba(239, 68, 68, 0.4)',
+                        background: 'rgba(239, 68, 68, 0.12)',
+                        border: '1px solid rgba(239, 68, 68, 0.35)',
                         color: '#F87171',
-                        fontSize: '0.8rem',
+                        fontSize: '0.76rem',
                         fontWeight: 700,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
+                        cursor: 'pointer'
                       }}
-                      title="Zerar todos os scores e limpar todas as restrições deste titular para 0"
+                      title="Zerar scores dos birôs para 0"
                     >
-                      <RotateCcw size={14} />
-                      Zerar Birôs (Score 0)
+                      <RotateCcw size={13} />
+                      Zerar (0)
                     </button>
                   </div>
                 </div>
@@ -8342,6 +8327,169 @@ Website: https://www.mouratoassociados.com.br`;
                     </div>
                   )}
                 </div>
+
+                {/* 2.5 DOSSIÊ PERICIAL DO QUESTÃO (75% PÚBLICO) + PARECER DO ALFRED CIO ACOPLADO AOS BIRÔS */}
+                {(() => {
+                  const dossieQ = getQuestaoDossieForClient(activeClient);
+                  const qOrig = dossieQ?.dossie_original_questao || null;
+                  const rfb = qOrig?.dados_rfb || {};
+                  const rawCnpjActive = (activeClient.tipo === 'PJ' ? getClientDocumento(activeClient) : (activeClient.empresa?.cnpj || activeClient.cnpj || '')).replace(/\D/g, '');
+                  const isRunningThis = questaoRunningCnpj && questaoRunningCnpj === rawCnpjActive;
+
+                  return (
+                    <div style={{
+                      background: 'linear-gradient(135deg, rgba(13, 18, 29, 0.98) 0%, rgba(7, 10, 16, 0.98) 100%)',
+                      border: dossieQ ? '1.5px solid rgba(197, 168, 105, 0.45)' : '1px dashed rgba(197, 168, 105, 0.3)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '1.35rem 1.5rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '1rem',
+                      boxShadow: '0 8px 28px rgba(0,0,0,0.45)'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+                        <div>
+                          <span style={{ fontSize: '0.68rem', letterSpacing: '0.12em', color: '#C5A869', fontWeight: 800, display: 'block', marginBottom: '0.2rem' }}>
+                            🕵️ PROTOCOLO 75/25 • VARREDURA OFICIAL DO QUESTÃO + AUDITORIA ALFRED CIO
+                          </span>
+                          <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#FFFFFF', fontWeight: 800 }}>
+                            {dossieQ
+                              ? `Dossiê Pericial Auditado — Protocolo ${dossieQ.protocolo || 'OFICIAL'}`
+                              : 'Dossiê Pericial do Questão (Aguardando Varredura)'}
+                          </h3>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', flexWrap: 'wrap' }}>
+                          {dossieQ && (
+                            <span style={{
+                              padding: '0.35rem 0.75rem',
+                              borderRadius: '9999px',
+                              fontSize: '0.78rem',
+                              fontWeight: 800,
+                              background: dossieQ.recomendacao_acao === 'PROSSEGUIR' ? 'rgba(16, 185, 129, 0.18)' : 'rgba(245, 158, 11, 0.18)',
+                              border: dossieQ.recomendacao_acao === 'PROSSEGUIR' ? '1px solid rgba(16, 185, 129, 0.45)' : '1px solid rgba(245, 158, 11, 0.45)',
+                              color: dossieQ.recomendacao_acao === 'PROSSEGUIR' ? '#34D399' : '#FBBF24'
+                            }}>
+                              Score {dossieQ.score_viabilidade}/100 • {dossieQ.recomendacao_acao}
+                            </span>
+                          )}
+
+                          {dossieQ?._meta_arquivos?.url_pdf_questao && (
+                            <a
+                              href={dossieQ._meta_arquivos.url_pdf_questao}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                                padding: '0.45rem 0.85rem', borderRadius: '6px',
+                                background: 'rgba(197, 168, 105, 0.2)', border: '1px solid var(--gold-border)',
+                                color: 'var(--gold-light)', fontSize: '0.76rem', fontWeight: 700, textDecoration: 'none'
+                              }}
+                            >
+                              <FileText size={14} />
+                              Abrir PDF do Questão
+                            </a>
+                          )}
+
+                          <button
+                            type="button"
+                            disabled={Boolean(isRunningThis)}
+                            onClick={() => handleDispararQuestao(activeClient)}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                              padding: '0.45rem 0.9rem', borderRadius: '6px',
+                              background: isRunningThis ? 'rgba(148,163,184,0.2)' : 'rgba(16, 185, 129, 0.18)',
+                              border: '1px solid rgba(16, 185, 129, 0.45)',
+                              color: '#34D399', fontSize: '0.76rem', fontWeight: 800,
+                              cursor: isRunningThis ? 'wait' : 'pointer'
+                            }}
+                          >
+                            <RefreshCw size={13} />
+                            {isRunningThis ? 'Auditando na RFB...' : (dossieQ ? 'Reauditar Questão' : 'Disparar Questão 4.0 Agora')}
+                          </button>
+                        </div>
+                      </div>
+
+                      {dossieQ ? (
+                        <>
+                          {/* Métricas Reais RFB */}
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))', gap: '0.65rem' }}>
+                            <div style={{ background: '#070A10', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '0.65rem 0.8rem' }}>
+                              <div style={{ fontSize: '0.64rem', color: '#64748B', textTransform: 'uppercase' }}>Situação RFB</div>
+                              <div style={{ fontSize: '0.86rem', fontWeight: 800, color: rfb.situacao_cadastral === 'ATIVA' ? '#34D399' : '#F87171' }}>
+                                {rfb.situacao_cadastral || 'Não informado'}
+                              </div>
+                              <div style={{ fontSize: '0.68rem', color: '#94A3B8' }}>Abertura: {rfb.data_abertura || '—'} ({rfb.tempo_vida_meses || 0} meses)</div>
+                            </div>
+
+                            <div style={{ background: '#070A10', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '0.65rem 0.8rem' }}>
+                              <div style={{ fontSize: '0.64rem', color: '#64748B', textTransform: 'uppercase' }}>Capital Social Real</div>
+                              <div style={{ fontSize: '0.86rem', fontWeight: 800, color: '#FFFFFF' }}>
+                                {rfb.capital_social ? Number(rfb.capital_social).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00'}
+                              </div>
+                              <div style={{ fontSize: '0.68rem', color: '#94A3B8' }}>Porte: {rfb.porte || '—'}</div>
+                            </div>
+
+                            <div style={{ background: '#070A10', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '0.65rem 0.8rem' }}>
+                              <div style={{ fontSize: '0.64rem', color: '#64748B', textTransform: 'uppercase' }}>Enquadramento Fiscal</div>
+                              <div style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--gold-light)' }}>
+                                {rfb.optante_simei ? 'MEI (SIMEI)' : rfb.optante_simples ? 'Simples Nacional' : 'Regime Normal'}
+                              </div>
+                              <div style={{ fontSize: '0.68rem', color: '#94A3B8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {rfb.natureza_juridica || '—'}
+                              </div>
+                            </div>
+
+                            <div style={{ background: '#070A10', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '0.65rem 0.8rem' }}>
+                              <div style={{ fontSize: '0.64rem', color: '#64748B', textTransform: 'uppercase' }}>CNAE Principal</div>
+                              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#E2E8F0' }}>
+                                {rfb.atividade_principal?.[0]?.code || '—'}
+                              </div>
+                              <div style={{ fontSize: '0.68rem', color: '#94A3B8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={rfb.atividade_principal?.[0]?.text || ''}>
+                                {rfb.atividade_principal?.[0]?.text || '—'}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Semaforização Pericial do Questão (Green, Yellow, Red Flags) */}
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.75rem' }}>
+                            <div style={{ background: 'rgba(16, 185, 129, 0.06)', border: '1px solid rgba(16, 185, 129, 0.22)', borderRadius: '8px', padding: '0.75rem 0.9rem' }}>
+                              <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#34D399', marginBottom: '0.45rem' }}>
+                                ✅ VERIFICAÇÕES CONFORMES ({qOrig?.green_flags?.length || 0})
+                              </div>
+                              <ul style={{ margin: 0, paddingLeft: '1rem', fontSize: '0.73rem', color: '#CBD5E1', display: 'flex', flexDirection: 'column', gap: '0.28rem' }}>
+                                {(qOrig?.green_flags || []).map((gf, idx) => (
+                                  <li key={idx}><strong style={{ color: '#FFFFFF' }}>{gf.modulo}:</strong> {gf.indicador}</li>
+                                ))}
+                              </ul>
+                            </div>
+
+                            <div style={{ background: 'rgba(245, 158, 11, 0.06)', border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: '8px', padding: '0.75rem 0.9rem' }}>
+                              <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#FBBF24', marginBottom: '0.45rem' }}>
+                                ⚠️ ALERTAS &amp; ESTRATÉGIA ALFRED ({(qOrig?.yellow_flags?.length || 0) + (qOrig?.red_flags?.length || 0)} apontamentos)
+                              </div>
+                              <ul style={{ margin: 0, paddingLeft: '1rem', fontSize: '0.73rem', color: '#CBD5E1', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                                {(qOrig?.red_flags || []).map((rf, idx) => (
+                                  <li key={`r-${idx}`} style={{ color: '#FCA5A5' }}><strong>[CRÍTICO] {rf.modulo}:</strong> {rf.descricao}</li>
+                                ))}
+                                {(qOrig?.yellow_flags || []).map((yf, idx) => (
+                                  <li key={`y-${idx}`}><strong style={{ color: '#FDE68A' }}>{yf.modulo}:</strong> {yf.descricao}</li>
+                                ))}
+                                {(dossieQ?.estrategia_mourato || []).map((est, idx) => (
+                                  <li key={`e-${idx}`}><strong style={{ color: '#C5A869' }}>Estratégia:</strong> {est}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ fontSize: '0.8rem', color: '#94A3B8', padding: '0.5rem 0' }}>
+                          Nenhum dossiê físico do Questão localizado no disco para este CNPJ ainda. Clique em <strong style={{ color: '#34D399' }}>Disparar Questão 4.0 Agora</strong> para executar a varredura oficial de 75% (Receita Federal, QSA, CNDs, CEIS/CNEP e Parecer do Alfred) e acoplar imediatamente junto aos 4 birôs abaixo.
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* 3. Grid dos 4 Cards Oficiais dos Birôs */}
                 <div style={{
