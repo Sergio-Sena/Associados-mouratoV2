@@ -883,6 +883,18 @@ export const ClientManagementModal = ({ isOpen, onClose, initialView = 'leads' }
             combined.push(teiaCli);
             if (teiaCli.id) existingIds.add(teiaCli.id);
             if (docClean) existingDocs.add(docClean);
+          } else if (teiaCli.auditSyncedAt) {
+            // Atualiza registros já existentes no localStorage com a auditoria pericial oficial mais recente
+            const idx = combined.findIndex(c =>
+              c.id === teiaCli.id || (docClean && (c.documento || '').replace(/\D/g, '') === docClean)
+            );
+            if (idx >= 0 && combined[idx].auditSyncedAt !== teiaCli.auditSyncedAt) {
+              combined[idx] = {
+                ...combined[idx],
+                ...teiaCli,
+                id: combined[idx].id || teiaCli.id,
+              };
+            }
           }
         });
       }
@@ -1551,16 +1563,28 @@ Website: https://www.mouratoassociados.com.br`;
         bacenBtnUrl: 'https://registrato.bcb.gov.br/'
       };
     }
-    const saved = bureauScoresMap[client.id];
-    if (saved) return saved;
-    const cleanDoc = (client.documento || '').replace(/\D/g, '');
-    if (cleanDoc && bureauScoresMap[cleanDoc]) return bureauScoresMap[cleanDoc];
-
-    // Sobe os valores digitados no cadastro do cliente (se existirem), senão inicia ZERADO (0) para alimentação manual
     const cadSerasa = parseScoreValue(client.serasaScore);
     const cadBoaVista = parseScoreValue(client.boaVistaScore);
     const cadQuod = parseScoreValue(client.quodScore);
     const cadBacen = client.bacenScr || (cadSerasa > 0 ? 'Rating A1' : '0 (Não Auditado)');
+
+    const saved = bureauScoresMap[client.id] || (
+      (client.documento || '').replace(/\D/g, '') ? bureauScoresMap[(client.documento || '').replace(/\D/g, '')] : null
+    );
+    if (saved) {
+      if (client.auditSyncedAt && (cadSerasa > 0 || cadBoaVista > 0 || cadQuod > 0)) {
+        return {
+          ...saved,
+          serasa: saved.serasa > 0 ? saved.serasa : cadSerasa,
+          boavista: saved.boavista > 0 ? saved.boavista : cadBoaVista,
+          quod: saved.quod > 0 ? saved.quod : cadQuod,
+          bacen: (saved.bacen && !String(saved.bacen).startsWith('0')) ? saved.bacen : cadBacen,
+        };
+      }
+      return saved;
+    }
+
+    // Sobe os valores digitados no cadastro do cliente (se existirem), senão inicia ZERADO (0) para alimentação manual
     const isPj = client.tipo === 'PJ';
 
     return {
@@ -1782,6 +1806,13 @@ Website: https://www.mouratoassociados.com.br`;
       color: #0D121D;
       margin: 5.5mm 0 2.2mm 0;
       text-transform: uppercase;
+    }
+    table {
+      table-layout: fixed;
+    }
+    table td, table th {
+      word-wrap: break-word;
+      overflow-wrap: anywhere;
     }
     table.grid-info {
       width: 100%;
