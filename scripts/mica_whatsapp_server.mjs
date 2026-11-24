@@ -1,4 +1,4 @@
-import { makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
+import { makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, Browsers } from '@whiskeysockets/baileys';
 import qrcode from 'qrcode-terminal';
 import http from 'node:http';
 import fs from 'node:fs';
@@ -596,9 +596,11 @@ async function connectToWhatsApp() {
       auth: state,
       ...(version ? { version } : {}),
       printQRInTerminal: false,
-      browser: ['Mica Pericial', 'Chrome', '122.0.0'],
+      browser: Browsers.ubuntu('Chrome'),
       syncFullHistory: false,
-      markOnlineOnConnect: true,
+      shouldSyncHistoryMessage: () => false,
+      generateHighQualityLinkPreview: false,
+      markOnlineOnConnect: false,
       keepAliveIntervalMs: 25000,
       connectTimeoutMs: 60000,
       defaultQueryTimeoutMs: 60000,
@@ -630,23 +632,31 @@ async function connectToWhatsApp() {
     if (connection === 'close') {
       const statusCode = lastDisconnect?.error?.output?.statusCode;
       const reasonMsg = lastDisconnect?.error?.message || `statusCode=${statusCode || 'Desconhecido'}`;
-      lastDisconnectReason = reasonMsg;
-      const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+      lastDisconnectReason = `${reasonMsg} (code=${statusCode || 'N/A'})`;
       isConnected = false;
       isConnecting = false;
-      writeMicaLog(`⚠️ Conexão da Mica fechada. Motivo: ${reasonMsg} (code=${statusCode || 'N/A'})`);
-      if (shouldReconnect) {
-        reconnectAttempts += 1;
-        const waitMs = Math.min(45000, 3000 * Math.pow(2, Math.min(reconnectAttempts - 1, 4)));
-        writeMicaLog(`🔄 Reconectando Mica automaticamente em ${Math.round(waitMs / 1000)}s (tentativa #${reconnectAttempts})...`);
-        scheduleReconnect(waitMs);
-      } else {
+      writeMicaLog(`⚠️ Conexão da Mica fechada. Motivo: ${lastDisconnectReason}`);
+
+      if (statusCode === DisconnectReason.loggedOut) {
         reconnectAttempts = 0;
-        writeMicaLog('❌ Sessão deslogada pelo WhatsApp. Limpando APENAS auth_info_baileys (histórico/cache preservados em mica_data) e gerando novo QR Code...');
+        writeMicaLog('❌ Sessão deslogada pelo WhatsApp (401). Limpando APENAS auth_info_baileys (mica_data preservado) e gerando novo QR Code...');
         try {
           fs.rmSync(AUTH_DIR, { recursive: true, force: true });
         } catch (_) {}
         scheduleReconnect(2000);
+      } else if (statusCode === DisconnectReason.restartRequired) {
+        reconnectAttempts = 0;
+        writeMicaLog('🔄 Restart normal solicitado pelo WhatsApp (515 pós-pareamento). Reconectando em 1.5s...');
+        scheduleReconnect(1500);
+      } else if (statusCode === DisconnectReason.connectionReplaced) {
+        reconnectAttempts += 1;
+        writeMicaLog('⚠️ Conflito de sessão (440 connectionReplaced): outra instância conectou no mesmo número! Aguardando 30s antes de reconectar.');
+        scheduleReconnect(30000);
+      } else {
+        reconnectAttempts += 1;
+        const waitMs = Math.min(45000, 3000 * Math.pow(2, Math.min(reconnectAttempts - 1, 4)));
+        writeMicaLog(`🔄 Reconectando Mica automaticamente em ${Math.round(waitMs / 1000)}s (tentativa #${reconnectAttempts}, credenciais preservadas)...`);
+        scheduleReconnect(waitMs);
       }
     } else if (connection === 'open') {
       isConnected = true;
@@ -1349,3 +1359,14 @@ server.listen(PORT, () => {
     }
   }, 60000);
 });
+
+// Encerramento limpo (evita socket zumbi 440 ao reiniciar no PM2)
+function gracefulShutdown(signal) {
+  writeMicaLog(`🛑 [MICA] Sinal ${signal} recebido. Encerrando socket e HTTP com segurança...`);
+  try { if (reconnectTimer) clearTimeout(reconnectTimer); } catch (_) {}
+  try { sock?.end?.(undefined); } catch (_) {}
+  try { server.close(() => process.exit(0)); } catch (_) { process.exit(0); }
+  setTimeout(() => process.exit(0), 3000);
+}
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
