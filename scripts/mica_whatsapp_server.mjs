@@ -1,4 +1,4 @@
-import { makeWASocket, useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys';
+import { makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
 import qrcode from 'qrcode-terminal';
 import http from 'node:http';
 import fs from 'node:fs';
@@ -10,8 +10,12 @@ const __dirname = path.dirname(__filename);
 
 const PORT = process.env.MICA_PORT || 3050;
 const AUTH_DIR = path.resolve(__dirname, '../auth_info_baileys');
-const CACHE_FILE = path.resolve(AUTH_DIR, 'notified_lead_ids.json');
-const LOG_FILE = path.resolve(AUTH_DIR, 'mica_history.log');
+const DATA_DIR = path.resolve(__dirname, '../mica_data');
+const CACHE_FILE = path.resolve(DATA_DIR, 'notified_lead_ids.json');
+const SESSIONS_FILE = path.resolve(DATA_DIR, 'mica_sessions.json');
+const QUESTAO_HANDOFF_FILE = path.resolve(DATA_DIR, 'mica_questao_handoff.json');
+const LOG_FILE = path.resolve(DATA_DIR, 'mica_history.log');
+const ALFRED_CIO_URL = process.env.ALFRED_CIO_URL || 'http://127.0.0.1:9000';
 
 // Número da Mica conectado (WhatsApp Business):
 const MICA_OWN_PHONE = '5511914572275';
@@ -28,12 +32,28 @@ const AWS_ADMIN_PWD = process.env.VITE_ADMIN_PASSWORD || 'admin2026';
 let sock = null;
 let currentQr = null;
 let isConnected = false;
+let isConnecting = false;
+let reconnectAttempts = 0;
+let reconnectTimer = null;
+let lastDisconnectReason = '';
 let isPollingAws = false;
 let lastDispatches = [];
 let pendingLeadsMap = new Map(); // id -> lead data
 let latestPendingLead = null;
-let activeClientStage = 'CONSENT';
 const clientStageMap = new Map(); // sender/phone -> 'CONSENT' | 'SERASA' | 'BOAVISTA' | 'QUOD' | 'PLANILHA' | 'DONE'
+const questaoHandoffQueue = []; // Pacotes estruturados coletados pela Mica prontos para o Questão
+
+// Garante diretórios separados (AUTH_DIR isolado de DATA_DIR para nunca perder histórico/cache em relogin)
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
+
+// Blindagem Anti-Crash 24/7: nenhum erro transitório de rede pode derrubar o processo da Mica
+process.on('uncaughtException', (err) => {
+  writeMicaLog(`🛡️ [ANTI-CRASH uncaughtException] ${err?.stack || err?.message || err}`);
+});
+process.on('unhandledRejection', (reason) => {
+  writeMicaLog(`🛡️ [ANTI-CRASH unhandledRejection] ${reason?.stack || reason?.message || reason}`);
+});
 
 // Logger persistente em arquivo
 function writeMicaLog(msg) {
@@ -41,26 +61,114 @@ function writeMicaLog(msg) {
   const line = `[${ts}] ${msg}\n`;
   console.log(msg);
   try {
-    if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
     fs.appendFileSync(LOG_FILE, line, 'utf8');
   } catch (_) {}
 }
 
-// Carrega cache de leads já notificados para nunca duplicar alertas
+// Carrega cache de leads já notificados (migra do AUTH_DIR legado se existir)
 let notifiedIds = new Set();
 try {
-  if (fs.existsSync(CACHE_FILE)) {
-    const raw = fs.readFileSync(CACHE_FILE, 'utf8');
+  const legacyCache = path.resolve(AUTH_DIR, 'notified_lead_ids.json');
+  const sourceCache = fs.existsSync(CACHE_FILE) ? CACHE_FILE : (fs.existsSync(legacyCache) ? legacyCache : null);
+  if (sourceCache) {
+    const raw = fs.readFileSync(sourceCache, 'utf8');
     const list = JSON.parse(raw);
     if (Array.isArray(list)) notifiedIds = new Set(list);
   }
 } catch (_) {}
 
+// Carrega sessões de clientes persistidas (evita perder estágio após restart do PM2)
+try {
+  if (fs.existsSync(SESSIONS_FILE)) {
+    const savedSessions = JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8'));
+    if (savedSessions && typeof savedSessions === 'object') {
+      for (const [k, v] of Object.entries(savedSessions)) {
+        clientStageMap.set(k, v);
+      }
+    }
+  }
+} catch (_) {}
+
+// Carrega fila de handoff pronta para o Questão
+try {
+  if (fs.existsSync(QUESTAO_HANDOFF_FILE)) {
+    const savedQueue = JSON.parse(fs.readFileSync(QUESTAO_HANDOFF_FILE, 'utf8'));
+    if (Array.isArray(savedQueue)) questaoHandoffQueue.push(...savedQueue);
+  }
+} catch (_) {}
+
 function saveNotifiedCache() {
   try {
-    if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
     fs.writeFileSync(CACHE_FILE, JSON.stringify(Array.from(notifiedIds), null, 2), 'utf8');
   } catch (_) {}
+}
+
+function saveSessionsCache() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(Object.fromEntries(clientStageMap.entries()), null, 2), 'utf8');
+  } catch (_) {}
+}
+
+function enqueueForQuestao(payload) {
+  try {
+    const key = payload.protocolo || payload.cnpj || payload.telefone || `pkg-${Date.now()}`;
+    const idx = questaoHandoffQueue.findIndex(item => (item.protocolo && item.protocolo === payload.protocolo) || (payload.cnpj && item.cnpj === payload.cnpj));
+    const entry = {
+      ...payload,
+      updated_at: new Date().toISOString(),
+      status_questao: payload.status_questao || 'PRONTO_PARA_QUESTAO'
+    };
+    if (idx >= 0) {
+      questaoHandoffQueue[idx] = { ...questaoHandoffQueue[idx], ...entry };
+    } else {
+      questaoHandoffQueue.unshift(entry);
+      if (questaoHandoffQueue.length > 200) questaoHandoffQueue.pop();
+    }
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(QUESTAO_HANDOFF_FILE, JSON.stringify(questaoHandoffQueue, null, 2), 'utf8');
+    writeMicaLog(`📦 [HANDOFF QUESTÃO] Pacote salvo e disponível em /api/mica/questao-ready (${key})`);
+  } catch (e) {
+    writeMicaLog(`⚠️ [HANDOFF QUESTÃO] Falha ao salvar pacote: ${e.message}`);
+  }
+}
+
+function getClientStage(sender, senderDigits) {
+  if (clientStageMap.has(sender)) return clientStageMap.get(sender);
+  if (senderDigits && clientStageMap.has(senderDigits)) return clientStageMap.get(senderDigits);
+  const last8 = (senderDigits || '').slice(-8);
+  if (last8.length === 8) {
+    for (const [k, v] of clientStageMap.entries()) {
+      if (k.includes(last8)) return v;
+    }
+  }
+  return 'CONSENT';
+}
+
+function setClientStage(sender, senderDigits, stage) {
+  if (sender) clientStageMap.set(sender, stage);
+  if (senderDigits) {
+    clientStageMap.set(senderDigits, stage);
+    clientStageMap.set(`${senderDigits}@s.whatsapp.net`, stage);
+  }
+  saveSessionsCache();
+}
+
+function resetClientStageForPhone(digits) {
+  const clean = (digits || '').replace(/\D/g, '');
+  const last8 = clean.slice(-8);
+  for (const key of Array.from(clientStageMap.keys())) {
+    if ((last8 && key.includes(last8)) || key === 'default' || key.endsWith('@lid')) {
+      clientStageMap.delete(key);
+    }
+  }
+  if (clean) {
+    clientStageMap.set(clean, 'CONSENT');
+    clientStageMap.set(`${clean}@s.whatsapp.net`, 'CONSENT');
+  }
+  saveSessionsCache();
 }
 
 console.log('====================================================');
@@ -169,16 +277,7 @@ async function dispatchAlertToWhatsApp(lead, source = 'NUVEM_AWS') {
   pendingLeadsMap.set(leadProto, lead);
 
   // CRÍTICO: Limpa qualquer estágio antigo (inclusive @s.whatsapp.net / @lid) para reiniciar do CONSENT
-  const last8 = clientDigits.slice(-8);
-  for (const key of Array.from(clientStageMap.keys())) {
-    if (key.includes(last8) || key === 'default' || key.endsWith('@lid')) {
-      clientStageMap.delete(key);
-    }
-  }
-  activeClientStage = 'CONSENT';
-  clientStageMap.set(clientDigits, 'CONSENT');
-  clientStageMap.set(`${clientDigits}@s.whatsapp.net`, 'CONSENT');
-  clientStageMap.set('default', 'CONSENT');
+  resetClientStageForPhone(clientDigits);
 
   const clientWelcomeMsg = 
 `Olá, *${(lead.nome || 'Cliente').trim()}*! Aqui é a *Mica*, secretária executiva da *Mourato & Associados*. 👩‍💼
@@ -237,19 +336,33 @@ async function pollAwsLeadsQueue() {
         for (const lead of leads) {
           const leadId = lead.id;
           if (leadId && !notifiedIds.has(leadId) && lead.status !== 'aprovado') {
-            notifiedIds.add(leadId);
-            saveNotifiedCache();
+            if (!isConnected || !sock) {
+              // Não marca como notificado enquanto WhatsApp estiver offline; reprocessa assim que reconectar!
+              continue;
+            }
             writeMicaLog(`🔔 [VIGIA AWS] Nova solicitação detectada: "${lead.empresa || lead.nome}" (${leadId})`);
 
             // ⚡ GATILHO PRÓPRIO DO AGENTE QUESTÃO: NOVO CLIENTE DETECTADO NA NUVEM!
             const rawContext = typeof lead.contexto === 'string' ? lead.contexto : JSON.stringify(lead.contexto || {});
-            const cnpjMatch = rawContext.match(/\d{14}/) || (lead.empresa && lead.empresa.match(/\d{14}/)) || (lead.cnpj && lead.cnpj.match(/\d{14}/));
+            const cnpjMatch = rawContext.match(/\d{14}/) || (lead.empresa && lead.empresa.match(/\d{14}/)) || (lead.cnpj && lead.cnpj.replace(/\D/g, '').match(/^\d{14}$/));
             const cnpjToScan = cnpjMatch ? cnpjMatch[0] : '';
+
+            enqueueForQuestao({
+              lead_id: leadId,
+              protocolo: lead.protocolo || `MA-${String(leadId).slice(0, 8).toUpperCase()}`,
+              nome: lead.nome || 'Cliente',
+              empresa: lead.empresa || '',
+              cnpj: cnpjToScan,
+              telefone: lead.telefone || '',
+              email: lead.email || '',
+              etapa_mica: 'CONSENT',
+              origem: 'VIGIA_AWS'
+            });
 
             if (cnpjToScan && cnpjToScan.length === 14) {
               writeMicaLog(`⚡ [GATILHO QUESTÃO 4.0] Disparando investigação pericial automática para CNPJ: ${cnpjToScan}...`);
               try {
-                fetch('http://127.0.0.1:9000/api/pipeline/process', {
+                fetch(`${ALFRED_CIO_URL}/api/pipeline/process`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
@@ -262,7 +375,7 @@ async function pollAwsLeadsQueue() {
                 }).then(r => r.json()).then(qRes => {
                   writeMicaLog(`✅ [QUESTÃO CONCLUÍDO NOVO CLIENTE] ${qRes.empresa} | Score: ${qRes.score_viabilidade}/100 | Parecer: ${qRes.recomendacao_alfred}`);
                 }).catch(errQ => {
-                  writeMicaLog(`⚠️ [GATILHO QUESTÃO] Motor na porta 9000: ${errQ.message}`);
+                  writeMicaLog(`ℹ️ [GATILHO QUESTÃO] Motor remoto/local aguardando coleta via /api/mica/questao-ready (${errQ.message})`);
                 });
               } catch (_) {}
             }
@@ -295,6 +408,7 @@ async function approveAndSendFichaToClient(lead, customLinkFicha = '') {
   const baseUrl = 'https://www.mouratoassociados.com.br';
   const leadToken = lead.token || leadId;
   const shortLinkFicha = `${baseUrl}/ficha-cadastral?token=${encodeURIComponent(leadToken)}&id=${encodeURIComponent(leadId)}`;
+  const linkFicha = customLinkFicha || shortLinkFicha;
 
   writeMicaLog(`⚡ [APROVAÇÃO] Processando liberação de Ficha para ${leadNome} (${leadEmpresa})...`);
 
@@ -450,51 +564,97 @@ function saveApprovedLeadToTeia(lead, linkFicha) {
 
 const msgStore = new Map();
 
+function scheduleReconnect(delayMs) {
+  if (reconnectTimer) clearTimeout(reconnectTimer);
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connectToWhatsApp();
+  }, delayMs);
+}
+
 async function connectToWhatsApp() {
-  if (!fs.existsSync(AUTH_DIR)) {
-    fs.mkdirSync(AUTH_DIR, { recursive: true });
+  if (isConnecting) {
+    writeMicaLog('⏳ [MICA] Conexão já em andamento — ignorando chamada duplicada.');
+    return;
   }
+  isConnecting = true;
 
-  const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
-
-  sock = makeWASocket({
-    auth: state,
-    printQRInTerminal: false,
-    browser: ['Mica Pericial', 'Chrome', '1.0.0'],
-    syncFullHistory: false,
-    getMessage: async (key) => {
-      return msgStore.get(key.id)?.message || undefined;
+  try {
+    if (!fs.existsSync(AUTH_DIR)) {
+      fs.mkdirSync(AUTH_DIR, { recursive: true });
     }
-  });
+
+    const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+    let version;
+    try {
+      const latest = await fetchLatestBaileysVersion();
+      version = latest?.version;
+      writeMicaLog(`📡 [MICA] Versão WhatsApp Web sincronizada: ${Array.isArray(version) ? version.join('.') : 'padrão'}`);
+    } catch (_) {}
+
+    sock = makeWASocket({
+      auth: state,
+      ...(version ? { version } : {}),
+      printQRInTerminal: false,
+      browser: ['Mica Pericial', 'Chrome', '122.0.0'],
+      syncFullHistory: false,
+      markOnlineOnConnect: true,
+      keepAliveIntervalMs: 25000,
+      connectTimeoutMs: 60000,
+      defaultQueryTimeoutMs: 60000,
+      retryRequestDelayMs: 2000,
+      getMessage: async (key) => {
+        return msgStore.get(key.id)?.message || undefined;
+      }
+    });
+  } catch (initErr) {
+    isConnecting = false;
+    reconnectAttempts += 1;
+    const waitMs = Math.min(45000, 3000 * Math.pow(2, Math.min(reconnectAttempts - 1, 4)));
+    writeMicaLog(`❌ [MICA] Erro ao iniciar socket Baileys: ${initErr.message}. Tentando novamente em ${Math.round(waitMs / 1000)}s...`);
+    scheduleReconnect(waitMs);
+    return;
+  }
 
   sock.ev.on('connection.update', (update) => {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
       currentQr = qr;
+      isConnecting = false;
       console.log('\n📱 [MICA QR CODE] ESCANEIE COM O WHATSAPP PARA AUTORIZAR A MICA:');
       qrcode.generate(qr, { small: true });
       console.log('💡 Ou acesse pelo navegador: http://localhost:' + PORT + '/qrcode\n');
     }
 
     if (connection === 'close') {
-      const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+      const statusCode = lastDisconnect?.error?.output?.statusCode;
+      const reasonMsg = lastDisconnect?.error?.message || `statusCode=${statusCode || 'Desconhecido'}`;
+      lastDisconnectReason = reasonMsg;
+      const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
       isConnected = false;
-      writeMicaLog(`⚠️ Conexão da Mica fechada. Motivo: ${lastDisconnect?.error?.message || 'Desconhecido'}`);
+      isConnecting = false;
+      writeMicaLog(`⚠️ Conexão da Mica fechada. Motivo: ${reasonMsg} (code=${statusCode || 'N/A'})`);
       if (shouldReconnect) {
-        writeMicaLog('🔄 Reconectando Mica automaticamente em 3 segundos...');
-        setTimeout(connectToWhatsApp, 3000);
+        reconnectAttempts += 1;
+        const waitMs = Math.min(45000, 3000 * Math.pow(2, Math.min(reconnectAttempts - 1, 4)));
+        writeMicaLog(`🔄 Reconectando Mica automaticamente em ${Math.round(waitMs / 1000)}s (tentativa #${reconnectAttempts})...`);
+        scheduleReconnect(waitMs);
       } else {
-        writeMicaLog('❌ Sessão deslogada. Limpando credenciais antigas e gerando novo QR Code...');
+        reconnectAttempts = 0;
+        writeMicaLog('❌ Sessão deslogada pelo WhatsApp. Limpando APENAS auth_info_baileys (histórico/cache preservados em mica_data) e gerando novo QR Code...');
         try {
           fs.rmSync(AUTH_DIR, { recursive: true, force: true });
         } catch (_) {}
-        setTimeout(connectToWhatsApp, 1500);
+        scheduleReconnect(2000);
       }
     } else if (connection === 'open') {
       isConnected = true;
+      isConnecting = false;
+      reconnectAttempts = 0;
+      lastDisconnectReason = '';
       currentQr = null;
-      writeMicaLog('✅ [MICA CONECTADA COM SUCESSO AO WHATSAPP!]');
+      writeMicaLog('✅ [MICA CONECTADA COM SUCESSO AO WHATSAPP 24/7!]');
       writeMicaLog(`🚀 Alerta para a Diretoria: ${DIRECTOR_PHONE}`);
       
       // Inicia verificação imediata dos leads pendentes na nuvem
@@ -543,10 +703,10 @@ async function connectToWhatsApp() {
       writeMicaLog(`📩 Mensagem recebida [type=${type}] de ${pushName} (${sender}): "${text}"`);
       if (!text) continue;
 
-      // 1. COMANDOS VINDOS DA DIRETORIA AUTORIZADA (Apenas comandos explícitos como APROVAR ou STATUS)
+      // 1. COMANDOS VINDOS DA DIRETORIA AUTORIZADA (APROVAR, STATUS ou RESET)
       const cleanCmd = text.trim().toUpperCase();
-      const isDirectorCmd = (cleanCmd.startsWith('APROVAR') || cleanCmd === 'STATUS') && 
-                            Boolean(DIRECTOR_PHONE && DIRECTOR_PHONE.length >= 8 && sender.includes(DIRECTOR_PHONE.slice(-8)));
+      const isDirectorCmd = (cleanCmd.startsWith('APROVAR') || cleanCmd === 'STATUS' || cleanCmd === 'RESET' || cleanCmd === 'REINICIAR') && 
+                            Boolean(DIRECTOR_PHONE && DIRECTOR_PHONE.length >= 8 && (sender.includes(DIRECTOR_PHONE.slice(-8)) || senderDigits.includes(DIRECTOR_PHONE.slice(-8))));
       if (isDirectorCmd) {
         if (cleanCmd.startsWith('APROVAR')) {
           writeMicaLog('⚡ [COMANDO EXECUTIVO DA DIRETORIA] Autorização confirmada via WhatsApp!');
@@ -566,17 +726,46 @@ async function connectToWhatsApp() {
               text: '⚠️ *[MICA]* Não encontrei nenhuma solicitação pendente recente para aprovar. Envie "APROVAR <ID>" ou aguarde novo lead.'
             });
           }
+        } else if (cleanCmd === 'RESET' || cleanCmd === 'REINICIAR') {
+          resetClientStageForPhone(senderDigits || DIRECTOR_PHONE);
+          await sock.sendMessage(sender, {
+            text: '🔄 *[MICA]* Estágio de atendimento reiniciado para *CONSENT* (Etapa 0). Pronto para novo teste!'
+          });
         } else if (cleanCmd === 'STATUS') {
           await sock.sendMessage(sender, {
-            text: `🤖 *[MICA STATUS 24/7]*\n\n🟢 Conectada: Sim\n☁️ Vigilância Nuvem AWS: Ativa\n📱 Diretor Mourato: ${DIRECTOR_PHONE}\n📋 Leads Notificados: ${notifiedIds.size}`
+            text: `🤖 *[MICA STATUS 24/7 — v3.0]*\n\n🟢 Conectada: Sim\n☁️ Vigilância Nuvem AWS: Ativa\n📱 Diretor Mourato: ${DIRECTOR_PHONE}\n📋 Leads Notificados: ${notifiedIds.size}\n📦 Pacotes Prontos p/ Questão: ${questaoHandoffQueue.length}`
           });
         }
         continue;
       }
 
-      // 2. MENSAGEM VINDA DE CLIENTE / TERCEIRO (MÁQUINA DE ESTADOS SEQUENCIAL DOS BIRÔS):
+      // 2. EXTRAÇÃO AUTOMÁTICA DE DADOS REAIS (CNPJ / CPF / E-MAIL) PARA O QUESTÃO
+      const digitsOnly = text.replace(/\D/g, '');
+      const foundCnpj = (text.match(/\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/) || [])[0]?.replace(/\D/g, '') || (digitsOnly.length === 14 ? digitsOnly : '');
+      const foundCpf = (!foundCnpj && (text.match(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/) || [])[0]?.replace(/\D/g, '')) || (digitsOnly.length === 11 ? digitsOnly : '');
+      const foundEmail = (text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i) || [])[0] || '';
+      if (foundCnpj || foundCpf || foundEmail) {
+        if (latestPendingLead) {
+          if (foundCnpj) latestPendingLead.cnpj = foundCnpj;
+          if (foundCpf) latestPendingLead.cpf = foundCpf;
+          if (foundEmail) latestPendingLead.email = foundEmail;
+        }
+        enqueueForQuestao({
+          protocolo: latestPendingLead?.protocolo || `MA-WA-${senderDigits.slice(-6)}`,
+          nome: pushName || latestPendingLead?.nome || 'Cliente',
+          empresa: latestPendingLead?.empresa || '',
+          cnpj: foundCnpj || (latestPendingLead?.cnpj || '').replace(/\D/g, ''),
+          cpf: foundCpf || (latestPendingLead?.cpf || '').replace(/\D/g, ''),
+          email: foundEmail || latestPendingLead?.email || '',
+          telefone: senderDigits,
+          etapa_mica: getClientStage(sender, senderDigits),
+          origem: 'WHATSAPP_COLETA_DIRETA'
+        });
+      }
+
+      // 3. MENSAGEM VINDA DE CLIENTE / TERCEIRO (MÁQUINA DE ESTADOS SEQUENCIAL DOS BIRÔS):
       const cleanClientText = text.trim().toUpperCase();
-      let currentStage = clientStageMap.get(sender) || clientStageMap.get(senderDigits) || activeClientStage || 'CONSENT';
+      let currentStage = getClientStage(sender, senderDigits);
 
       writeMicaLog(`📩 [ETAPA CLIENTE: ${currentStage}] ${pushName} (${sender}): "${text}"`);
 
@@ -586,10 +775,7 @@ async function connectToWhatsApp() {
       // FLUXO ETAPA 0: CONSENTIMENTO INICIAL LGPD
       if (currentStage === 'CONSENT') {
         if (isSim) {
-          activeClientStage = 'SERASA';
-          clientStageMap.set(sender, 'SERASA');
-          clientStageMap.set(senderDigits, 'SERASA');
-          clientStageMap.set('default', 'SERASA');
+          setClientStage(sender, senderDigits, 'SERASA');
           writeMicaLog(`⚡ [CONSENTIMENTO CLIENTE] ${pushName} autorizou consultas via WhatsApp! Avançando para SERASA.`);
 
           const serasaMsg = 
@@ -608,26 +794,40 @@ Responda diretamente:
 
           await sock.sendMessage(sender, { text: serasaMsg });
 
-          // Aciona o Agente Questão e o CIO Alfred através da esteira autônoma
+          // Salva pacote de consentimento para o Questão e aciona Alfred se houver CNPJ real de 14 dígitos
           try {
             const currentLead = latestPendingLead || {};
-            const proto = currentLead.protocolo || 'MA-TESTE';
-            const cnpjToProcess = (currentLead.cnpj || '').replace(/\D/g, '') || '57433630000177';
-            fetch('http://127.0.0.1:9000/api/pipeline/process', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                cnpj: cnpjToProcess,
-                telefone: senderDigits || currentLead.telefone || '11978990034',
-                email: currentLead.email || '',
-                nome_contato: pushName || currentLead.nome || 'Cliente',
-                simular_consentimento_imediato: true
-              })
-            }).then(r => r.json()).then(async res => {
-              writeMicaLog(`🚀 [ESTEIRA DISPARADA COM SUCESSO] Parecer: ${res?.recomendacao_alfred} | Score: ${res?.score_viabilidade}`);
-            }).catch(e => {
-              writeMicaLog(`⚠️ Falha ao acionar esteira no Alfred: ${e.message}`);
+            const proto = currentLead.protocolo || `MA-WA-${senderDigits.slice(-6)}`;
+            const cnpjToProcess = (currentLead.cnpj || '').replace(/\D/g, '');
+            enqueueForQuestao({
+              protocolo: proto,
+              nome: pushName || currentLead.nome || 'Cliente',
+              empresa: currentLead.empresa || '',
+              cnpj: cnpjToProcess.length === 14 ? cnpjToProcess : '',
+              cpf: (currentLead.cpf || '').replace(/\D/g, ''),
+              telefone: senderDigits || currentLead.telefone || '',
+              email: currentLead.email || '',
+              consentimento_lgpd: true,
+              etapa_mica: 'SERASA',
+              origem: 'WHATSAPP_CONSENT'
             });
+            if (cnpjToProcess.length === 14) {
+              fetch(`${ALFRED_CIO_URL}/api/pipeline/process`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  cnpj: cnpjToProcess,
+                  telefone: senderDigits || currentLead.telefone || '',
+                  email: currentLead.email || '',
+                  nome_contato: pushName || currentLead.nome || 'Cliente',
+                  simular_consentimento_imediato: true
+                })
+              }).then(r => r.json()).then(async res => {
+                writeMicaLog(`🚀 [ESTEIRA DISPARADA COM SUCESSO] Parecer: ${res?.recomendacao_alfred} | Score: ${res?.score_viabilidade}`);
+              }).catch(e => {
+                writeMicaLog(`ℹ️ [HANDOFF] Pacote salvo em /api/mica/questao-ready (Alfred local: ${e.message})`);
+              });
+            }
           } catch (_) {}
           continue;
         } else if (isNao) {
@@ -645,10 +845,7 @@ Responda diretamente:
       // FLUXO ETAPA 1: BIRÔ SERASA
       if (currentStage === 'SERASA') {
         if (isSim) {
-          activeClientStage = 'BOAVISTA';
-          clientStageMap.set(sender, 'BOAVISTA');
-          clientStageMap.set(senderDigits, 'BOAVISTA');
-          clientStageMap.set('default', 'BOAVISTA');
+          setClientStage(sender, senderDigits, 'BOAVISTA');
           writeMicaLog(`⚡ [ONBOARDING] Serasa validado por ${pushName}! Avançando para BOA VISTA.`);
 
           const boaVistaMsg = 
@@ -684,10 +881,7 @@ Assim que concluir o seu cadastro, responda *[ SIM ]* aqui para podermos prosseg
       // FLUXO ETAPA 2: BIRÔ BOA VISTA
       if (currentStage === 'BOAVISTA') {
         if (isSim) {
-          activeClientStage = 'QUOD';
-          clientStageMap.set(sender, 'QUOD');
-          clientStageMap.set(senderDigits, 'QUOD');
-          clientStageMap.set('default', 'QUOD');
+          setClientStage(sender, senderDigits, 'QUOD');
           writeMicaLog(`⚡ [ONBOARDING] Boa Vista validada por ${pushName}! Avançando para QUOD.`);
 
           const quodMsg = 
@@ -723,10 +917,7 @@ Assim que concluir o seu cadastro, responda *[ SIM ]* aqui para podermos prosseg
       // FLUXO ETAPA 3: BIRÔ QUOD -> ENVIO DA PLANILHA OFICIAL (ETAPA 4)
       if (currentStage === 'QUOD') {
         if (isSim) {
-          activeClientStage = 'PLANILHA';
-          clientStageMap.set(sender, 'PLANILHA');
-          clientStageMap.set(senderDigits, 'PLANILHA');
-          clientStageMap.set('default', 'PLANILHA');
+          setClientStage(sender, senderDigits, 'PLANILHA');
           writeMicaLog(`🎉 [BIRÔS CONCLUÍDOS] Todos os 3 birôs validados por ${pushName}! Enviando Etapa 4 (Planilha Oficial).`);
 
           const planilhaMsg = 
@@ -767,10 +958,7 @@ Assim que concluir o seu cadastro, responda *[ SIM ]* aqui para podermos prosseg
       // FLUXO ETAPA 4: CONFIRMAÇÃO DA PLANILHA OFICIAL DE CADASTRO
       if (currentStage === 'PLANILHA') {
         if (isSim) {
-          activeClientStage = 'DONE';
-          clientStageMap.set(sender, 'DONE');
-          clientStageMap.set(senderDigits, 'DONE');
-          clientStageMap.set('default', 'DONE');
+          setClientStage(sender, senderDigits, 'DONE');
           writeMicaLog(`🎉 [TODAS AS 4 ETAPAS CONFIRMADAS] ${pushName} confirmou os 3 birôs e a Planilha Oficial!`);
 
           const encerramentoMsg = 
@@ -784,73 +972,88 @@ A *Mourato & Associados* agradece imensamente o seu contato e a sua confiança e
 
           await sock.sendMessage(sender, { text: encerramentoMsg });
 
-          // Dispara o Questão com 1000% de autoridade e o Alfred em segundo plano para gerar e salvar o Dossiê em PDF
+          // Enfileira pacote 100% pronto para o Questão e dispara Alfred se houver CNPJ real de 14 dígitos
           try {
             const currentLead = latestPendingLead || {};
-            const proto = currentLead.protocolo || 'MA-TESTE';
-            const cnpjToProcess = (currentLead.cnpj || '').replace(/\D/g, '') || '57433630000177';
-            fetch('http://127.0.0.1:9000/api/pipeline/process', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                cnpj: cnpjToProcess,
-                telefone: senderDigits || currentLead.telefone || '11978990034',
-                email: currentLead.email || '',
-                nome_contato: pushName || currentLead.nome || 'Cliente',
-                simular_consentimento_imediato: true
-              })
-            }).then(r => r.json()).then(async res => {
-              writeMicaLog(`🚀 [QUESTÃO & ALFRED - ETAPA 4] Dossiê gerado com 1000% de autoridade! Parecer: ${res?.recomendacao_alfred} | Score: ${res?.score_viabilidade} | Pasta: ${res?.arquivos_gerados?.folder_path}`);
+            const proto = currentLead.protocolo || `MA-WA-${senderDigits.slice(-6)}`;
+            const cnpjToProcess = (currentLead.cnpj || '').replace(/\D/g, '');
 
-              // 📲 TRANSMISSÃO DO DOSSIÊ E PARECER PARA O DIRETOR MOURATO (11 97899-0034)
-              if (res && DIRECTOR_PHONE) {
-                let dirJid = `${DIRECTOR_PHONE}@s.whatsapp.net`;
-                try {
-                  const checkDir = await sock.onWhatsApp(DIRECTOR_PHONE);
-                  if (Array.isArray(checkDir) && checkDir[0]?.exists && checkDir[0]?.jid) {
-                    dirJid = checkDir[0].jid;
-                  }
-                } catch (_) {}
-
-                // 1. Envia Briefing Executivo do Alfred para o Diretor
-                if (res.briefing_whatsapp_mourato) {
-                  await sock.sendMessage(dirJid, { text: res.briefing_whatsapp_mourato });
-                  writeMicaLog(`📋 [PARECER ENVIADO] Briefing do Alfred entregue para o Diretor Mourato (${DIRECTOR_PHONE})!`);
-                }
-
-                // 2. Anexa e envia o arquivo PDF oficial do Dossiê Pericial
-                const pdfPath = res.arquivos_gerados?.dossie_pdf;
-                if (pdfPath && fs.existsSync(pdfPath)) {
-                  try {
-                    const pdfBuffer = fs.readFileSync(pdfPath);
-                    await sock.sendMessage(dirJid, {
-                      document: pdfBuffer,
-                      mimetype: 'application/pdf',
-                      fileName: 'DOSSIE_PERICIAL_INVESTIGACAO_QUESTAO.pdf',
-                      caption: `📄 *Dossiê Pericial Oficial Mourato & Associados*\nProtocolo: ${res.protocolo}\nScore: ${res.score_viabilidade}/100 — Parecer: ${res.recomendacao_alfred}\nSalvo no servidor em: ${res.arquivos_gerados?.folder_path}`
-                    });
-                    writeMicaLog(`📎 [PDF TRANSMITIDO] Dossiê Pericial enviado com sucesso para o Diretor Mourato!`);
-                  } catch (errPdf) {
-                    writeMicaLog(`⚠️ Falha ao transmitir arquivo PDF: ${errPdf.message}`);
-                  }
-                }
-              }
-            }).catch(e => {
-              writeMicaLog(`⚠️ Falha ao acionar esteira Questão/Alfred: ${e.message}`);
+            enqueueForQuestao({
+              protocolo: proto,
+              nome: pushName || currentLead.nome || 'Cliente',
+              empresa: currentLead.empresa || '',
+              cnpj: cnpjToProcess.length === 14 ? cnpjToProcess : '',
+              cpf: (currentLead.cpf || '').replace(/\D/g, ''),
+              telefone: senderDigits || currentLead.telefone || '',
+              email: currentLead.email || '',
+              consentimento_lgpd: true,
+              biros_confirmados: { serasa: true, boavista: true, quod: true, planilha: true },
+              etapa_mica: 'DONE',
+              status_questao: cnpjToProcess.length === 14 ? 'PRONTO_INVESTIGACAO_75_25' : 'AGUARDANDO_CNPJ_PLANILHA',
+              origem: 'WHATSAPP_ETAPA_4_CONCLUIDA'
             });
+
+            if (cnpjToProcess.length === 14) {
+              fetch(`${ALFRED_CIO_URL}/api/pipeline/process`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  cnpj: cnpjToProcess,
+                  telefone: senderDigits || currentLead.telefone || '',
+                  email: currentLead.email || '',
+                  nome_contato: pushName || currentLead.nome || 'Cliente',
+                  simular_consentimento_imediato: true
+                })
+              }).then(r => r.json()).then(async res => {
+                writeMicaLog(`🚀 [QUESTÃO & ALFRED - ETAPA 4] Dossiê gerado! Parecer: ${res?.recomendacao_alfred} | Score: ${res?.score_viabilidade} | Pasta: ${res?.arquivos_gerados?.folder_path}`);
+
+                if (res && DIRECTOR_PHONE) {
+                  let dirJid = `${DIRECTOR_PHONE}@s.whatsapp.net`;
+                  try {
+                    const checkDir = await sock.onWhatsApp(DIRECTOR_PHONE);
+                    if (Array.isArray(checkDir) && checkDir[0]?.exists && checkDir[0]?.jid) {
+                      dirJid = checkDir[0].jid;
+                    }
+                  } catch (_) {}
+
+                  if (res.briefing_whatsapp_mourato) {
+                    await sock.sendMessage(dirJid, { text: res.briefing_whatsapp_mourato });
+                    writeMicaLog(`📋 [PARECER ENVIADO] Briefing do Alfred entregue para o Diretor Mourato (${DIRECTOR_PHONE})!`);
+                  }
+
+                  const pdfPath = res.arquivos_gerados?.dossie_pdf;
+                  if (pdfPath && fs.existsSync(pdfPath)) {
+                    try {
+                      const pdfBuffer = fs.readFileSync(pdfPath);
+                      await sock.sendMessage(dirJid, {
+                        document: pdfBuffer,
+                        mimetype: 'application/pdf',
+                        fileName: 'DOSSIE_PERICIAL_INVESTIGACAO_QUESTAO.pdf',
+                        caption: `📄 *Dossiê Pericial Oficial Mourato & Associados*\nProtocolo: ${res.protocolo}\nScore: ${res.score_viabilidade}/100 — Parecer: ${res.recomendacao_alfred}\nSalvo no servidor em: ${res.arquivos_gerados?.folder_path}`
+                      });
+                      writeMicaLog(`📎 [PDF TRANSMITIDO] Dossiê Pericial enviado com sucesso para o Diretor Mourato!`);
+                    } catch (errPdf) {
+                      writeMicaLog(`⚠️ Falha ao transmitir arquivo PDF: ${errPdf.message}`);
+                    }
+                  }
+                }
+              }).catch(e => {
+                writeMicaLog(`ℹ️ [HANDOFF QUESTÃO] Salvo em /api/mica/questao-ready (Alfred local: ${e.message})`);
+              });
+            }
           } catch (_) {}
           continue;
         } else if (isNao) {
-          const orientacaoQuod = 
-`Para darmos continuidade ao processo e liberar a planilha pericial da 4ª etapa, por favor acesse e realize seu cadastro na Quod:
-👉 https://consumidor.quod.com.br/
+          const orientacaoPlanilha = 
+`Para finalizarmos a Etapa 4 e encaminharmos seu dossiê ao departamento pericial, por favor acesse e preencha a Planilha Oficial de Cadastro:
+👉 https://www.mouratoassociados.com.br/cadastro
 
-Assim que concluir o seu cadastro, responda *[ SIM ]* aqui para podermos prosseguir e liberar a planilha de coleta!`;
-          await sock.sendMessage(sender, { text: orientacaoQuod });
+Assim que concluir o preenchimento da planilha, responda *[ SIM ]* aqui para confirmarmos!`;
+          await sock.sendMessage(sender, { text: orientacaoPlanilha });
           continue;
         } else {
           await sock.sendMessage(sender, {
-            text: `Por favor, confirme sobre a Quod:\n👉 *[ SIM ]* para finalizar os birôs e avançar para o 4º passo\n👉 *[ NÃO ]* para receber orientações de cadastro`
+            text: `Por favor, confirme sobre a Planilha Oficial de Cadastro:\n👉 *[ SIM ]* se já preencheu a planilha e deseja finalizar\n👉 *[ NÃO ]* para receber o link novamente`
           });
           continue;
         }
@@ -885,13 +1088,48 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({
       online: true,
+      version: '3.0.0-24x7',
       whatsappConnected: isConnected,
+      isConnecting,
+      hasQrPending: Boolean(currentQr),
+      reconnectAttempts,
+      lastDisconnectReason: lastDisconnectReason || null,
+      uptimeSeconds: Math.round(process.uptime()),
       directorPhone: DIRECTOR_PHONE,
       awsQueueWatcher: true,
       notifiedLeadsCount: notifiedIds.size,
       pendingCount: pendingLeadsMap.size,
+      questaoReadyCount: questaoHandoffQueue.length,
       recentDispatches: lastDispatches.slice(0, 5)
     }, null, 2));
+  }
+
+  // Endpoint Oficial: Pacotes coletados pela Mica prontos para o Agente Questão puxar
+  if (url.pathname === '/api/mica/questao-ready' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({
+      ok: true,
+      total: questaoHandoffQueue.length,
+      items: questaoHandoffQueue
+    }, null, 2));
+  }
+
+  // Endpoint Oficial: Resetar estágio de um telefone para CONSENT (útil para testes e reatendimentos)
+  if (url.pathname === '/api/mica/reset-stage' && req.method === 'POST') {
+    let bodyRaw = '';
+    req.on('data', chunk => { bodyRaw += chunk; });
+    req.on('end', () => {
+      try {
+        const { telefone } = JSON.parse(bodyRaw || '{}');
+        resetClientStageForPhone(telefone || DIRECTOR_PHONE);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: true, stage: 'CONSENT', telefone: telefone || DIRECTOR_PHONE }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    });
+    return;
   }
 
   // Visualizar QR Code no navegador
@@ -1010,21 +1248,28 @@ Responda diretamente com:
           }
         }
 
-        // Armazena no estado ativo para responder ao consentimento SIM via WhatsApp
+        // Armazena no estado ativo para responder ao consentimento SIM via WhatsApp (Zero CNPJ inventado)
+        const cnpjReal = String(data.cnpj || data.payload?.empresa?.cnpj || '').replace(/\D/g, '');
+        const cpfReal = String(data.cpf || data.payload?.titular?.cpf || '').replace(/\D/g, '');
         const leadObj = {
           nome,
           empresa,
           protocolo,
           telefone: clientDigits,
           email,
-          cnpj: data.cnpj || data.payload?.empresa?.cnpj || data.payload?.documento || '57433630000177',
-          cpf: data.cpf || data.payload?.titular?.cpf || '',
+          cnpj: cnpjReal.length === 14 ? cnpjReal : '',
+          cpf: cpfReal.length === 11 ? cpfReal : '',
           data_criacao: new Date().toISOString()
         };
         latestPendingLead = leadObj;
         pendingLeadsMap.set(protocolo, leadObj);
-        clientStageMap.set(clientDigits, 'CONSENT');
-        clientStageMap.set('default', 'CONSENT');
+        resetClientStageForPhone(clientDigits);
+        enqueueForQuestao({
+          ...leadObj,
+          etapa_mica: 'CONSENT',
+          status_questao: leadObj.cnpj ? 'PRONTO_INVESTIGACAO_75_25' : 'AGUARDANDO_CNPJ',
+          origem: 'FICHA_WEB_CONCLUIDA'
+        });
 
         // Atualiza banco oficial da Teia
         try {
@@ -1090,9 +1335,17 @@ Responda diretamente com:
 
 // Inicia o servidor HTTP e conecta ao WhatsApp
 server.listen(PORT, () => {
-  console.log(`🚀 Servidor HTTP da Mica ativo em: http://localhost:${PORT}`);
+  console.log(`🚀 Servidor HTTP da Mica v3.0-24x7 ativo em: http://localhost:${PORT}`);
   connectToWhatsApp();
 
   // Inicia o loop de vigilância na AWS a cada 4 segundos
   setInterval(pollAwsLeadsQueue, 4000);
+
+  // Watchdog 24/7: garante reconexão automática se a sessão cair silenciosamente sem disparar evento close
+  setInterval(() => {
+    if (!isConnected && !isConnecting && !currentQr && !reconnectTimer) {
+      writeMicaLog('🩺 [WATCHDOG 24/7] Sessão WhatsApp desconectada sem reconexão agendada — disparando reconexão automática...');
+      connectToWhatsApp();
+    }
+  }, 60000);
 });
