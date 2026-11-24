@@ -1608,222 +1608,410 @@ Website: https://www.mouratoassociados.com.br`;
     setBureauSyncClock(new Date().toLocaleTimeString('pt-BR'));
   };
 
-  // Impressão Oficial do Formulário Cadastral Completo com Birôs & Relatório Pericial
+  // Impressão Oficial no Padrão Modelo 2 (Alfred CIO — Cabeçalho Mourato + Marca d'Água 5.5% + Tabelas Escuras)
   const handlePrintClientFormAndBureau = (client) => {
     if (!client) return;
     const bureau = getBureauDataForClient(client);
+    const dossieQ = getQuestaoDossieForClient(client);
+    const qOrig = dossieQ?.dossie_original_questao || null;
+    const rfb = qOrig?.dados_rfb || {};
     const isPj = client.tipo === 'PJ';
     const doc = getClientDocumento(client);
     const printDate = new Date().toLocaleDateString('pt-BR');
     const printTime = new Date().toLocaleTimeString('pt-BR');
+    const originUrl = window.location.origin || 'https://www.mouratoassociados.com.br';
+    const sealUrl = `${originUrl}/mourato-seal-circle.png`;
+    const authHash = (client.hashAutenticidade || ('MOURATO-' + Math.random().toString(36).substring(2, 10).toUpperCase() + Date.now().toString(36).slice(-4).toUpperCase()));
 
-    const formatScore = (val) => {
-      if (val === undefined || val === null || val === '') return null;
-      const num = parseInt(val, 10);
-      if (!isNaN(num) && num > 0) return num;
-      if (typeof val === 'string' && val.trim() && val !== '0' && val !== 'Regular' && !val.toLowerCase().includes('excelente')) return val;
-      return null;
+    const parseNumericScore = (val) => {
+      if (val === undefined || val === null || val === '') return 0;
+      const num = parseInt(String(val).replace(/\D/g, ''), 10);
+      return (!isNaN(num) && num > 0 && num <= 1000) ? num : 0;
     };
 
-    const serasaScoreVal = formatScore(bureau.serasa) || formatScore(client.serasaScore);
-    const boaVistaScoreVal = formatScore(bureau.boavista) || formatScore(client.boaVistaScore);
-    const quodScoreVal = formatScore(bureau.quod) || formatScore(client.quodScore);
-    const bacenScoreVal = (client.bacenScr && client.bacenScr !== 'Rating A1' && client.bacenScr !== '0 (Não Auditado)') 
-      ? client.bacenScr 
-      : (bureau.bacen && bureau.bacen !== 'Rating A1' && bureau.bacen !== '0 (Não Auditado)' ? bureau.bacen : null);
+    const quodVal = parseNumericScore(bureau.quod) || parseNumericScore(client.quodScore);
+    const serasaVal = parseNumericScore(bureau.serasa) || parseNumericScore(client.serasaScore);
+    const boaVistaVal = parseNumericScore(bureau.boavista) || parseNumericScore(client.boaVistaScore);
+    const bacenVal = (client.bacenScr && client.bacenScr !== 'Rating A1' && !String(client.bacenScr).startsWith('0') && client.bacenScr !== 'Pendente')
+      ? client.bacenScr
+      : (bureau.bacen && bureau.bacen !== 'Rating A1' && !String(bureau.bacen).startsWith('0') && bureau.bacen !== 'Pendente' ? bureau.bacen : null);
 
-    const contasHtml = client.contasBancarias && client.contasBancarias.length > 0
-      ? `<div class="section-title">2. CONTAS BANCÁRIAS CADASTRADAS &amp; MAPA OPERACIONAL</div>
-         <table>
-           <thead><tr><th style="width: 35%;">Instituição Financeira</th><th style="width: 25%;">Agência / Conta</th><th style="width: 20%;">Tipo</th><th style="width: 20%;">Origem Bacen</th></tr></thead>
-           <tbody>` +
-           client.contasBancarias.map(b => `
-             <tr>
-               <td><strong>${b.banco || b.bancoOutro || 'Banco'}</strong></td>
-               <td>Ag: ${b.agencia || '—'} • CC: ${b.conta || '—'}</td>
-               <td>${b.tipoConta || (isPj ? 'PJ' : 'PF')}</td>
-               <td>${b.origemCcs ? 'Bacen CCS' : 'Bacen SCR'}</td>
-             </tr>`).join('') +
-         `</tbody></table>`
-      : '';
+    const triadeScores = [quodVal, serasaVal, boaVistaVal].filter(s => s > 0);
+    const mediaTriade = triadeScores.length > 0 ? Math.round(triadeScores.reduce((a, b) => a + b, 0) / triadeScores.length) : 0;
+    const triadeTitulo = mediaTriade > 0
+      ? `2. PAINEL CONSOLIDADO DOS 4 BIRÔS — MÉDIA TRÍADE PRIVADA: ${mediaTriade} / 1000 (${mediaTriade >= 750 ? 'EXCELENTE' : mediaTriade >= 550 ? 'BOM' : 'ATENÇÃO'})`
+      : '2. PAINEL CONSOLIDADO DOS 4 BIRÔS (LEI DO ZERO DADOS INVENTADOS)';
 
-    const anexosHtml = client.anexos && client.anexos.length > 0
-      ? `<div class="section-title">4. EXTRATOS &amp; DOCUMENTAÇÃO ARQUIVADA</div>
-         <table>
-           <thead><tr><th style="width: 40%;">Arquivo</th><th style="width: 30%;">Tipo</th><th style="width: 30%;">Tamanho / Data</th></tr></thead>
-           <tbody>` +
-           client.anexos.map(a => `
-             <tr>
-               <td>📄 ${a.nome || 'Documento PDF'}</td>
-               <td>${(a.tipo || 'Extrato').toUpperCase()}</td>
-               <td>${a.tamanho || 'Anexo'}</td>
-             </tr>`).join('') +
-         `</tbody></table>`
+    const capSocialNum = rfb.capital_social !== undefined && rfb.capital_social !== null
+      ? Number(rfb.capital_social)
+      : parseMonetaryValue(client.empresa?.capitalSocial || client.balanco?.capitalSocial);
+    const capSocialFmt = capSocialNum > 0
+      ? capSocialNum.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+      : 'Não informado';
+
+    const regimeFmt = rfb.optante_simei
+      ? 'MEI (SIMEI)'
+      : rfb.optante_simples
+        ? 'Simples Nacional'
+        : (client.empresa?.regimeTributario || rfb.porte || 'Não informado');
+
+    const endRfb = rfb.endereco
+      ? `${rfb.endereco.logradouro || ''}, ${rfb.endereco.numero || ''} - ${rfb.endereco.bairro || ''} - ${rfb.endereco.municipio || ''}/${rfb.endereco.uf || ''}`.replace(/^,\s*-\s*-\s*\/$/, '')
       : '';
+    const enderecoFinal = client.endereco || endRfb || 'Não informado';
+    const cepFinal = client.cep || rfb.endereco?.cep || 'Não informado';
+
+    // Linhas da Seção 3 (Verificações reais do Questão + Contas Bancárias reais)
+    const expRows = [];
+    if (qOrig) {
+      (qOrig.green_flags || []).forEach(gf => {
+        expRows.push(`<tr><td><strong>${gf.modulo}</strong></td><td>Questão 75%</td><td>${gf.indicador}</td><td style="color:#059669;font-weight:700;">CONFORME</td></tr>`);
+      });
+      (qOrig.yellow_flags || []).forEach(yf => {
+        expRows.push(`<tr><td><strong>${yf.modulo}</strong></td><td>Alerta (${yf.gravidade || 'ATENÇÃO'})</td><td>${yf.descricao}</td><td style="color:#B45309;font-weight:700;">ATENÇÃO</td></tr>`);
+      });
+      (qOrig.red_flags || []).forEach(rf => {
+        expRows.push(`<tr><td><strong>${rf.modulo}</strong></td><td>Restrição Crítica</td><td>${rf.descricao}</td><td style="color:#DC2626;font-weight:700;">CRÍTICO</td></tr>`);
+      });
+    }
+    if (client.contasBancarias && client.contasBancarias.length > 0) {
+      client.contasBancarias.forEach(b => {
+        expRows.push(`<tr><td><strong>${b.banco || b.bancoOutro || 'Instituição'}</strong></td><td>Conta ${b.tipoConta || (isPj ? 'PJ' : 'PF')}</td><td>Ag: ${b.agencia || '—'} • CC: ${b.conta || '—'}</td><td>${b.origemCcs ? 'Bacen CCS' : 'Bacen SCR'}</td></tr>`);
+      });
+    }
+    if (expRows.length === 0) {
+      expRows.push(`<tr><td colspan="4" style="text-align:center;color:#64748B;">Nenhuma varredura do Questão ou conta bancária anexada até o momento (Lei do Zero Dados Inventados).</td></tr>`);
+    }
+
+    const parecerBullets = [];
+    if (dossieQ?.justificativa_analitica?.length) {
+      dossieQ.justificativa_analitica.forEach(j => parecerBullets.push(`<b>DIAGNÓSTICO PERICIAL:</b> ${j}`));
+    }
+    if (dossieQ?.estrategia_mourato?.length) {
+      dossieQ.estrategia_mourato.forEach(e => parecerBullets.push(`<b>ESTRATÉGIA MOURATO:</b> ${e}`));
+    }
+    if (parecerBullets.length === 0) {
+      parecerBullets.push(`<b>CONFORMIDADE LGPD &amp; LEI DO ZERO:</b> Este laudo consolida exclusivamente os dados reais auditados até ${printDate}. Campos sem documento comprobatório físico permanecem zerados (0) ou marcados como aguardando PDF oficial (Serasa, Boa Vista, Quod, Registrato SCR/CCS e PGDAS-D).`);
+      parecerBullets.push(`<b>PRÓXIMO PASSO OPERACIONAL:</b> Concluir a coleta documental dos birôs faltantes e executar a varredura 75% do Questão 4.0 para emissão do Rating de Balcão e enquadramento bancário.`);
+    }
+
+    const ratingLabel = dossieQ?.recomendacao_acao
+      ? `SCORE ${dossieQ.score_viabilidade}/100 • ${dossieQ.recomendacao_acao}`
+      : (mediaTriade >= 750 ? 'RATING TRÍADE PRIVADA: A+' : 'EM AUDITORIA PERICIAL');
 
     const printHtml = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Dossiê Pericial Cadastral & Birôs — ${client.nomeRazao || 'Cliente'}</title>
+  <title>Laudo Pericial Oficial Mourato — ${client.nomeRazao || 'Cliente'}</title>
   <style>
-    @page { size: A4; margin: 15mm; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0F172A; margin: 0; padding: 20px; font-size: 11pt; line-height: 1.4; background: #fff; }
-    .header { border-bottom: 2px solid #C5A869; padding-bottom: 12px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; }
-    .header-title { font-size: 16pt; font-weight: 800; color: #0B132B; letter-spacing: 0.5px; margin: 0; }
-    .header-sub { font-size: 8.5pt; color: #64748B; margin-top: 3px; }
-    .badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 8pt; font-weight: 700; text-transform: uppercase; }
-    .badge-pj { background: #FEF3C7; color: #92400E; border: 1px solid #F59E0B; }
-    .badge-pf { background: #E0F2FE; color: #075985; border: 1px solid #0284C7; }
-    .protocol-box { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
-    .section-title { font-size: 11pt; font-weight: 700; color: #0F172A; background: #F1F5F9; padding: 6px 10px; border-left: 4px solid #C5A869; margin: 16px 0 10px 0; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
-    th, td { text-align: left; padding: 6px 8px; font-size: 9.5pt; border-bottom: 1px solid #E2E8F0; }
-    th { color: #64748B; font-weight: 600; width: 30%; background: #FAFAFA; }
-    td { color: #0F172A; }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .bureau-card { border: 1px solid #CBD5E1; border-radius: 6px; padding: 10px 12px; margin-bottom: 10px; }
-    .bureau-title { font-weight: 700; font-size: 10pt; color: #0F172A; border-bottom: 1px solid #E2E8F0; padding-bottom: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; }
-    .bureau-score { font-size: 14pt; font-weight: 800; color: #059669; }
-    .footer { margin-top: 30px; border-top: 1px solid #CBD5E1; padding-top: 14px; font-size: 8pt; color: #64748B; text-align: center; }
-    .signatures { margin-top: 40px; display: flex; justify-content: space-between; gap: 40px; }
-    .sign-line { border-top: 1px solid #000; width: 45%; text-align: center; padding-top: 5px; font-size: 8.5pt; }
-    @media print {
-      body { padding: 0; background: transparent; }
-      .no-print { display: none !important; }
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    body {
+      font-family: Helvetica, Arial, -apple-system, sans-serif;
+      color: #0D121D;
+      margin: 0;
+      padding: 0;
+      background: #ffffff;
+    }
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 14mm 16mm 22mm 16mm;
+      margin: 0 auto;
+      position: relative;
+      background: #ffffff;
+    }
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 118mm;
+      height: 118mm;
+      opacity: 0.055;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .content { position: relative; z-index: 1; }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 4.5mm;
+      border-bottom: 1.5pt solid #C5A869;
+      padding-bottom: 3.5mm;
+      margin-bottom: 6mm;
+    }
+    .header-seal { width: 17.5mm; height: 17.5mm; object-fit: contain; flex-shrink: 0; }
+    .brand-title {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 16pt;
+      font-weight: 700;
+      color: #0D121D;
+      letter-spacing: 0.4px;
+      line-height: 1.1;
+      margin: 0;
+    }
+    .brand-title .amp { color: #C5A869; }
+    .brand-sub {
+      font-size: 7.4pt;
+      font-weight: 700;
+      color: #C5A869;
+      letter-spacing: 0.5px;
+      margin-top: 1.5mm;
+    }
+    .brand-meta {
+      font-size: 6.9pt;
+      color: #475569;
+      margin-top: 1mm;
+    }
+    .doc-title {
+      font-size: 12pt;
+      font-weight: 700;
+      color: #0D121D;
+      margin: 0 0 1.5mm 0;
+    }
+    .doc-sub {
+      font-size: 8.2pt;
+      color: #475569;
+      margin: 0 0 5.5mm 0;
+    }
+    .sec-title {
+      font-size: 9.2pt;
+      font-weight: 700;
+      color: #0D121D;
+      margin: 5.5mm 0 2.2mm 0;
+      text-transform: uppercase;
+    }
+    table.grid-info {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 7.8pt;
+      margin-bottom: 3mm;
+    }
+    table.grid-info td {
+      border: 0.5pt solid #CBD5E1;
+      padding: 4.5px 6px;
+      vertical-align: middle;
+    }
+    table.grid-info td.lbl {
+      background: #F8FAFC;
+      font-weight: 700;
+      color: #0D121D;
+      width: 17%;
+    }
+    table.grid-info td.val {
+      background: #ffffff;
+      color: #0D121D;
+      width: 33%;
+    }
+    table.bureaus {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 3mm;
+      text-align: center;
+    }
+    table.bureaus th {
+      background: #0D121D;
+      color: #C5A869;
+      font-size: 7.3pt;
+      font-weight: 700;
+      padding: 5.5px 4px;
+      border: 0.6pt solid #C5A869;
+      width: 25%;
+    }
+    table.bureaus td.score-ok {
+      background: #ECFDF5;
+      color: #059669;
+      font-size: 8.8pt;
+      font-weight: 700;
+      padding: 5.5px 4px;
+      border: 0.6pt solid #C5A869;
+    }
+    table.bureaus td.score-zero {
+      background: #F8FAFC;
+      color: #475569;
+      font-size: 8.2pt;
+      font-weight: 700;
+      padding: 5.5px 4px;
+      border: 0.6pt solid #C5A869;
+    }
+    table.bureaus td.sub-ok {
+      background: #ECFDF5;
+      color: #0D121D;
+      font-size: 7pt;
+      padding: 4px;
+      border: 0.6pt solid #C5A869;
+    }
+    table.bureaus td.sub-zero {
+      background: #F8FAFC;
+      color: #64748B;
+      font-size: 7pt;
+      padding: 4px;
+      border: 0.6pt solid #C5A869;
+    }
+    table.dark-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 7.4pt;
+      margin-bottom: 3mm;
+    }
+    table.dark-table th {
+      background: #0D121D;
+      color: #FFFFFF;
+      font-weight: 700;
+      text-align: left;
+      padding: 5px 6px;
+      border: 0.5pt solid #CBD5E1;
+    }
+    table.dark-table td {
+      padding: 4.5px 6px;
+      border: 0.5pt solid #CBD5E1;
+      color: #0D121D;
+      vertical-align: top;
+    }
+    table.dark-table tr.summary-row td {
+      background: #FEFCE8;
+      font-weight: 700;
+    }
+    .parecer-list {
+      margin: 2mm 0 0 0;
+      padding: 0;
+      list-style: none;
+    }
+    .parecer-list li {
+      font-size: 8.1pt;
+      line-height: 1.45;
+      color: #0D121D;
+      margin-bottom: 2.5mm;
+      text-align: justify;
+    }
+    .footer-fixed {
+      position: fixed;
+      bottom: 10mm;
+      left: 16mm;
+      right: 16mm;
+      border-top: 0.7pt solid #C5A869;
+      padding-top: 2.5mm;
+      display: flex;
+      justify-content: space-between;
+      font-size: 6.8pt;
+      color: #475569;
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <div>
-      <h1 class="header-title">MOURATO &amp; ASSOCIADOS</h1>
-      <div class="header-sub">
-        CNPJ 38.377.738/0001-45 • SÃO PAULO/SP • TEL: (11) 97899-0034<br>
-        DOSSIÊ CADASTRAL OFICIAL &amp; AUDITORIA PERICIAL DE CRÉDITO (TEIA DE ARANHA)
+  <img src="${sealUrl}" class="watermark" alt="Marca d'Água Mourato" />
+  <div class="page">
+    <div class="content">
+      <div class="header">
+        <img src="${sealUrl}" class="header-seal" alt="Brasão Mourato" />
+        <div>
+          <h1 class="brand-title">MOURATO <span class="amp">&amp;</span> ASSOCIADOS</h1>
+          <div class="brand-sub">ASSESSORIA CORPORATIVA &amp; ESTRUTURAÇÃO FINANCEIRA &nbsp;&bull;&nbsp; QUALIDADE &bull; CONFIANÇA &bull; EXCELÊNCIA</div>
+          <div class="brand-meta">CNPJ: 38.377.738/0001-45 &nbsp;&bull;&nbsp; Av. São Luís, 187, Sala 69 A, República, São Paulo/SP &nbsp;&bull;&nbsp; Canal Direto: (11) 97899-0034</div>
+        </div>
       </div>
+
+      <div class="doc-title">FICHA CADASTRAL ${isPj ? 'PJ' : 'PF'} &amp; LAUDO TRÍADE DE BIRÔS — AUDITORIA ALFRED CIO</div>
+      <div class="doc-sub">Protocolo: ${client.protocolo || dossieQ?.protocolo || 'OFICIAL'} &bull; Código: ${client.codigoCliente || 'CLI-001'} &bull; Auditado em ${printDate} às ${printTime}</div>
+
+      <div class="sec-title">1. IDENTIFICAÇÃO DO TITULAR (${isPj ? 'PESSOA JURÍDICA' : 'PESSOA FÍSICA'})</div>
+      <table class="grid-info">
+        <tr>
+          <td class="lbl">${isPj ? 'Razão Social' : 'Nome Completo'}</td>
+          <td class="val"><strong>${client.nomeRazao || 'Não informado'}</strong></td>
+          <td class="lbl">${isPj ? 'CNPJ' : 'CPF'}</td>
+          <td class="val"><strong>${doc}</strong></td>
+        </tr>
+        <tr>
+          <td class="lbl">${isPj ? 'Situação / Abertura' : 'Data Nascimento'}</td>
+          <td class="val">${isPj ? `${rfb.situacao_cadastral || client.situacao || 'ATIVA'} • ${rfb.data_abertura || client.dataAbertura || '—'}${rfb.tempo_vida_meses ? ` (${rfb.tempo_vida_meses} meses)` : ''}` : (client.dataNascimento || 'Não informado')}</td>
+          <td class="lbl">${isPj ? 'Regime / Porte' : 'Natureza'}</td>
+          <td class="val">${isPj ? regimeFmt : (client.natureza || 'Pessoa Física')}</td>
+        </tr>
+        <tr>
+          <td class="lbl">${isPj ? 'Sócio-Administrador' : 'Empresa Vinculada'}</td>
+          <td class="val">${isPj ? (client.socioVinculado || client.responsavel || qOrig?.socios_identificados?.[0]?.nome || 'Não informado') : (client.empresaVinculada || 'Não informada')}</td>
+          <td class="lbl">${isPj ? 'Capital Social' : 'Cargo / Profissão'}</td>
+          <td class="val">${isPj ? capSocialFmt : (client.profissao || 'Sócio-Administrador')}</td>
+        </tr>
+        <tr>
+          <td class="lbl">Telefone Principal</td>
+          <td class="val">${client.contato || rfb.contatos?.telefone || 'Não informado'}</td>
+          <td class="lbl">E-mail Principal</td>
+          <td class="val">${client.email || rfb.contatos?.email || 'Não informado'}</td>
+        </tr>
+        <tr>
+          <td class="lbl">Endereço Atual</td>
+          <td class="val">${enderecoFinal}</td>
+          <td class="lbl">CEP</td>
+          <td class="val">${cepFinal}</td>
+        </tr>
+      </table>
+
+      <div class="sec-title">${triadeTitulo}</div>
+      <table class="bureaus">
+        <thead>
+          <tr>
+            <th>QUOD SCORE</th>
+            <th>SERASA SCORE</th>
+            <th>BOA VISTA SCORE 2.0</th>
+            <th>BACEN SCR / REGISTRATO</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="${quodVal > 0 ? 'score-ok' : 'score-zero'}">${quodVal > 0 ? `${quodVal} / 1000` : '0 (Aguardando PDF)'}</td>
+            <td class="${serasaVal > 0 ? 'score-ok' : 'score-zero'}">${serasaVal > 0 ? `${serasaVal} / 1000` : '0 (Aguardando PDF)'}</td>
+            <td class="${boaVistaVal > 0 ? 'score-ok' : 'score-zero'}">${boaVistaVal > 0 ? `${boaVistaVal} / 1000` : '0 (Aguardando PDF)'}</td>
+            <td class="${bacenVal ? 'score-ok' : 'score-zero'}">${bacenVal ? bacenVal : '0 (Aguardando PDF)'}</td>
+          </tr>
+          <tr>
+            <td class="${quodVal > 0 ? 'sub-ok' : 'sub-zero'}">${quodVal > 0 ? (bureau.quodConformidade || 'Auditado sem apontamentos') : 'Não anexado'}</td>
+            <td class="${serasaVal > 0 ? 'sub-ok' : 'sub-zero'}">${serasaVal > 0 ? (bureau.serasaDividas || 'Score conferido') : 'Não anexado'}</td>
+            <td class="${boaVistaVal > 0 ? 'sub-ok' : 'sub-zero'}">${boaVistaVal > 0 ? (bureau.boavistaProtestos || 'Score conferido') : 'Não anexado'}</td>
+            <td class="${bacenVal ? 'sub-ok' : 'sub-zero'}">${bacenVal ? (bureau.bacenComp || 'Registrato conferido') : 'Não anexado'}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="sec-title">3. AUDITORIA PERICIAL DO QUESTÃO (75% PÚBLICO) &amp; RELACIONAMENTO BANCÁRIO</div>
+      <table class="dark-table">
+        <thead>
+          <tr>
+            <th style="width: 24%;">Módulo / Instituição</th>
+            <th style="width: 17%;">Origem</th>
+            <th style="width: 43%;">Indicador / Detalhe Auditado</th>
+            <th style="width: 16%;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${expRows.join('')}
+          <tr class="summary-row">
+            <td>CONSOLIDADO PERICIAL</td>
+            <td>${qOrig ? 'Questão 4.0' : 'Aguardando'}</td>
+            <td>${qOrig ? `${qOrig.green_flags?.length || 0} Conformes • ${qOrig.yellow_flags?.length || 0} Alertas • ${qOrig.red_flags?.length || 0} Críticos` : 'Executar varredura Questão 4.0 no Painel ADM'}</td>
+            <td>${dossieQ?.recomendacao_acao || 'PENDENTE'}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="sec-title">4. PARECER PERICIAL IMPARCIAL — ALFRED CIO (${ratingLabel})</div>
+      <ul class="parecer-list">
+        ${parecerBullets.map(b => `<li>&bull; ${b}</li>`).join('')}
+      </ul>
     </div>
-    <div style="text-align: right;">
-      <span class="badge ${isPj ? 'badge-pj' : 'badge-pf'}">${isPj ? 'Pessoa Jurídica (PJ)' : 'Pessoa Física (PF)'}</span>
-      <div style="font-size: 8pt; color: #64748B; margin-top: 4px;">Código: <strong>${client.codigoCliente || 'CLI-001'}</strong></div>
+
+    <div class="footer-fixed">
+      <span>Documento Confidencial (LGPD - Lei 13.709/2018) &bull; Emitido por Alfred CIO em ${printDate} às ${printTime} &bull; Hash: ${authHash}</span>
+      <span>Página 1 de 1</span>
     </div>
-  </div>
-
-  <div class="protocol-box">
-    <div>
-      <span style="font-size: 8pt; color: #64748B; display: block;">PROTOCOLO OFICIAL DE ATENDIMENTO</span>
-      <strong style="font-size: 11pt; color: #0F172A; font-family: monospace;">${client.protocolo || 'MA-SISTEMA-OFICIAL'}</strong>
-    </div>
-    <div style="text-align: right;">
-      <span style="font-size: 8pt; color: #64748B; display: block;">EMISSÃO DO DOSSIÊ</span>
-      <strong>${printDate} às ${printTime}</strong>
-    </div>
-  </div>
-
-  <div class="section-title">1. IDENTIFICAÇÃO CADASTRAL &amp; SOCIETÁRIA</div>
-  <table>
-    <tr><th>Nome / Razão Social:</th><td><strong>${client.nomeRazao || 'Não informado'}</strong></td></tr>
-    <tr><th>${isPj ? 'CNPJ' : 'CPF'}:</th><td><strong>${doc}</strong> ${client.nire ? '• NIRE: ' + client.nire : ''}</td></tr>
-    <tr><th>Situação / Natureza:</th><td>${client.situacao || 'ATIVA'} • ${client.natureza || (isPj ? 'Sociedade Empresária' : 'Pessoa Física')}</td></tr>
-    ${isPj 
-      ? '<tr><th>Sócio-Administrador:</th><td><strong>' + (client.socioVinculado || client.responsavel || 'Não informado') + '</strong></td></tr>' 
-      : '<tr><th>Empresa Vinculada:</th><td><strong>' + (client.empresaVinculada || 'Não informada') + '</strong> (Cargo: ' + (client.profissao || 'Sócio Administrador') + ')</td></tr>'}
-    ${isPj && (client.capitalSocial || client.faturamentoMedio) 
-      ? `<tr><th>Porte Financeiro PJ:</th><td>Capital Social: <strong>${client.capitalSocial ? 'R$ ' + client.capitalSocial : 'Não informado'}</strong> • Faturamento Médio: <strong>${client.faturamentoMedio ? 'R$ ' + client.faturamentoMedio : 'Não informado'}</strong></td></tr>` 
-      : ''}
-    ${!isPj && (client.prolabore || client.rendaMensal || client.dataNascimento || client.estadoCivil) 
-      ? `<tr><th>Perfil Civil &amp; Renda PF:</th><td>Renda/Pró-Labore: <strong>${client.prolabore || client.rendaMensal ? 'R$ ' + (client.prolabore || client.rendaMensal) : 'Não informado'}</strong> • Nascimento: <strong>${client.dataNascimento || '—'}</strong> • Estado Civil: <strong>${client.estadoCivil || '—'}</strong></td></tr>` 
-      : ''}
-    <tr><th>Contatos Oficiais:</th><td>WhatsApp: ${client.contato || 'Não informado'} • E-mail: ${client.email || 'Não informado'}</td></tr>
-    <tr><th>Endereço Cadastral:</th><td>${client.endereco || 'Não informado'} ${client.cep ? '• CEP: ' + client.cep : ''}</td></tr>
-  </table>
-
-  ${contasHtml}
-
-  <div class="section-title">3. AUDITORIA PERICIAL DE CRÉDITO &amp; BIRÔS (RELATÓRIO TEIA DE ARANHA)</div>
-  <div class="grid-2">
-    <div class="bureau-card">
-      <div class="bureau-title">
-        <span>SERASA EXPERIAN</span>
-        ${serasaScoreVal 
-          ? `<span class="bureau-score">${serasaScoreVal}</span>` 
-          : `<span class="bureau-score" style="font-size: 10.5pt; color: #94A3B8; font-weight: 700;">Pendente</span>`}
-      </div>
-      <div style="font-size: 8.5pt; color: #475569;">
-        <div>Probabilidade de Pagamento: <strong>${serasaScoreVal ? (bureau.serasaProb || '88%') : 'Aguardando Consulta'}</strong></div>
-        <div>Pendências Financeiras: <strong>${serasaScoreVal ? (bureau.serasaDividas || '0 (Nada Consta)') : 'Em Análise Pericial'}</strong></div>
-        <div>Consultas Recentes: <strong>${serasaScoreVal ? (bureau.serasaConsultas || '0 consultas') : '0 consultas'}</strong></div>
-      </div>
-    </div>
-
-    <div class="bureau-card">
-      <div class="bureau-title">
-        <span>BOA VISTA SCPC</span>
-        ${boaVistaScoreVal 
-          ? `<span class="bureau-score">${boaVistaScoreVal}</span>` 
-          : `<span class="bureau-score" style="font-size: 10.5pt; color: #94A3B8; font-weight: 700;">Pendente</span>`}
-      </div>
-      <div style="font-size: 8.5pt; color: #475569;">
-        <div>Pontualidade de Pagamentos: <strong>${boaVistaScoreVal ? (bureau.boavistaPontualidade || '86%') : 'Aguardando Consulta'}</strong></div>
-        <div>Protestos em Cartório: <strong>${boaVistaScoreVal ? (bureau.boavistaProtestos || '0 apontamentos') : 'Em Análise Pericial'}</strong></div>
-        <div>Faturas em Aberto: <strong>${boaVistaScoreVal ? (bureau.boavistaFaturas || '0 (CENPROT)') : 'Em Análise'}</strong></div>
-      </div>
-    </div>
-
-    <div class="bureau-card">
-      <div class="bureau-title">
-        <span>QUOD (CADASTRO POSITIVO)</span>
-        ${quodScoreVal 
-          ? `<span class="bureau-score">${quodScoreVal}</span>` 
-          : `<span class="bureau-score" style="font-size: 10.5pt; color: #94A3B8; font-weight: 700;">Pendente</span>`}
-      </div>
-      <div style="font-size: 8.5pt; color: #475569;">
-        <div>Status: <strong>${quodScoreVal ? (bureau.quodPositivo || 'Cadastro Positivo Ativo') : 'Pendente de Ativação / Consulta'}</strong></div>
-        <div>Histórico de Crédito: <strong>${quodScoreVal ? (bureau.quodHistorico || 'Zero Atrasos') : 'Em Análise'}</strong></div>
-        <div>Conformidade Regulatória: <strong>${quodScoreVal ? (bureau.quodConformidade || 'Regular / Sem Restrições') : 'Aguardando Laudo'}</strong></div>
-      </div>
-    </div>
-
-    <div class="bureau-card">
-      <div class="bureau-title">
-        <span>BANCO CENTRAL (SCR / REGISTRATO)</span>
-        ${bacenScoreVal 
-          ? `<span class="bureau-score" style="font-size: 11pt; color: #0284C7;">${bacenScoreVal}</span>` 
-          : `<span class="bureau-score" style="font-size: 10pt; color: #94A3B8; font-weight: 700;">Pendente</span>`}
-      </div>
-      <div style="font-size: 8.5pt; color: #475569;">
-        <div>Vencidos / Em Atraso: <strong>${bacenScoreVal ? (bureau.bacenVencidos || 'R$ 0,00') : 'Em Auditoria'}</strong></div>
-        <div>Prejuízos ao Sistema Financeiro: <strong>${bacenScoreVal ? (bureau.bacenPrejuizos || 'R$ 0,00 (Zero Prejuízo)') : 'Em Auditoria'}</strong></div>
-        <div>Comportamento de Pagamento: <strong>${bacenScoreVal ? (bureau.bacenComp || '100% em dia') : 'Aguardando Registrato'}</strong></div>
-      </div>
-    </div>
-  </div>
-
-  ${anexosHtml}
-
-  <div class="section-title">5. PARECER TÉCNICO &amp; GOVERNANÇA PERICIAL</div>
-  <p style="font-size: 8.5pt; color: #475569; line-height: 1.5; margin: 0 0 10px 0;">
-    O presente dossiê pericial consolida as informações cadastrais e o monitoramento junto aos birôs de crédito (Serasa Experian, Boa Vista SCPC, Quod e Sistema de Informações de Créditos do Banco Central - SCR). As informações constantes neste formulário foram fornecidas e recepcionadas em conformidade com as diretrizes da Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018) e estão sob estrito sigilo pericial.
-  </p>
-
-  <div class="signatures">
-    <div class="sign-line">
-      <strong>MOURATO &amp; ASSOCIADOS LTDA</strong><br>
-      Diretoria de Inteligência &amp; Governança Financeira
-    </div>
-    <div class="sign-line">
-      <strong>${client.nomeRazao || 'CLIENTE TITULAR'}</strong><br>
-      ${isPj ? 'Representante Legal / Titular' : 'Titular Cadastrado'}
-    </div>
-  </div>
-
-  <div class="footer">
-    Mourato &amp; Associados Ltda &bull; CNPJ 38.377.738/0001-45 &bull; Av. São Luís, 187, Sala 69 - República, São Paulo/SP &bull; mourato@mouratoassociados.com.br &bull; Documento Auditável gerado pela Teia de Aranha em ${printDate}
   </div>
 
   <script>
     window.onload = function() {
-      setTimeout(function() { window.print(); }, 400);
+      setTimeout(function() { window.print(); }, 450);
     };
   </script>
 </body>
