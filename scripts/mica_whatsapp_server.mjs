@@ -782,16 +782,51 @@ async function connectToWhatsApp() {
       const isSim = /^(SIM|S|YES|OK|AUTORIZO|CONFIRMO|CADASTRADO|CONCLUIDO|CONCLUÍDO|PRONTO)$/i.test(cleanClientText) || cleanClientText.startsWith('SIM');
       const isNao = /^(NAO|NÃO|N|NO|RECUSO|CANCELAR)$/i.test(cleanClientText) || cleanClientText.startsWith('NÃO') || cleanClientText.startsWith('NAO');
 
-      // FLUXO ETAPA 0: CONSENTIMENTO INICIAL LGPD
+      // FLUXO ETAPA 0: CONSENTIMENTO INICIAL LGPD -> AVISO DE CUSTO PERICIAL (R$ 800,00 PÓS-AVALIAÇÃO)
       if (currentStage === 'CONSENT') {
         if (isSim) {
+          setClientStage(sender, senderDigits, 'TAXA_DOSSIE');
+          writeMicaLog(`⚡ [CONSENTIMENTO CLIENTE] ${pushName} autorizou o primeiro contato! Enviando ciência do custo pericial (R$ 800,00 pós-avaliação).`);
+
+          const taxaDossieMsg =
+`✅ *Autorização Recebida!*
+
+Antes de iniciarmos o envio dos links oficiais dos birôs e a abertura do dossiê, informamos com total transparência:
+
+💼 *Honorário Técnico de Perícia & Dossiê Completo:*
+As consultas periciais aprofundadas e a emissão do *Dossiê Pericial Completo (PF/PJ)* possuem um custo técnico de *R$ 800,00 (oitocentos reais)*.
+
+🛡️ *Garantia de Transparência (Zero Pagamento Antecipado):*
+Este valor é pago *SOMENTE após a conclusão integral de todas as avaliações e da perícia completa* — nada é cobrado antecipadamente.
+
+Você confirma estar ciente e de acordo para iniciarmos o envio dos links oficiais?
+Responda diretamente:
+👉 *[ SIM ]* para confirmar e receber os links
+👉 *[ NÃO ]* para encerrar o atendimento`;
+
+          await sock.sendMessage(sender, { text: taxaDossieMsg });
+          continue;
+        } else if (isNao) {
+          await sock.sendMessage(sender, { text: 'Agradecemos o seu retorno. Por respeito à sua privacidade e às diretrizes da LGPD, seu protocolo foi encerrado. Tenha um excelente dia!' });
+          continue;
+        } else {
+          await sock.sendMessage(sender, {
+            text: `Por favor, responda diretamente:\n👉 *[ SIM ]* para autorizar e prosseguir\n👉 *[ NÃO ]* para encerrar o protocolo`
+          });
+          continue;
+        }
+      }
+
+      // FLUXO ETAPA 0.5: CONFIRMAÇÃO DA CIÊNCIA DO CUSTO PERICIAL (R$ 800,00 PÓS-AVALIAÇÃO) -> INÍCIO DOS LINKS (SERASA)
+      if (currentStage === 'TAXA_DOSSIE') {
+        if (isSim) {
           setClientStage(sender, senderDigits, 'SERASA');
-          writeMicaLog(`⚡ [CONSENTIMENTO CLIENTE] ${pushName} autorizou consultas via WhatsApp! Avançando para SERASA.`);
+          writeMicaLog(`✅ [CIÊNCIA R$ 800,00 CONFIRMADA] ${pushName} concordou com o custo pericial pós-avaliação! Iniciando envio dos links (SERASA).`);
 
           const serasaMsg = 
-`✅ *Autorização Confirmada com Sucesso!*
+`✅ *Ciência e Concordância Confirmadas com Sucesso!*
 
-O departamento pericial da *Mourato & Associados* já iniciou as consultas públicas da sua empresa.
+O departamento pericial da *Mourato & Associados* já iniciou o seu dossiê. Vamos aos links oficiais:
 
 🔷 *Etapa 1 de 3 — Birô SERASA:*
 Acesse o portal oficial do Serasa para login ou cadastro:
@@ -804,7 +839,7 @@ Responda diretamente:
 
           await sock.sendMessage(sender, { text: serasaMsg });
 
-          // Salva pacote de consentimento para o Questão e aciona Alfred se houver CNPJ real de 14 dígitos
+          // Salva pacote com consentimento + aceite da taxa de R$ 800,00 para o Questão e aciona Alfred se houver CNPJ real
           try {
             const currentLead = latestPendingLead || {};
             const proto = currentLead.protocolo || `MA-WA-${senderDigits.slice(-6)}`;
@@ -818,8 +853,10 @@ Responda diretamente:
               telefone: senderDigits || currentLead.telefone || '',
               email: currentLead.email || '',
               consentimento_lgpd: true,
+              aceite_taxa_pericia_800: true,
+              condicao_pagamento_taxa: 'PAGO_SOMENTE_APOS_AVALIACOES_COMPLETAS',
               etapa_mica: 'SERASA',
-              origem: 'WHATSAPP_CONSENT'
+              origem: 'WHATSAPP_ACEITE_TAXA_800'
             });
             if (cnpjToProcess.length === 14) {
               fetch(`${ALFRED_CIO_URL}/api/pipeline/process`, {
@@ -841,12 +878,13 @@ Responda diretamente:
           } catch (_) {}
           continue;
         } else if (isNao) {
-          await sock.sendMessage(sender, { text: 'Agradecemos o seu retorno. Por respeito à sua privacidade e às diretrizes da LGPD, seu protocolo foi encerrado. Tenha um excelente dia!' });
+          setClientStage(sender, senderDigits, 'CONSENT');
+          writeMicaLog(`🚫 [TAXA R$ 800,00 RECUSADA] ${pushName} optou por encerrar antes do envio dos links.`);
+          await sock.sendMessage(sender, { text: 'Compreendemos perfeitamente. Seu protocolo foi encerrado sem nenhum custo ou compromisso. Caso decida retomar futuramente, a *Mourato & Associados* estará à disposição!' });
           continue;
         } else {
-          // Orientação para responder SIM ou NÃO
           await sock.sendMessage(sender, {
-            text: `Por favor, responda diretamente:\n👉 *[ SIM ]* para autorizar as consultas e prosseguir\n👉 *[ NÃO ]* para encerrar o protocolo`
+            text: `Por favor, confirme se está de acordo com o custo técnico de *R$ 800,00* (pago somente após a conclusão completa das avaliações) para iniciarmos o envio dos links:\n👉 *[ SIM ]* para confirmar e iniciar\n👉 *[ NÃO ]* para encerrar`
           });
           continue;
         }
