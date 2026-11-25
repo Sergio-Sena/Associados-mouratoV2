@@ -38,16 +38,7 @@ export function App() {
 
   const [isWikiOpen, setIsWikiOpen] = useState(isWikipediaRoute);
 
-  const isDirectFichaRoute = 
-    path === '/ficha-cadastral' || 
-    path === '/onboarding' || 
-    path === '/cadastro' ||
-    search.includes('standalone=true') ||
-    search.includes('confirmar=true') ||
-    search.includes('confirmacao=true') ||
-    search.includes('ficha=true') ||
-    hash === '#ficha' ||
-    hash === '#confirmar';
+  const isDirectFichaRoute = window.location.pathname.toLowerCase() === '/ficha-cadastral';
 
   const isLegacyStoreRoute = 
     path.startsWith('/produto') ||
