@@ -719,7 +719,7 @@ export const TEIA_INITIAL_CLIENTS = [
     "cep": "85869-500",
     "rendaPatrimonio": {
       "proLabore": "Aguardando PGDAS-D 12m (GALEANO LTDA)",
-      "bens": "100% Quotas GALEANO LTDA (Cap. Social R$ 1.000.000,00) + 3 Consórcios Sicredi",
+      "bens": "100% Quotas GALEANO LTDA (Cap. Social R$ 10.000,00) + 3 Consórcios Sicredi",
       "veiculos": ""
     },
     "contasBancarias": [
@@ -799,8 +799,8 @@ export const TEIA_INITIAL_CLIENTS = [
       "exercicio": "2026 (Auditado Questão 4.0)",
       "ativo": "Aguardando PGDAS-D / DRE",
       "patrimonioLiquido": "Aguardando PGDAS-D / DRE",
-      "capitalSocial": "R$ 1.000.000,00",
-      "faturamentoAnual": "Aguardando PGDAS-D 12m",
+      "capitalSocial": "R$ 10.000,00",
+      "faturamentoAnual": "R$ 95.000,00 (RBT12 PGDAS-D 10/2026) | RBAA 2025: R$ 113.100,00",
       "contadorResponsavel": "Em coleta"
     },
     "contasBancarias": [],
@@ -814,9 +814,9 @@ export const TEIA_INITIAL_CLIENTS = [
     "govNivel": "Pendente",
     "govProtocolo": "Dossiê Questão 4.2 + Serasa PJ 775 + Contrato 15% | Vincular Gov.br Empresas: https://empresas.acesso.gov.br/contas/07251862913/empresas-vinculadas/-nova",
     "limiteAprovado": "Apto após PGDAS-D 12m + SCR PJ (PRONAMPE/FGO, Giro PJ, FGI)",
-    "observacoesSigilosas": "Auditoria PJ (27/11/2026): Serasa Empresas PJ 775/1000 (Bom • Nível Prata • Open Finance Pendente), CNDT Trabalhista NEGATIVA até 25/05/2027 (nº 100369135/2026), CNJ DJEN 0 processos exatos, ATIVA há 62 meses (LTDA Simples ME, Capital R$ 1.000.000,00). ALERTA IMEDIATO CADIN/RFB (27/11/2026): guia de R$ 198,91 em aberto (Rec. 1099-01, PA 09/2026, venc. 20/10/2026, com. 14/11/2026) — quitar hoje para evitar CADIN e destravar CND Federal PJ. FGTS (Caixa 26/11): verificar no FGTS Digital. Sócio PF 100% auditado (4/4 birôs, Média 839, SCR A1, CND Federal PF Negativa até 26/05/2027).",
+    "observacoesSigilosas": "Auditoria PJ (27/11/2026): Serasa Empresas PJ 775/1000 (Bom • Nível Prata • Open Finance Pendente), CNDT Trabalhista NEGATIVA até 25/05/2027 (nº 100369135/2026), CNJ DJEN 0 processos exatos, ATIVA há 62 meses (LTDA Simples ME, Capital Social REAL R$ 10.000,00). PGDAS-D 10/2026: RBT12 R$ 95.000,00 | RBAA 2025 R$ 113.100,00 (Teto PRONAMPE R$ 33.930,00) | DEFIS 2025 zerada (0 empregados, troca societária Pamella -> Gian em 2026). ALERTA RFB/PGDAS: ~R$ 1.205,74 em aberto (DAS 08-10/2026 + guia 1099-01 R$ 198,91) travando CND Federal PJ. Sócio PF 100% auditado (4/4 birôs, Média 839, SCR A1, CND Federal PF Negativa até 26/05/2027).",
     "dataCadastro": "2026-11-24",
-    "auditSyncedAt": "2026-11-27T08:57:00-03:00"
+    "auditSyncedAt": "2026-11-27T12:46:00-03:00"
   }
 ];
 
