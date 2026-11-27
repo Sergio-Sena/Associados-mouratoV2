@@ -785,7 +785,7 @@ export const TEIA_INITIAL_CLIENTS = [
     "documento": "43.472.667/0001-08",
     "documentoTipo": "CNPJ",
     "natureza": "206-2 - Sociedade Empresária Limitada (Simples Nacional • ME)",
-    "nire": "",
+    "nire": "41213065944",
     "situacao": "ATIVA",
     "dataAbertura": "10/09/2021",
     "socioVinculado": "GIAN GALEANO SCHUNCK",

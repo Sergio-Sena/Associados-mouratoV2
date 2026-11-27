@@ -2570,16 +2570,21 @@ Website: https://www.mouratoassociados.com.br`;
 
   if (!isOpen) return null;
 
-  // Login Handler (Acesso Corporativo - Fluxo 100% Idêntico e Unificado para Qualquer Login)
+  // Login Handler (Acesso Corporativo — Diretoria + Credencial Exclusiva Alfred CIO)
   const handleLogin = (e) => {
     e.preventDefault();
     const userInput = authForm.user.trim().toLowerCase();
     const passInput = authForm.password;
     const validUsers = ['mourato', 'admin', 'operador', 'diretoria', 'gerencia'];
     const validPass = ['@Jota1307', '@Mourato2024', '@Admin2024'];
-    if (validUsers.includes(userInput) && validPass.includes(passInput)) {
+    const isAlfredLogin = (userInput === 'alfred.cio' || userInput === 'alfred') && passInput === '@AlfredCio#2026';
+    const isDirectorLogin = validUsers.includes(userInput) && validPass.includes(passInput);
+    if (isAlfredLogin || isDirectorLogin) {
       setIsAuthenticated(true);
       setAuthError('');
+      try {
+        localStorage.setItem('mourato_active_operator', isAlfredLogin ? 'Alfred CIO (Autônomo)' : userInput.toUpperCase());
+      } catch (_) {}
       // Sincronização e Purga Imediata de Cache Legado ao Logar
       try {
         const deletedIds = getDeletedClientIds();
