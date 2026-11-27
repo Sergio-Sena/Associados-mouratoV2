@@ -804,19 +804,19 @@ export const TEIA_INITIAL_CLIENTS = [
       "contadorResponsavel": "Em coleta"
     },
     "contasBancarias": [],
-    "serasaScore": "Pendente",
-    "serasaStatus": "Aguardando Birô PJ",
+    "serasaScore": "775",
+    "serasaStatus": "Bom • Nível Prata • Dados+Econ. OK (Open Finance PJ Pendente)",
     "boaVistaScore": "Pendente",
     "boaVistaStatus": "Aguardando Birô PJ",
     "quodScore": "Pendente",
     "quodStatus": "Aguardando Birô PJ",
     "bacenScr": "Aguardando SCR PJ (e-CNPJ / Gov.br)",
     "govNivel": "Pendente",
-    "govProtocolo": "Dossiê Questão 4.0 + Contrato 15% gerados na pasta PJ",
-    "limiteAprovado": "Apto após PGDAS-D 12m (PRONAMPE/FGO, Giro PJ, FGI)",
-    "observacoesSigilosas": "Auditoria Questão 4.0 + Alfred CIO concluída (24/11/2026): ATIVA há 62 meses (10/09/2021), LTDA Simples Nacional (ME, não MEI), CNAE 56.11-2-01 (Restaurantes), Capital Social R$ 1.000.000,00. Sócio PF 100% auditado (4/4 birôs, Média 839, SCR A1). Contrato blindado 15% gerado na pasta PJ.",
+    "govProtocolo": "Dossiê Questão 4.2 + Serasa PJ 775 + Contrato 15% | Vincular Gov.br Empresas: https://empresas.acesso.gov.br/contas/07251862913/empresas-vinculadas/-nova",
+    "limiteAprovado": "Apto após PGDAS-D 12m + SCR PJ (PRONAMPE/FGO, Giro PJ, FGI)",
+    "observacoesSigilosas": "Auditoria PJ (27/11/2026): Serasa Empresas PJ 775/1000 (Bom • Nível Prata • Open Finance Pendente), CNDT Trabalhista NEGATIVA até 25/05/2027 (nº 100369135/2026), CNJ DJEN 0 processos exatos, ATIVA há 62 meses (LTDA Simples ME, Capital R$ 1.000.000,00). ALERTA IMEDIATO CADIN/RFB (27/11/2026): guia de R$ 198,91 em aberto (Rec. 1099-01, PA 09/2026, venc. 20/10/2026, com. 14/11/2026) — quitar hoje para evitar CADIN e destravar CND Federal PJ. FGTS (Caixa 26/11): verificar no FGTS Digital. Sócio PF 100% auditado (4/4 birôs, Média 839, SCR A1, CND Federal PF Negativa até 26/05/2027).",
     "dataCadastro": "2026-11-24",
-    "auditSyncedAt": "2026-11-24T17:50:00-03:00"
+    "auditSyncedAt": "2026-11-27T08:57:00-03:00"
   }
 ];
 
