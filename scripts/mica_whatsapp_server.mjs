@@ -563,6 +563,8 @@ function saveApprovedLeadToTeia(lead, linkFicha) {
 }
 
 const msgStore = new Map();
+const processedMsgIds = new Set(); // Deduplicação estrita: impede que a mesma mensagem avance 2+ etapas
+const lastSenderReplyTs = new Map(); // Anti-bounce (1.5s por remetente)
 
 function scheduleReconnect(delayMs) {
   if (reconnectTimer) clearTimeout(reconnectTimer);
@@ -674,11 +676,20 @@ async function connectToWhatsApp() {
 
   sock.ev.on('creds.update', saveCreds);
 
-  // Escuta mensagens recebidas no WhatsApp da Mica (suporta notify, append, ephemeral e retries)
+  // Escuta mensagens recebidas no WhatsApp da Mica (somente tempo real notify + deduplicação anti-pulo de etapa)
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
+    if (type !== 'notify') return; // Ignora replays históricos (append) que faziam pular etapas
+
     for (const msg of messages) {
-      if (msg.key?.id) {
-        msgStore.set(msg.key.id, msg);
+      const msgId = msg.key?.id;
+      if (msgId) {
+        if (processedMsgIds.has(msgId)) continue; // Nunca processar o mesmo ID duas vezes
+        processedMsgIds.add(msgId);
+        if (processedMsgIds.size > 1000) {
+          const oldest = processedMsgIds.values().next().value;
+          processedMsgIds.delete(oldest);
+        }
+        msgStore.set(msgId, msg);
         if (msgStore.size > 200) {
           const firstKey = msgStore.keys().next().value;
           msgStore.delete(firstKey);
@@ -686,7 +697,13 @@ async function connectToWhatsApp() {
       }
 
       if (msg.key?.fromMe) continue;
+
+      // Ignora mensagens antigas (> 2 min) entregues após reconexão
+      const msgTsSec = Number(msg.messageTimestamp || 0);
+      if (msgTsSec > 0 && (Date.now() / 1000 - msgTsSec) > 120) continue;
+
       const sender = msg.key?.remoteJid || '';
+      const altJid = msg.key?.remoteJidAlt || msg.key?.participantAlt || '';
 
       // Ignora grupos e broadcast
       if (!sender || sender.includes('@g.us') || sender === 'status@broadcast') continue;
@@ -708,9 +725,17 @@ async function connectToWhatsApp() {
       ).trim();
 
       const pushName = (msg.pushName || '').trim() || 'Cliente';
-      const senderDigits = sender.replace(/\D/g, '');
+      // Prioriza remoteJidAlt (telefone real) quando remoteJid vier como @lid no Baileys v7
+      const phoneSource = (altJid && altJid.includes('@s.whatsapp.net')) ? altJid : sender;
+      const senderDigits = phoneSource.replace(/\D/g, '');
 
-      writeMicaLog(`📩 Mensagem recebida [type=${type}] de ${pushName} (${sender}): "${text}"`);
+      // Anti-bounce de 1.5s para evitar avanço duplo em rajada
+      const nowMs = Date.now();
+      const bounceKey = senderDigits || sender;
+      if (nowMs - (lastSenderReplyTs.get(bounceKey) || 0) < 1500) continue;
+      lastSenderReplyTs.set(bounceKey, nowMs);
+
+      writeMicaLog(`📩 Mensagem recebida [type=${type}] de ${pushName} (${sender}${altJid ? ' / alt=' + altJid : ''}): "${text}"`);
       if (!text) continue;
 
       // 1. COMANDOS VINDOS DA DIRETORIA AUTORIZADA (APROVAR, STATUS ou RESET)
@@ -1136,7 +1161,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({
       online: true,
-      version: '3.0.0-24x7',
+      version: '3.1.0-24x7',
       whatsappConnected: isConnected,
       isConnecting,
       hasQrPending: Boolean(currentQr),
